@@ -131,17 +131,17 @@ BEGIN
   -- 2026-04-15 minus 6 months = 2025-10-15. Let's make it exactly Oct 20, 2025 relative.
   -- The spec: "Diwali bonus ₹50,000 in Oct 2025 relative date"
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
-  VALUES (v_diwali_bonus_id, v_user_id, '2025-10-20T10:14:00Z'::timestamptz, 50000.00, 'credit', 'Acme Corp', 'Diwali Bonus', 'Income', true);
+  VALUES (v_diwali_bonus_id, v_user_id, (v_demo_today - interval '5 months 26 days')::timestamptz, 50000.00, 'credit', 'Acme Corp', 'Diwali Bonus', 'Income', true);
 
   -- Tax Refund (March 2026 relative date -> ~1 month ago)
   -- The spec: "tax refund ₹6,200 in March 2026 relative date"
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
-  VALUES (v_tax_refund_id, v_user_id, '2026-03-08T14:22:00Z'::timestamptz, 6200.00, 'credit', 'Income Tax Dept', 'Tax Refund', 'Income', true);
+  VALUES (v_tax_refund_id, v_user_id, (v_demo_today - interval '1 month 7 days')::timestamptz, 6200.00, 'credit', 'Income Tax Dept', 'Tax Refund', 'Income', true);
 
   -- Windfalls pending allocation
   INSERT INTO public.windfalls (user_id, transaction_id, amount, detected_at, status) VALUES
-    (v_user_id, v_diwali_bonus_id, 50000.00, '2025-10-20T10:14:00Z'::timestamptz, 'pending_allocation'),
-    (v_user_id, v_tax_refund_id, 6200.00, '2026-03-08T14:22:00Z'::timestamptz, 'pending_allocation');
+    (v_user_id, v_diwali_bonus_id, 50000.00, (v_demo_today - interval '5 months 26 days')::timestamptz, 'pending_allocation'),
+    (v_user_id, v_tax_refund_id, 6200.00, (v_demo_today - interval '1 month 7 days')::timestamptz, 'pending_allocation');
 
   -- Pre-labeled reflections (5 rows: 3 glad, 2 regret)
   -- 1. Glad - Myntra

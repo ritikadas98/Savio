@@ -1,22 +1,34 @@
 export const DEMO_TODAY = new Date('2026-04-15T09:00:00+05:30');
 
 export function today(): Date {
-  return new Date(DEMO_TODAY.getTime());
+  return DEMO_TODAY;
 }
 
 export function daysUntil(targetDate: Date): number {
-  const diffTime = targetDate.getTime() - today().getTime();
+  const diffTime = targetDate.getTime() - DEMO_TODAY.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-export function daysSince(targetDate: Date): number {
-  const diffTime = today().getTime() - targetDate.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
-
-export function currentMonthYearString(): string {
+export function getNextAnchorDate(anchorDayOfMonth: number): Date {
   const t = today();
-  const year = t.getFullYear();
-  const month = String(t.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
+  let year = t.getFullYear();
+  let month = t.getMonth();
+  
+  if (t.getDate() >= anchorDayOfMonth) {
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  
+  return new Date(year, month, anchorDayOfMonth);
+}
+
+export function parseDate(dateStr?: string | number | Date): Date {
+  return dateStr ? new Date(dateStr) : new Date();
+}
+
+export function getRealNow(): Date {
+  return new Date();
 }
