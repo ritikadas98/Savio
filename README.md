@@ -15,7 +15,7 @@ This branch tracks the Phase 1 Foundation build per `savio-rebuild-build-spec_ne
 - **Strict Date Rule**: All `new Date()` calls are restricted to `src/lib/dates.ts` via ESLint to prevent relative-date test drifting.
 
 ### Known Weaknesses / Deliberate Scoping
-- **Auth Scope**: Only Priya's credentials (`priya@savio.demo` / `amanbabu@26`) are meant to be used. The registration and dynamic onboarding flow are not built.
+- **Auth Scope**: Only Priya's credentials (priya@savio.demo — password in .env.local) are meant to be used. The registration and dynamic onboarding flow are not built.
 - **Statement Parsing**: The PDF statement parsing is simulated and directly seeded in V1.
 - **SMS Auto-Detection**: SMS triggers for income and transactions are replaced by pre-seeded mock transactions and direct invocation logic.
 - **Edge Function Stubbing**: The `suggest-windfall-allocation` edge function implements a strict percentage-based deterministic fallback and does not dynamically read user-specific rules via LLM yet.
