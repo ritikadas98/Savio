@@ -29,7 +29,7 @@ export function SafeToSpendHero({ amount, anchorDate }: { amount: number; anchor
         <div 
           className="absolute top-0 left-0 h-full rounded-full"
           style={{
-            width: \`\${percentage}%\`,
+            width: `${percentage}%`,
             background: 'linear-gradient(90deg, #FF8F8F 0%, #F4D123 50%, #B2EF82 100%)'
           }}
         />
