@@ -1,0 +1,54 @@
+# Savio Solo Rebuild — Phase 1 Foundation
+
+This plan covers the complete wipe and rebuild of Phase 1 based on `savio-rebuild-build-spec_new.md` and the `savio-design-system-spec.md` visual overrides.
+
+## User Review Required
+
+> [!WARNING]
+> Since we are starting fresh and abandoning the old V2 spec, this plan will involve **wiping all existing migrations, generated types, and dropping all tables** in the `public` schema.
+
+## Proposed Changes
+
+### 1. Environment & Scaffold Clean-up
+- Add `DEMO_PRIYA_PASSWORD` and `SUPABASE_SERVICE_ROLE_KEY` to `.env.local`.
+- Create `.env.local.example` with placeholder variables.
+- Run `npx shadcn@latest add sheet tabs -y` to ensure all required components are present.
+
+### 2. Design System & Dates Core
+- **[NEW] `src/lib/dates.ts`**: Establish `DEMO_TODAY = new Date('2026-04-15T09:00:00+05:30')` and helper functions (`today()`, `daysUntil()`, etc.).
+- **[MODIFY] `tailwind.config.ts` & `src/index.css`**: Completely overwrite with the new `Neue Montreal` typography and the 3-avatar palette (`--bg-canvas: #E4ECE6`, Strategist Blue, Adventurer Yellow, Builder Green) per Section 11 of the design spec.
+
+### 3. Database Wipe & Migrations (0001–0006)
+Delete existing migrations and create the 6 new files.
+- `0001_init_profiles_and_disclaimer.sql`: `profiles` table.
+- `0002_commitments_and_goals.sql`: `commitments`, `goals`.
+- `0003_transactions_and_reflections.sql`: `transactions`, `reflections`, `merchant_stats`.
+- `0004_rituals_and_windfalls.sql`: `monthly_rituals`, `windfalls`.
+- `0005_chat_and_decisions.sql`: `chat_messages`, `saved_decisions`.
+- `0006_seed_priya.sql`: A massive seed script that:
+  - Uses `with demo_today as (select '2026-04-15'::date as d)` to compute relative dates.
+  - Seeds 13 commitments, 3 goals, ~600 transactions, 5 pre-labeled reflections, and 2 pending windfalls (Diwali bonus and tax refund).
+- **[NEW] `scripts/apply-migrations.js`**: A Node.js script using `pg` to drop all tables in `public` schema first, then execute 0001–0006 sequentially.
+- **[NEW] `src/lib/database.types.ts`**: Hand-written to match the new 10-table schema.
+
+### 4. Edge Function & Gemini Smoke Test
+- **[NEW] `supabase/functions/suggest-windfall-allocation/index.ts`**: Create a Deno Edge Function stub that implements the deterministic fallback rule (40% emergency, 30% priority goal, 20% debt, 10% free spend).
+- **[NEW] `/dev/gemini-test` route**: Create a React component that triggers a Supabase Edge Function to call Gemini Flash with a hardcoded prompt and logs latency to the browser console.
+
+### 5. Welcome Screen & Auth Bypass
+- **[NEW] `src/pages/WelcomePage.tsx`**: Implement the new split-CTA design ("Get started" vs "Demo: Log in as Priya").
+- **Auth Script**: Since Priya's user must exist in `auth.users`, I will handle creating her user via the Supabase Admin API in a setup script or during the migration application, allowing `auth.signInWithPassword` to succeed.
+
+### 6. Git Initialization
+- Initialize the git repository, commit all changes with the message `Phase 1: foundation — scaffold, schema, seed, demo bypass, Gemini smoke test`, and push to the provided remote on `main`.
+
+## Verification Plan
+
+### Automated Tests
+- Ensure `npm run dev` boots successfully.
+- Ensure the Edge Function stub executes cleanly via curl/local invocation.
+
+### Manual Verification
+- Reviewer clicks "Demo: Log in as Priya" and successfully routes to `/home`.
+- Reviewer checks the Supabase Table Editor to verify exactly 10 tables exist and are populated.
+- Reviewer checks `/dev/gemini-test` to ensure the API key and Gemini Flash model are integrated correctly.

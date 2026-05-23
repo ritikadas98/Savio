@@ -1,0 +1,31 @@
+project_id = "lstfbkcghnsoxyxpxnty"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[studio]
+port = 54323
+
+[edge_runtime]
+enabled = true
+
+[functions.classify-intent]
+verify_jwt = true
+
+[functions.generate-response]
+verify_jwt = true
+
+[functions.summarize-conversation]
+verify_jwt = true
+
+[functions.tool-compute-discretionary]
+verify_jwt = true
+
+[functions.tool-project-goal-timeline]
+verify_jwt = true
+
+[functions.tool-affordability-check]
+verify_jwt = true
