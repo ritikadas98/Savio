@@ -15,48 +15,98 @@ import { CategorizationBanner } from '../components/home/CategorizationBanner';
 export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const [
-        { data: profile },
-        { data: goals },
-        { data: commitments },
-        { data: recentTransactions },
-        { data: uncategorized },
-        { data: pendingWindfall },
-        { data: currentRitual },
-        { data: recentReflections }
-      ] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('goals').select('*').eq('user_id', user.id),
-        supabase.from('commitments').select('*').eq('user_id', user.id),
-        supabase.from('transactions').select('*').eq('user_id', user.id).order('occurred_at', { ascending: false }).limit(4),
-        supabase.from('transactions').select('id', { count: 'exact' }).eq('user_id', user.id).is('category', null),
-        supabase.from('windfalls').select('*').eq('user_id', user.id).eq('status', 'pending_allocation').order('detected_at', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('monthly_rituals').select('*').eq('user_id', user.id).eq('status', 'pending').limit(1).maybeSingle(),
-        supabase.from('reflections').select('*').eq('user_id', user.id).order('reflected_at', { ascending: false }).limit(10)
-      ]);
-
-      setData({
-        profile,
-        goals: goals || [],
-        commitments: commitments || [],
-        recentTransactions: recentTransactions || [],
-        uncategorizedCount: uncategorized?.length || 0, // Fallback if count exact fails
-        pendingWindfall,
-        currentRitual,
-        recentReflections: recentReflections || []
-      });
-      setLoading(false);
+      // Wait for session to be ready
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        // If no session, try getUser as fallback
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error('HomePage: No authenticated user found');
+          setError('Not authenticated');
+          setLoading(false);
+          return;
+        }
+        return doFetch(user.id);
+      }
+      return doFetch(session.user.id);
     }
+
+    async function doFetch(userId: string) {
+      try {
+        const [
+          { data: profile, error: profileErr },
+          { data: goals },
+          { data: commitments },
+          { data: recentTransactions },
+          { count: uncategorizedCount },
+          { data: pendingWindfall },
+          { data: currentRitual },
+          { data: recentReflections }
+        ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', userId).single(),
+          supabase.from('goals').select('*').eq('user_id', userId),
+          supabase.from('commitments').select('*').eq('user_id', userId),
+          supabase.from('transactions').select('*').eq('user_id', userId).order('occurred_at', { ascending: false }).limit(4),
+          supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('user_id', userId).is('category', null),
+          supabase.from('windfalls').select('*').eq('user_id', userId).eq('status', 'pending_allocation').order('detected_at', { ascending: false }).limit(1).maybeSingle(),
+          supabase.from('monthly_rituals').select('*').eq('user_id', userId).eq('status', 'pending').limit(1).maybeSingle(),
+          supabase.from('reflections').select('*').eq('user_id', userId).order('reflected_at', { ascending: false }).limit(10)
+        ]);
+
+        if (profileErr) {
+          console.error('Profile fetch error:', profileErr);
+        }
+
+        if (!cancelled) {
+          setData({
+            profile: profile || {},
+            goals: goals || [],
+            commitments: commitments || [],
+            recentTransactions: recentTransactions || [],
+            uncategorizedCount: uncategorizedCount || 0,
+            pendingWindfall,
+            currentRitual,
+            recentReflections: recentReflections || []
+          });
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error('Failed to load home data:', err);
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    }
+
     loadData();
+    return () => { cancelled = true; };
   }, []);
 
-  if (loading || !data) return <div className="p-8 text-center text-secondary">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full bg-[#E4ECE6] items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#0C447C] border-t-transparent rounded-full animate-spin" />
+        <p className="text-secondary text-caption mt-3">Loading your dashboard...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex flex-col h-full bg-[#E4ECE6] items-center justify-center p-6 text-center">
+        <p className="text-primary font-medium mb-2">Could not load dashboard</p>
+        <p className="text-secondary text-caption">{error || 'Unknown error'}</p>
+        <BottomNav />
+      </div>
+    );
+  }
 
   const { profile, goals, commitments, recentTransactions, uncategorizedCount, pendingWindfall, currentRitual, recentReflections } = data;
 
@@ -77,47 +127,66 @@ export function HomePage() {
   // Guidance
   const guidanceItems = generateGuidance({ activeGoals: goals, recentReflections });
 
-  // Uncategorized count
-  // supabase count='exact' returns count property but here we mapped it or fallback to length
-  // We need to properly fetch count. Let's assume we do another query or just use the length if we queried all.
-  // We used .select('id', { count: 'exact' }) which returns { data, count }.
-  
+  // Avatar icon color based on profile.avatar
+  const avatarName = (profile?.avatar || 'strategist').toLowerCase();
+  const avatarConfig: Record<string, { bg: string; stroke: string }> = {
+    strategist: { bg: '#DCEEFF', stroke: '#0C447C' },
+    adventurer: { bg: '#FCF1CC', stroke: '#854F0B' },
+    builder: { bg: '#DEF2CB', stroke: '#3B6D11' },
+  };
+  const av = avatarConfig[avatarName] || avatarConfig.strategist;
+
   return (
-    <div className="min-h-screen bg-[#E4ECE6] pb-24">
-      <div className="max-w-md mx-auto p-4 pt-12">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="text-secondary text-caption">👋 Welcome in, {profile?.full_name?.split(' ')[0] || 'User'}</div>
-            <h1 className="text-heading font-medium text-primary">Your Dashboard</h1>
+    <div className="flex flex-col h-full bg-[#E4ECE6]">
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 pt-10 pb-4">
+
+          {/* Welcome header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="text-secondary text-caption">👋 Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}</div>
+              <h1 className="text-heading font-medium text-primary">Your Dashboard</h1>
+            </div>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center border`}
+                 style={{ backgroundColor: av.bg, borderColor: av.stroke + '1A' }}>
+              <svg width="20" height="20" fill="none" stroke={av.stroke} strokeWidth="2">
+                <polygon points="12 2 2 22 12 18 22 22 12 2"></polygon>
+              </svg>
+            </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-[#DCEEFF] border border-[#0C447C]/10 flex items-center justify-center">
-            {/* Strategist Icon Mock */}
-            <svg width="20" height="20" fill="none" stroke="#0C447C" strokeWidth="2"><polygon points="12 2 2 22 12 18 22 22 12 2"></polygon></svg>
-          </div>
+
+          {/* 1. Windfall Card */}
+          {pendingWindfall && (
+            <WindfallCard amount={pendingWindfall.amount} source={pendingWindfall.source || 'Unexpected deposit'} detectedAt={pendingWindfall.detected_at} />
+          )}
+
+          {/* 2. Safe to Spend Hero */}
+          <SafeToSpendHero amount={safeToSpend} anchorDate={nextAnchorDate} />
+
+          {/* 3. Monthly Ritual Banner */}
+          {currentRitual && (
+            <MonthlyRitualBanner monthYear={currentRitual.month_year} />
+          )}
+
+          {/* 4. Commitments Card */}
+          <CommitmentsCard ratio={ratioStr} total={commitmentsCount} />
+
+          {/* 5. For You Today */}
+          <ForYouTodayCard items={guidanceItems} />
+
+          {/* 6. Categorization Banner */}
+          {uncategorizedCount > 0 && (
+            <CategorizationBanner count={uncategorizedCount} />
+          )}
+
+          {/* 7. Recent Transactions */}
+          <RecentTransactionsList transactions={recentTransactions} />
+
         </div>
-
-        {pendingWindfall && (
-          <WindfallCard amount={pendingWindfall.amount} detectedAt={pendingWindfall.detected_at} />
-        )}
-
-        <SafeToSpendHero amount={safeToSpend} anchorDate={nextAnchorDate} />
-
-        {currentRitual && (
-          <MonthlyRitualBanner monthYear={currentRitual.month_year} />
-        )}
-
-        <CommitmentsCard ratio={ratioStr} total={commitmentsCount} />
-
-        <ForYouTodayCard items={guidanceItems} />
-
-        {/* Instead of passing the raw data response, we need to pass the actual count. The previous query might not return count directly in data. Let's just use data.length for MVP. */}
-        {uncategorizedCount > 0 && (
-          <CategorizationBanner count={uncategorizedCount} />
-        )}
-
-        <RecentTransactionsList transactions={recentTransactions} />
-
       </div>
+
+      {/* Bottom nav — stuck at bottom of phone shell */}
       <BottomNav />
     </div>
   );

@@ -6,19 +6,22 @@ import { ChatPage } from './pages/ChatPage';
 import { ReflectPage } from './pages/ReflectPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PhoneShell } from './components/layout/PhoneShell';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<WelcomePage />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/chat" element={<ChatPage />} />
-        <Route path="/reflect" element={<ReflectPage />} />
-        <Route path="/goals" element={<GoalsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <PhoneShell>
+        <Routes>
+          <Route path="/" element={<WelcomePage />} />
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/chat" element={<ChatPage />} />
+          <Route path="/reflect" element={<ReflectPage />} />
+          <Route path="/goals" element={<GoalsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </PhoneShell>
     </Router>
   );
 }

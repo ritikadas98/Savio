@@ -20,7 +20,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
     const authHeader = req.headers.get('Authorization')!;
-    
+
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
@@ -28,7 +28,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    // Fetch Grounding Context
+    // Fetch Grounding Context — all in parallel
     const startTime = performance.now();
     const [
       { data: profile },
@@ -42,10 +42,10 @@ serve(async (req) => {
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase.from('goals').select('*').eq('user_id', user.id),
       supabase.from('commitments').select('*').eq('user_id', user.id),
-      supabase.from('transactions').select('*').eq('user_id', user.id).order('occurred_at', { ascending: false }).limit(30),
+      supabase.from('transactions').select('amount, merchant, category, direction, occurred_at').eq('user_id', user.id).order('occurred_at', { ascending: false }).limit(15),
       supabase.from('monthly_rituals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('merchant_stats').select('*').eq('user_id', user.id),
-      supabase.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10)
+      supabase.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(6)
     ]);
 
     const systemPrompt = buildSystemPrompt(
@@ -74,8 +74,13 @@ serve(async (req) => {
     const payload = {
       system_instruction: { parts: [{ text: systemPrompt }] },
       contents: history,
-      generationConfig: { temperature: 0.2 }
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 400
+      }
     };
+
+    console.log(`[chat-respond] System prompt length: ${systemPrompt.length} chars, model: ${model}, history: ${history.length} turns`);
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -92,15 +97,15 @@ serve(async (req) => {
     let assistantMessage = json.candidates?.[0]?.content?.parts?.[0]?.text || "I'm not sure how to respond to that.";
 
     // Guard & Filter
-    const guardResult = hallucinationGuard(assistantMessage, systemPrompt);
+    const guardResult = hallucinationGuard(assistantMessage, systemPrompt + '\n' + message);
     assistantMessage = guardResult.finalResponse;
-    
+
     const scopeResult = applyScopeFilter(assistantMessage, message);
     if (scopeResult.triggered) {
       assistantMessage = scopeResult.finalResponse;
     }
 
-    // Purchase check verdict detection (heuristic: contains specific keywords)
+    // Purchase check verdict detection
     const isVerdict = /\b(afford|buy|purchase|track)\b/i.test(message);
 
     const latency = Math.round(performance.now() - startTime);
@@ -114,6 +119,8 @@ serve(async (req) => {
       scope_filter_triggered: scopeResult.family || null,
       is_verdict: isVerdict
     };
+
+    console.log(`[chat-respond] Total latency: ${latency}ms`);
 
     return new Response(
       JSON.stringify({ response: assistantMessage, ai_metadata }),
