@@ -1,0 +1,45 @@
+# Phase 1 Foundation Rebuild Completed
+
+Phase 1 has been successfully wiped, rebuilt, and initialized based on the new `savio-rebuild-build-spec_new.md`.
+
+## Accomplishments
+
+### 1. Database & Scaffold Wipe
+- Dropped all legacy `public` tables via the newly created `scripts/apply-migrations.js` script.
+- Re-scaffolded the UI components (`sheet`, `tabs`, etc.) using `shadcn`.
+- Deleted all old migration files and the stale V2 database types.
+
+### 2. Design System Enforced
+- Modified `tailwind.config.ts` and `src/index.css` to adopt **Neue Montreal** typography.
+- Established the 4-color palette system:
+  - Sage **Canvas** (`#E4ECE6`)
+  - **Strategist Blue** (`#DCEEFF` plate, `#0C447C` stop)
+  - **Adventurer Yellow** (`#FCF1CC` plate, `#854F0B` stop)
+  - **Builder Green** (`#DEF2CB` plate, `#3B6D11` stop)
+- Added the ESLint rule `no-restricted-syntax` to block direct usage of `new Date()` outside `src/lib/dates.ts`.
+
+### 3. Migrations & RLS
+- Applied **6 new migrations** resulting in the exact 10 tables required for V1 (`profiles`, `commitments`, `goals`, `transactions`, `reflections`, `merchant_stats`, `monthly_rituals`, `windfalls`, `chat_messages`, `saved_decisions`).
+- **Inline RLS & Indexes**: Added comprehensive `select`/`insert`/`update`/`delete` Row Level Security policies into every schema table to strictly isolate data per user using `auth.uid()`. Added critical indexes (such as `occurred_at` and `transaction_id`) to ensure performant LLM grounding queries.
+
+### 4. Priya's Relative Seeding
+- Seeded Priya's Supabase Auth identity natively via the migration script (`priya@savio.demo`).
+- Executed the `0006_seed_priya.sql` using a `DEMO_TODAY` CTE (`2026-04-15`) to shift dates.
+- Seeded ~600 mock transactions spanning the 6 months prior to `DEMO_TODAY`.
+- Inserted two distinct pending windfalls: a **₹50,000 Diwali Bonus** (Oct 2025 relative) and a **₹6,200 Tax Refund** (March 2026 relative).
+- Pre-labeled 5 transactions (3 glad, 2 regret) resulting in a 100% regret rate for Myntra and 0% for Amazon.
+- Created hand-maintained `database.types.ts`.
+
+### 5. Routing & Auth Bypass
+- Implemented `/` (Welcome screen) matching the layout with the two defined CTAs. The `"Demo: Log in as Priya"` CTA utilizes the hardcoded `DEMO_PRIYA_PASSWORD` to seamlessly authenticate against the seeded user without registration walls.
+- Set up `/home` as the placeholder post-login route.
+- Created `/dev/gemini-test` route with a barebones React UI hooked up to the `gemini-test` Edge Function to fetch responses via Gemini 2.5 Flash API directly and log server-side latency.
+- Implemented the Edge Function stub `suggest-windfall-allocation` returning the rigid 40/30/20/10 fallback allocation.
+
+### 6. Git Tracking
+- Initialized local repository, documented known deliberate V1 scoping weaknesses directly in `README.md`, and pushed the `main` branch to the provided origin `https://github.com/ritikadas98/Savio`.
+
+> [!NOTE]
+> All 21 Acceptance Criteria are fully implemented and checked off in the `task.md`.
+
+You can test the app locally with `npm run dev`, verify the layout at `localhost:5173`, bypass auth as Priya, and test Gemini integrations at `/dev/gemini-test`.
