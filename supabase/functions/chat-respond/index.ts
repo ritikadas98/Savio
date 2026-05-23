@@ -28,10 +28,25 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    // Fetch Grounding Context — all in parallel
     const startTime = performance.now();
+
+    // Step 1: Resolve profile by auth_user_id to get the app-level profile.id
+    // profiles.id is a hardcoded UUID, auth.uid() is the real auth user ID
+    // All child tables FK to profiles.id, NOT to auth.users.id
+    const { data: profile, error: profileErr } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (profileErr || !profile) {
+      throw new Error('Profile not found for authenticated user');
+    }
+
+    const profileId = profile.id;
+
+    // Step 2: Fetch grounding context using profile.id for all child tables
     const [
-      { data: profile },
       { data: goals },
       { data: commitments },
       { data: transactions },
@@ -39,17 +54,16 @@ serve(async (req) => {
       { data: merchantStats },
       { data: historyData }
     ] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('goals').select('*').eq('user_id', user.id),
-      supabase.from('commitments').select('*').eq('user_id', user.id),
-      supabase.from('transactions').select('amount, merchant, category, direction, occurred_at').eq('user_id', user.id).order('occurred_at', { ascending: false }).limit(15),
-      supabase.from('monthly_rituals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('merchant_stats').select('*').eq('user_id', user.id),
-      supabase.from('chat_messages').select('role, content').eq('user_id', user.id).order('created_at', { ascending: false }).limit(6)
+      supabase.from('goals').select('*').eq('user_id', profileId),
+      supabase.from('commitments').select('*').eq('user_id', profileId),
+      supabase.from('transactions').select('amount, merchant, category, direction, occurred_at').eq('user_id', profileId).order('occurred_at', { ascending: false }).limit(15),
+      supabase.from('monthly_rituals').select('*').eq('user_id', profileId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('merchant_stats').select('*').eq('user_id', profileId),
+      supabase.from('chat_messages').select('role, content').eq('user_id', profileId).order('created_at', { ascending: false }).limit(6)
     ]);
 
     const systemPrompt = buildSystemPrompt(
-      profile || {},
+      profile,
       goals || [],
       commitments || [],
       transactions || [],
@@ -80,7 +94,7 @@ serve(async (req) => {
       }
     };
 
-    console.log(`[chat-respond] System prompt length: ${systemPrompt.length} chars, model: ${model}, history: ${history.length} turns`);
+    console.log(`[chat-respond] Profile: ${profile.full_name}, prompt: ${systemPrompt.length} chars, model: ${model}, history: ${history.length} turns`);
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
@@ -128,6 +142,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
+    console.error('[chat-respond] Error:', error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
