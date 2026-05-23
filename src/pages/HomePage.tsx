@@ -72,7 +72,7 @@ export function HomePage() {
 
   // Commitments ratio
   const commitmentsCount = commitments.length;
-  const ratioStr = \`\${commitmentsCount}/\${commitmentsCount}\`;
+  const ratioStr = `${commitmentsCount}/${commitmentsCount}`;
 
   // Guidance
   const guidanceItems = generateGuidance({ activeGoals: goals, recentReflections });

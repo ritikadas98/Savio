@@ -32,7 +32,7 @@ export function RecentTransactionsList({ transactions }: { transactions: any[] }
                 </div>
               </div>
             </div>
-            <div className={\`text-body font-medium \${t.direction === 'credit' ? 'text-[#3B6D11]' : 'text-primary'}\`}>
+            <div className={`text-body font-medium ${t.direction === 'credit' ? 'text-[#3B6D11]' : 'text-primary'}`}>
               {t.direction === 'credit' ? '+' : ''}
               {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(t.amount)}
             </div>

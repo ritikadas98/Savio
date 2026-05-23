@@ -21,7 +21,7 @@ export function BottomNav() {
             <button
               key={tab.id}
               onClick={() => navigate(tab.path)}
-              className={\`flex flex-col items-center justify-center w-16 h-12 rounded-full transition-colors \${isActive ? 'bg-[#DCEEFF] text-[#0C447C]' : 'text-secondary hover:bg-black/5'}\`}
+              className={`flex flex-col items-center justify-center w-16 h-12 rounded-full transition-colors ${isActive ? 'bg-[#DCEEFF] text-[#0C447C]' : 'text-secondary hover:bg-black/5'}`}
             >
               <span className="text-caption font-medium">{tab.label}</span>
             </button>
