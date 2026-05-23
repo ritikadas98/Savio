@@ -6,24 +6,37 @@ import { Composer } from '../components/chat/Composer';
 import { TypingIndicator } from '../components/chat/TypingIndicator';
 import { SuggestedChips } from '../components/chat/SuggestedChips';
 import { DisclaimerFooter } from '../components/chat/DisclaimerFooter';
-import { getRealNow } from '../lib/dates';
 
 export function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function loadHistory() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setSessionUser(user);
+      // Resolve auth user -> profile.id (the app-level UUID used in all FKs)
+      const { data: { session } } = await supabase.auth.getSession();
+      const authUid = session?.user?.id;
+      if (!authUid) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('auth_user_id', authUid)
+        .single();
+
+      if (!profile) {
+        console.error('ChatPage: Could not resolve profile for auth user');
+        return;
+      }
+
+      setProfileId(profile.id);
 
       const { data } = await supabase
         .from('chat_messages')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -39,22 +52,23 @@ export function ChatPage() {
   }, [messages, loading]);
 
   const handleSend = async (text: string) => {
-    if (!sessionUser) return;
+    if (!profileId) return;
 
     const userMsg = {
       id: crypto.randomUUID(),
       role: 'user',
       content: text,
-      created_at: getRealNow().toISOString()
+      created_at: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
-    const { data: insertedUserMsg, error: insertError } = await supabase
+    // Insert user message with profile.id (not auth.uid())
+    const { error: insertError } = await supabase
       .from('chat_messages')
       .insert({
-        user_id: sessionUser.id,
+        user_id: profileId,
         role: 'user',
         content: text
       })
@@ -74,10 +88,11 @@ export function ChatPage() {
 
       if (error) throw error;
 
+      // Insert assistant message with profile.id
       const { data: insertedAssistantMsg } = await supabase
         .from('chat_messages')
         .insert({
-          user_id: sessionUser.id,
+          user_id: profileId,
           role: 'assistant',
           content: data.response,
           ai_metadata: data.ai_metadata
@@ -106,10 +121,9 @@ export function ChatPage() {
         <h1 className="text-heading font-medium text-primary">Chat with Savio</h1>
       </div>
 
-      {/* Messages area — grows to fill, scrolls internally */}
+      {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4">
         <div className="flex flex-col min-h-full">
-          {/* Spacer pushes content to bottom when few messages */}
           <div className="flex-1" />
 
           {isEmpty && (
@@ -134,7 +148,7 @@ export function ChatPage() {
         </div>
       </div>
 
-      {/* Sticky bottom controls: chips + composer + disclaimer */}
+      {/* Sticky bottom controls */}
       <div className="flex-shrink-0 bg-[#E4ECE6] border-t border-black/5 px-4 pt-2 pb-1">
         {isEmpty && (
           <div className="mb-2">
@@ -145,7 +159,6 @@ export function ChatPage() {
         <DisclaimerFooter />
       </div>
 
-      {/* Bottom nav — truly stuck to phone bottom */}
       <BottomNav />
     </div>
   );
