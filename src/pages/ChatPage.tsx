@@ -122,7 +122,7 @@ export function ChatPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto scrollbar-hide px-4">
         <div className="flex flex-col min-h-full">
           <div className="flex-1" />
 

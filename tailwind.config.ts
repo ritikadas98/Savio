@@ -83,6 +83,13 @@ const config = {
           foreground: "#1A1A1A",
         },
       },
+      textColor: {
+        // Override only text utilities — leaves bg-secondary / bg-primary
+        // (used by shadcn ui components) untouched.
+        primary: '#1A1A1A',
+        secondary: '#5C6660',
+        tertiary: '#8B948E',
+      },
       borderRadius: {
         lg: "32px",
         md: "24px",
