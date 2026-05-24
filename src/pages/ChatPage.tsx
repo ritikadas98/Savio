@@ -6,11 +6,14 @@ import { Composer } from '../components/chat/Composer';
 import { TypingIndicator } from '../components/chat/TypingIndicator';
 import { SuggestedChips } from '../components/chat/SuggestedChips';
 import { DisclaimerFooter } from '../components/chat/DisclaimerFooter';
+import { ProfilePill } from '../components/layout/ProfilePill';
+import { Compass } from 'lucide-react';
 
 export function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export function ChatPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, full_name, avatar')
         .eq('auth_user_id', authUid)
         .single();
 
@@ -32,6 +35,7 @@ export function ChatPage() {
       }
 
       setProfileId(profile.id);
+      setProfile({ full_name: profile.full_name, avatar: profile.avatar });
 
       const { data } = await supabase
         .from('chat_messages')
@@ -117,9 +121,16 @@ export function ChatPage() {
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
       {/* Header */}
-      <div className="px-4 pt-6 pb-3 flex-shrink-0">
-        <h1 className="text-heading font-medium text-primary">Chat with Savio</h1>
-      </div>
+      <header className="px-5 pt-4 pb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-sm text-[#5A6B5F]">
+            <span className="mr-1">👋</span>
+            Welcome in, {profile?.full_name?.split(' ')[0] || 'User'}
+          </div>
+          <ProfilePill avatar={profile?.avatar} />
+        </div>
+        <h1 className="text-3xl font-bold text-[#0C447C] mt-1">Chat with Savio</h1>
+      </header>
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto scrollbar-hide px-4">
@@ -128,10 +139,8 @@ export function ChatPage() {
 
           {isEmpty && (
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
-                <svg width="32" height="32" fill="none" stroke="#0C447C" strokeWidth="1.5">
-                  <polygon points="16 4 4 28 16 22 28 28 16 4"></polygon>
-                </svg>
+              <div className="w-16 h-16 mx-auto bg-[#DCEEFF] rounded-full flex items-center justify-center mb-4">
+                <Compass size={28} strokeWidth={1.8} className="text-[#0C447C]" />
               </div>
               <p className="text-body text-primary font-medium mb-1">Ask Savio anything about your money</p>
               <p className="text-caption text-secondary">Try one of these prompts:</p>

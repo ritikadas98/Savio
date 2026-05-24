@@ -40,3 +40,31 @@ export function formatMonthYear(monthYear: string): string {
   if (!Number.isFinite(y) || !Number.isFinite(m) || m < 0 || m > 11) return monthYear;
   return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(y, m, 1));
 }
+
+export function formatMonthName(monthYear: string): string {
+  const [yearStr, monthStr] = monthYear.split('-');
+  const y = Number(yearStr);
+  const m = Number(monthStr) - 1;
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 0 || m > 11) return monthYear;
+  return new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(new Date(y, m, 1));
+}
+
+// Calendar-day relative formatter pinned to DEMO_TODAY.
+// Returns "Today" / "Yesterday" / "N days ago" / "N weeks ago" / a short date.
+export function formatRelativeDate(input: Date | string | number): string {
+  const d = input instanceof Date ? input : new Date(input);
+  if (!Number.isFinite(d.getTime())) return '';
+  const t = DEMO_TODAY;
+  const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const tStart = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  const diffDays = Math.round((tStart.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays >= 7 && diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return weeks === 1 ? 'Last week' : `${weeks} weeks ago`;
+  }
+  if (diffDays < 0) return 'Upcoming';
+  return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric' }).format(d);
+}
