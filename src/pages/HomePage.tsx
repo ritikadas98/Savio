@@ -144,18 +144,38 @@ export function HomePage() {
   // Guidance
   const guidanceItems = generateGuidance({ activeGoals: goals, recentReflections });
 
-  // Avatar icon
+  // Avatar pill — colors and glyph driven by profile.avatar
   const avatarName = (profile?.avatar || 'strategist').toLowerCase();
-  const avatarConfig: Record<string, { bg: string; stroke: string }> = {
-    strategist: { bg: '#DCEEFF', stroke: '#0C447C' },
-    adventurer: { bg: '#FCF1CC', stroke: '#854F0B' },
-    builder: { bg: '#DEF2CB', stroke: '#3B6D11' },
+  const avatarConfig: Record<string, { bg: string; stroke: string; glyph: React.ReactNode }> = {
+    strategist: {
+      bg: '#DCEEFF',
+      stroke: '#0C447C',
+      // Compass — circle + needle (lucide-style)
+      glyph: (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </>
+      ),
+    },
+    adventurer: {
+      bg: '#FCF1CC',
+      stroke: '#854F0B',
+      // 5-point star
+      glyph: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
+    },
+    builder: {
+      bg: '#DEF2CB',
+      stroke: '#3B6D11',
+      // Wrench/spanner outline
+      glyph: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6.6 6.6a1.4 1.4 0 0 0 2 2l6.6-6.6a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-2 2.4-2.4z" />,
+    },
   };
   const av = avatarConfig[avatarName] || avatarConfig.strategist;
 
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
         <div className="p-4 pt-10 pb-4">
 
           <div className="flex items-center justify-between mb-6">
@@ -165,14 +185,14 @@ export function HomePage() {
             </div>
             <div className="w-10 h-10 rounded-full flex items-center justify-center border"
                  style={{ backgroundColor: av.bg, borderColor: av.stroke + '1A' }}>
-              <svg width="20" height="20" fill="none" stroke={av.stroke} strokeWidth="2">
-                <polygon points="12 2 2 22 12 18 22 22 12 2"></polygon>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={av.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {av.glyph}
               </svg>
             </div>
           </div>
 
           {pendingWindfall && (
-            <WindfallCard amount={pendingWindfall.amount} source={pendingWindfall.source || 'Unexpected deposit'} detectedAt={pendingWindfall.detected_at} />
+            <WindfallCard amount={pendingWindfall.amount} source={pendingWindfall.source || 'Unexpected deposit'} />
           )}
 
           <SafeToSpendHero amount={safeToSpend} anchorDate={nextAnchorDate} />

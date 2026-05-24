@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildSystemPrompt } from './prompt_builder.ts';
 import { hallucinationGuard } from './hallucination_guard.ts';
-import { applyScopeFilter } from './scope_filter.ts';
+import { checkScopeFilter, buildScopeDeflection } from './scope_filter.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,7 +90,10 @@ serve(async (req) => {
       contents: history,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 400
+        maxOutputTokens: 800,
+        thinkingConfig: {
+          thinkingBudget: 256
+        }
       }
     };
 
@@ -111,12 +114,14 @@ serve(async (req) => {
     let assistantMessage = json.candidates?.[0]?.content?.parts?.[0]?.text || "I'm not sure how to respond to that.";
 
     // Guard & Filter
-    const guardResult = hallucinationGuard(assistantMessage, systemPrompt + '\n' + message);
+    const guardResult = hallucinationGuard(assistantMessage, systemPrompt, message);
     assistantMessage = guardResult.finalResponse;
 
-    const scopeResult = applyScopeFilter(assistantMessage, message);
-    if (scopeResult.triggered) {
-      assistantMessage = scopeResult.finalResponse;
+    // Scope filter checks ONLY the user message — an in-scope answer that
+    // mentions a flagged term in passing should not deflect itself.
+    const scopeResult = checkScopeFilter(message);
+    if (scopeResult.triggered && scopeResult.family) {
+      assistantMessage = buildScopeDeflection(scopeResult.family);
     }
 
     // Purchase check verdict detection

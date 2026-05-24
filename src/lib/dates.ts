@@ -32,3 +32,11 @@ export function parseDate(dateStr?: string | number | Date): Date {
 export function getRealNow(): Date {
   return new Date();
 }
+
+export function formatMonthYear(monthYear: string): string {
+  const [yearStr, monthStr] = monthYear.split('-');
+  const y = Number(yearStr);
+  const m = Number(monthStr) - 1;
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 0 || m > 11) return monthYear;
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric' }).format(new Date(y, m, 1));
+}

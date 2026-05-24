@@ -6,7 +6,7 @@ export function PhoneShell({ children }: { children: React.ReactNode }) {
       <div className="
         relative
         w-full max-w-[392px]
-        min-h-screen md:min-h-[820px] md:max-h-[calc(100vh-80px)]
+        h-screen md:h-[820px] md:max-h-[calc(100vh-80px)]
         bg-[#E4ECE6]
         md:rounded-[44px] md:border-8 md:border-black
         md:shadow-2xl

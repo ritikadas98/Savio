@@ -1,15 +1,53 @@
 // Edge function uses Deno
 
+// DEMO_TODAY mirrors src/lib/dates.ts so date math on the server matches the UI.
+const DEMO_TODAY = new Date('2026-04-15T09:00:00+05:30');
+
+const INR = (n: number) => n.toLocaleString('en-IN');
+
+const isInvestingCategory = (cat: unknown): boolean => {
+  if (typeof cat !== 'string') return false;
+  const c = cat.toLowerCase();
+  return c === 'investing' || c === 'investment';
+};
+
+function daysUntilNextAnchor(anchorDay: number): number {
+  const t = DEMO_TODAY;
+  let year = t.getFullYear();
+  let month = t.getMonth();
+  if (t.getDate() >= anchorDay) {
+    month += 1;
+    if (month > 11) { month = 0; year += 1; }
+  }
+  const next = new Date(year, month, anchorDay);
+  return Math.ceil((next.getTime() - t.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export const buildIdentityLayer = (): string => {
   return `You are Savio, an AI decision-support companion for earning Indians.
 You help users translate raw financial data into felt consequences to prime their decision-making.
+
 WHAT YOU ARE NOT:
 - You are NOT an investment advisor. Do NOT give specific instrument recommendations (e.g., mutual funds, stocks, ETFs).
 - You are NOT a tax planner. Do NOT give tax strategy advice (e.g., 80C, new vs old regime).
 - You are NOT a real-time intervention layer blocking purchases.
+
 If a user asks about forbidden topics, you must use the expert handoff pattern:
 "That's outside what I can help with. For [topic], you'd want a SEBI-registered advisor / CA / qualified professional. What I CAN help with is [related decision-support topic]."
+
 Do NOT moralize, guilt-trip, or act like a strict parent.
+
+NUMBER DISCIPLINE:
+- Use only numbers present in the Grounding Context or in the user's message, or arithmetic derived from them (sum, difference, percentage). Do NOT invent figures.
+- When the user asks about safe-to-spend, affordability, or budget remaining:
+  - USE the pre-computed "Safe-to-spend this month" figure from Derived Figures.
+  - Do NOT recompute it from raw commitments — the derived figure is the authoritative value.
+  - Investing commitments (SIPs, PPF, NPS, mutual funds) are NOT subtracted from safe-to-spend — they are savings, not outflow.
+- For affordability checks ("Can I afford ₹X?"), compute remaining = safe-to-spend − X and reason from that.
+
+FORMATTING:
+- Use Markdown. Bold the labels in the Observation / Stake / Partnership Offer pattern with **double asterisks**.
+- Keep answers concise (3–6 short paragraphs maximum).
 `;
 };
 
@@ -34,64 +72,103 @@ export const buildGroundingContext = (
   profile: any,
   goals: any[],
   commitments: any[],
-  transactions: any[],
+  _transactions: any[],
   ritual: any,
   merchantStats: any[]
 ): string => {
-  let context = 'GROUNDING CONTEXT (User Data):\n';
-  
-  const addIfVal = (label: string, val: any) => {
-    if (val !== null && val !== undefined && val !== '') {
-      context += `${label}: ${val}\n`;
-    }
-  };
+  const incomeNet = Number(profile.monthly_income_net || 0);
+  const activeGoals = (goals || []).filter(g => g.status === 'active');
 
-  context += '--- PROFILE ---\n';
-  addIfVal('Name', profile.full_name);
-  addIfVal('Life Stage', profile.life_stage);
-  addIfVal('Monthly Income (Gross)', profile.monthly_income_gross);
-  addIfVal('Monthly Income (Net)', profile.monthly_income_net);
-  addIfVal('Anchor Day', profile.anchor_day_of_month);
-  
-  if (ritual) {
-    context += '\n--- THIS MONTH ---\n';
-    addIfVal('Safe to spend remaining', ritual.safe_to_spend_locked);
-    // find focus goal
-    if (ritual.focus_goal_id) {
-      const g = goals.find(x => x.id === ritual.focus_goal_id);
-      if (g) addIfVal('Focus Goal', g.label);
-    }
-  }
+  const nonInvestingCommitments = (commitments || []).filter(c => !isInvestingCategory(c.category));
+  const investingCommitments    = (commitments || []).filter(c =>  isInvestingCategory(c.category));
 
-  if (goals && goals.length > 0) {
-    const active = goals.filter(g => g.status === 'active');
-    if (active.length > 0) {
-      context += '\n--- ACTIVE GOALS ---\n';
-      active.forEach(g => {
-        addIfVal(`Goal (${g.label}) Target`, g.target_amount);
-        addIfVal(`Goal (${g.label}) Current`, g.current_amount);
-        addIfVal(`Goal (${g.label}) Monthly Contribution`, g.monthly_contribution);
-      });
-    }
-  }
+  const totalNonInvesting = nonInvestingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
+  const totalInvesting    = investingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
+  const totalGoalContrib  = activeGoals.reduce((s, g) => s + Number(g.monthly_contribution || 0), 0);
 
-  if (commitments && commitments.length > 0) {
-    context += '\n--- COMMITMENTS ---\n';
-    commitments.forEach(c => {
-      addIfVal(`Commitment (${c.label})`, c.amount);
+  // Authoritative safe-to-spend: lock-in from ritual if present, else computed.
+  const computedSTS = incomeNet - totalNonInvesting - totalGoalContrib;
+  const safeToSpend = ritual?.safe_to_spend_locked != null
+    ? Number(ritual.safe_to_spend_locked)
+    : computedSTS;
+
+  const anchorDay = Number(profile.anchor_day_of_month || 1);
+  const daysUntilSalary = daysUntilNextAnchor(anchorDay);
+
+  const lines: string[] = [];
+  lines.push('## GROUNDING CONTEXT (User Data — DEMO_TODAY = 2026-04-15)');
+  lines.push('');
+
+  lines.push('### Profile');
+  if (profile.full_name) lines.push(`- Name: ${profile.full_name}`);
+  if (profile.life_stage) lines.push(`- Life stage: ${profile.life_stage}`);
+  if (profile.avatar) lines.push(`- Avatar: ${profile.avatar}`);
+  lines.push(`- Net monthly income: ₹${INR(incomeNet)}`);
+  lines.push(`- Anchor day (salary day of month): ${anchorDay}`);
+  lines.push('');
+
+  lines.push(`### Non-investing commitments (outflow — ${nonInvestingCommitments.length} items, total ₹${INR(totalNonInvesting)}/month)`);
+  if (nonInvestingCommitments.length === 0) {
+    lines.push('- (none)');
+  } else {
+    nonInvestingCommitments.forEach(c => {
+      lines.push(`- ${c.label}: ₹${INR(Number(c.amount || 0))}/month${c.category ? ` [${c.category}]` : ''}`);
     });
   }
+  lines.push('');
+
+  lines.push(`### Investing commitments (savings — NOT outflow — ${investingCommitments.length} items, total ₹${INR(totalInvesting)}/month)`);
+  if (investingCommitments.length === 0) {
+    lines.push('- (none)');
+  } else {
+    investingCommitments.forEach(c => {
+      lines.push(`- ${c.label}: ₹${INR(Number(c.amount || 0))}/month${c.category ? ` [${c.category}]` : ''}`);
+    });
+  }
+  lines.push('');
+
+  lines.push(`### Active goals (${activeGoals.length} items, total monthly contributions ₹${INR(totalGoalContrib)}/month)`);
+  if (activeGoals.length === 0) {
+    lines.push('- (none)');
+  } else {
+    activeGoals.forEach(g => {
+      const target  = Number(g.target_amount || 0);
+      const current = Number(g.current_amount || 0);
+      const contrib = Number(g.monthly_contribution || 0);
+      lines.push(`- ${g.label}: ₹${INR(current)} of ₹${INR(target)} (₹${INR(contrib)}/month toward target${g.target_date ? `, target date ${g.target_date}` : ''})`);
+    });
+  }
+  lines.push('');
+
+  lines.push('### Derived figures (use these — do not recompute)');
+  lines.push(`- **Safe-to-spend this month: ₹${INR(safeToSpend)}**`);
+  lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
+  lines.push(`- Days until next salary: ${daysUntilSalary}`);
+  if (daysUntilSalary > 0) {
+    lines.push(`- Daily safe-to-spend (informational): ₹${INR(Math.floor(safeToSpend / daysUntilSalary))}`);
+  }
+  lines.push('');
 
   if (merchantStats && merchantStats.length > 0) {
-    context += '\n--- MERCHANT STATS ---\n';
+    lines.push('### Merchant reflection stats');
     merchantStats.forEach(s => {
-      addIfVal(`Merchant (${s.merchant}) Regret Rate`, s.regret_rate ? s.regret_rate + '%' : undefined);
-      addIfVal(`Merchant (${s.merchant}) Total TXNs`, s.total_transactions);
-      addIfVal(`Merchant (${s.merchant}) Regret Count`, s.regret_count);
+      const rate = s.regret_rate != null ? `${s.regret_rate}%` : 'n/a';
+      lines.push(`- ${s.merchant}: regret rate ${rate} (${s.regret_count ?? 0} regrets of ${s.total_transactions ?? 0} purchases)`);
     });
+    lines.push('');
   }
 
-  return context;
+  if (ritual) {
+    lines.push('### Current monthly ritual');
+    if (ritual.month_year) lines.push(`- Month: ${ritual.month_year}`);
+    if (ritual.status) lines.push(`- Status: ${ritual.status}`);
+    if (ritual.focus_goal_id) {
+      const g = (goals || []).find(x => x.id === ritual.focus_goal_id);
+      if (g) lines.push(`- Focus goal: ${g.label}`);
+    }
+  }
+
+  return lines.join('\n');
 };
 
 export const buildSystemPrompt = (
@@ -105,6 +182,6 @@ export const buildSystemPrompt = (
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
   const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats);
-  
+
   return `${layer1}\n\n${layer2}\n\n${layer3}`;
 };
