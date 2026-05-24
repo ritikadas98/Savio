@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildSystemPrompt } from './prompt_builder.ts';
 import { hallucinationGuard } from './hallucination_guard.ts';
 import { checkScopeFilter, buildScopeDeflection } from './scope_filter.ts';
+import { generateContent } from '../_shared/gemini.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,8 +72,7 @@ serve(async (req) => {
       merchantStats || []
     );
 
-    // Call Gemini
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    // Call Gemini via Vertex AI
     const model = Deno.env.get('GEMINI_MODEL_ID') || 'gemini-2.5-flash';
 
     const history = (historyData || []).reverse().map(msg => ({
@@ -86,7 +86,7 @@ serve(async (req) => {
     }
 
     const payload = {
-      system_instruction: { parts: [{ text: systemPrompt }] },
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: history,
       generationConfig: {
         temperature: 0.2,
@@ -99,18 +99,7 @@ serve(async (req) => {
 
     console.log(`[chat-respond] Profile: ${profile.full_name}, prompt: ${systemPrompt.length} chars, model: ${model}, history: ${history.length} turns`);
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Gemini API error: ${errorText}`);
-    }
-
-    const json = await res.json();
+    const json = await generateContent(model, payload);
     let assistantMessage = json.candidates?.[0]?.content?.parts?.[0]?.text || "I'm not sure how to respond to that.";
 
     // Guard & Filter
