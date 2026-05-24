@@ -10,8 +10,11 @@ dotenv.config({ path: '.env.local' });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure the connection string or password is provided
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:0EYo9h7X0852UrlZ@db.lstfbkcghnsoxyxpxnty.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is required. Add it to .env.local — see .env.example.');
+  process.exit(1);
+}
 
 const client = new Client({
   connectionString,
