@@ -7,7 +7,11 @@ dotenv.config({ path: '.env.local' });
 const url = process.env.VITE_SUPABASE_URL;
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const pw = process.env.DEMO_PRIYA_PASSWORD;
-const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:0EYo9h7X0852UrlZ@db.lstfbkcghnsoxyxpxnty.supabase.co:5432/postgres';
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error('DATABASE_URL is required. Add it to .env.local — see .env.example.');
+  process.exit(1);
+}
 
 async function inspectPolicies() {
   const pg = new Client({ connectionString });
