@@ -52,6 +52,13 @@ const config = {
           accent: '#FF8F8F',
         },
 
+        // Surface variants
+        cardSoft: '#FAFAF7',
+
+        // Subtle border tokens for delicate dividers / hover states
+        borderSoft: 'rgba(0,0,0,0.07)',
+        borderHover: 'rgba(0,0,0,0.14)',
+
         border: "rgba(0, 0, 0, 0.06)",
         input: "rgba(0, 0, 0, 0.06)",
         ring: "hsl(var(--ring))",

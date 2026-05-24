@@ -11,6 +11,7 @@ import { CommitmentsCard } from '../components/home/CommitmentsCard';
 import { RecentTransactionsList } from '../components/home/RecentTransactionsList';
 import { ForYouTodayCard } from '../components/home/ForYouTodayCard';
 import { CategorizationBanner } from '../components/home/CategorizationBanner';
+import { ProfilePill } from '../components/layout/ProfilePill';
 
 export function HomePage() {
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,6 @@ export function HomePage() {
           { data: goals },
           { data: commitments },
           { data: recentTransactions },
-          { count: uncategorizedCount },
           { data: pendingWindfall },
           { data: currentRitual },
           { data: recentReflections }
@@ -74,7 +74,6 @@ export function HomePage() {
           supabase.from('goals').select('*').eq('user_id', profileId),
           supabase.from('commitments').select('*').eq('user_id', profileId),
           supabase.from('transactions').select('*').eq('user_id', profileId).order('occurred_at', { ascending: false }).limit(4),
-          supabase.from('transactions').select('*', { count: 'exact', head: true }).eq('user_id', profileId).is('category', null),
           supabase.from('windfalls').select('*').eq('user_id', profileId).eq('status', 'pending_allocation').order('detected_at', { ascending: false }).limit(1).maybeSingle(),
           supabase.from('monthly_rituals').select('*').eq('user_id', profileId).eq('status', 'pending').limit(1).maybeSingle(),
           supabase.from('reflections').select('*').eq('user_id', profileId).order('reflected_at', { ascending: false }).limit(10)
@@ -86,7 +85,6 @@ export function HomePage() {
             goals: goals || [],
             commitments: commitments || [],
             recentTransactions: recentTransactions || [],
-            uncategorizedCount: uncategorizedCount || 0,
             pendingWindfall,
             currentRitual,
             recentReflections: recentReflections || []
@@ -125,7 +123,7 @@ export function HomePage() {
     );
   }
 
-  const { profile, goals, commitments, recentTransactions, uncategorizedCount, pendingWindfall, currentRitual, recentReflections } = data;
+  const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections } = data;
 
   // Safe to spend
   let safeToSpend = 0;
@@ -144,52 +142,23 @@ export function HomePage() {
   // Guidance
   const guidanceItems = generateGuidance({ activeGoals: goals, recentReflections });
 
-  // Avatar pill — colors and glyph driven by profile.avatar
-  const avatarName = (profile?.avatar || 'strategist').toLowerCase();
-  const avatarConfig: Record<string, { bg: string; stroke: string; glyph: React.ReactNode }> = {
-    strategist: {
-      bg: '#DCEEFF',
-      stroke: '#0C447C',
-      // Compass — circle + needle (lucide-style)
-      glyph: (
-        <>
-          <circle cx="12" cy="12" r="10" />
-          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-        </>
-      ),
-    },
-    adventurer: {
-      bg: '#FCF1CC',
-      stroke: '#854F0B',
-      // 5-point star
-      glyph: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
-    },
-    builder: {
-      bg: '#DEF2CB',
-      stroke: '#3B6D11',
-      // Wrench/spanner outline
-      glyph: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6.6 6.6a1.4 1.4 0 0 0 2 2l6.6-6.6a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-2 2.4-2.4z" />,
-    },
-  };
-  const av = avatarConfig[avatarName] || avatarConfig.strategist;
+  const firstName = profile?.full_name?.split(' ')[0] || 'User';
 
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
       <div className="flex-1 overflow-y-auto scrollbar-hide">
-        <div className="p-4 pt-10 pb-4">
+        <div className="px-5 pt-4 pb-4">
 
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="text-secondary text-caption">👋 Welcome back, {profile?.full_name?.split(' ')[0] || 'User'}</div>
-              <h1 className="text-heading font-medium text-primary">Your Dashboard</h1>
+          <header className="mb-6">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm text-[#5A6B5F]">
+                <span className="mr-1">👋</span>
+                Welcome in, {firstName}
+              </div>
+              <ProfilePill avatar={profile?.avatar} />
             </div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center border"
-                 style={{ backgroundColor: av.bg, borderColor: av.stroke + '1A' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={av.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {av.glyph}
-              </svg>
-            </div>
-          </div>
+            <h1 className="text-3xl font-bold text-[#0C447C] mt-1">Your Dashboard</h1>
+          </header>
 
           {pendingWindfall && (
             <WindfallCard amount={pendingWindfall.amount} source={pendingWindfall.source || 'Unexpected deposit'} />
@@ -203,11 +172,9 @@ export function HomePage() {
 
           <CommitmentsCard ratio={ratioStr} total={commitmentsCount} />
 
-          <ForYouTodayCard items={guidanceItems} />
+          <CategorizationBanner />
 
-          {uncategorizedCount > 0 && (
-            <CategorizationBanner count={uncategorizedCount} />
-          )}
+          <ForYouTodayCard items={guidanceItems} />
 
           <RecentTransactionsList transactions={recentTransactions} />
 
