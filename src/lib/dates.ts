@@ -13,15 +13,19 @@ export function getNextAnchorDate(anchorDayOfMonth: number): Date {
   const t = today();
   let year = t.getFullYear();
   let month = t.getMonth();
-  
-  if (t.getDate() >= anchorDayOfMonth) {
+
+  // Use strict > so that ON the anchor day itself, this returns today
+  // (not "31 days from now"). UI consumers display "Payday!" when diffDays
+  // is 0; this avoids the contradictory "31 days until salary" message
+  // showing on the very day the salary lands.
+  if (t.getDate() > anchorDayOfMonth) {
     month += 1;
     if (month > 11) {
       month = 0;
       year += 1;
     }
   }
-  
+
   return new Date(year, month, anchorDayOfMonth);
 }
 

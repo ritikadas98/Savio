@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { calculateSafeToSpend } from '../lib/safeToSpend';
 import { generateGuidance } from '../lib/guidance';
-import { getNextAnchorDate } from '../lib/dates';
+import { getNextAnchorDate, today } from '../lib/dates';
 import { BottomNav } from '../components/layout/BottomNav';
 import { SafeToSpendHero } from '../components/home/SafeToSpendHero';
 import { WindfallCard } from '../components/home/WindfallCard';
@@ -133,9 +133,12 @@ export function HomePage() {
     safeToSpend = calculateSafeToSpend(profile?.monthly_income_net || 0, commitments, goals);
   }
 
-  const nextAnchorDate = getNextAnchorDate(profile?.anchor_day_of_month || 1);
+  const anchorDay = profile?.anchor_day_of_month || 1;
+  const nextAnchorDate = getNextAnchorDate(anchorDay);
+  const isAnchorDay = today().getDate() === anchorDay;
 
-  // Commitments ratio
+  // Commitments ratio. On the anchor day itself the CommitmentsCard switches
+  // to 0/N display since no commitments could plausibly be paid yet.
   const commitmentsCount = commitments.length;
   const ratioStr = `${commitmentsCount}/${commitmentsCount}`;
 
@@ -170,7 +173,7 @@ export function HomePage() {
             <MonthlyRitualBanner monthYear={currentRitual.month_year} />
           )}
 
-          <CommitmentsCard ratio={ratioStr} total={commitmentsCount} />
+          <CommitmentsCard ratio={ratioStr} total={commitmentsCount} isAnchorDay={isAnchorDay} />
 
           <CategorizationBanner />
 

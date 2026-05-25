@@ -1,7 +1,19 @@
 import React from 'react';
 import { Card } from '../primitives';
 
-export function CommitmentsCard({ ratio, total }: { ratio: string, total: number }) {
+type Props = {
+  ratio: string;
+  total: number;
+  /** True on the salary-anchor day itself — no commitments could plausibly be
+   *  paid yet, so the card shows 0/N instead of the lying full ratio. */
+  isAnchorDay?: boolean;
+};
+
+export function CommitmentsCard({ ratio, total, isAnchorDay = false }: Props) {
+  const displayRatio = isAnchorDay ? `0/${total}` : ratio;
+  const subtitle = isAnchorDay ? 'This month just started' : 'All caught up this month';
+  const caption = isAnchorDay ? 'due this month' : 'paid';
+
   return (
     <Card className="flex items-center justify-between mb-3 !p-4">
       <div className="flex items-center gap-3">
@@ -10,12 +22,12 @@ export function CommitmentsCard({ ratio, total }: { ratio: string, total: number
         </div>
         <div>
           <div className="text-body font-medium text-primary">Commitments on track</div>
-          <div className="text-caption text-secondary">All caught up this month</div>
+          <div className="text-caption text-secondary">{subtitle}</div>
         </div>
       </div>
       <div className="text-right">
-        <div className="text-title font-medium text-primary">{ratio}</div>
-        <div className="text-caption text-secondary">paid</div>
+        <div className="text-title font-medium text-primary">{displayRatio}</div>
+        <div className="text-caption text-secondary">{caption}</div>
       </div>
     </Card>
   );
