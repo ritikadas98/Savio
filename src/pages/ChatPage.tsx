@@ -7,6 +7,7 @@ import { TypingIndicator } from '../components/chat/TypingIndicator';
 import { SuggestedChips } from '../components/chat/SuggestedChips';
 import { DisclaimerFooter } from '../components/chat/DisclaimerFooter';
 import { ProfilePill } from '../components/layout/ProfilePill';
+import { today } from '../lib/dates';
 
 // Savio brand mark — rainbow gradient (NOT compass, which is Priya's avatar)
 const SAVIO_GRADIENT = 'linear-gradient(135deg, #FF8F8F, #F4D123, #B2EF82, #58B9FF)';
@@ -64,7 +65,7 @@ export function ChatPage() {
       id: crypto.randomUUID(),
       role: 'user',
       content: text,
-      created_at: new Date().toISOString()
+      created_at: today().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
