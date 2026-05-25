@@ -60,14 +60,14 @@ BEGIN
 END $$;
 
 -- TRANSACTIONS AND REFLECTIONS
--- We need ~600 transactions over 6 months ending DEMO_TODAY (2026-04-15).
+-- We need ~600 transactions over 6 months ending DEMO_TODAY (2026-05-01).
 -- Instead of generating all 600 individually, we will generate bulk transactions dynamically
 -- using generate_series and random functions.
 
 DO $$
 DECLARE
   v_user_id uuid := '00000000-0000-4000-a000-000000000001';
-  v_demo_today date := '2026-04-15'::date;
+  v_demo_today date := '2026-05-01'::date;
   v_start_date date := v_demo_today - interval '180 days';
   v_txn_id uuid;
   v_diwali_bonus_id uuid := gen_random_uuid();
@@ -127,9 +127,9 @@ BEGIN
     );
   END LOOP;
 
-  -- Diwali Bonus (October 2025 relative date -> ~6 months ago relative to April)
-  -- 2026-04-15 minus 6 months = 2025-10-15. Let's make it exactly Oct 20, 2025 relative.
-  -- The spec: "Diwali bonus ₹50,000 in Oct 2025 relative date"
+  -- Diwali Bonus (October 2025 relative date -> ~6 months ago relative to May 1)
+  -- 2026-05-01 minus 6 months = 2025-11-01. Adjusted offset keeps it in early Nov 2025.
+  -- The spec: "Diwali bonus ₹50,000 in Oct/Nov 2025 relative date"
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
   VALUES (v_diwali_bonus_id, v_user_id, (v_demo_today - interval '5 months 26 days')::timestamptz, 50000.00, 'credit', 'Acme Corp', 'Diwali Bonus', 'Income', true);
 

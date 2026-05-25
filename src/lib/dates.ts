@@ -1,4 +1,4 @@
-export const DEMO_TODAY = new Date('2026-04-15T09:00:00+05:30');
+export const DEMO_TODAY = new Date('2026-05-01T09:00:00+05:30');
 
 export function today(): Date {
   return DEMO_TODAY;
