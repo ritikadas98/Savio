@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 type AvatarConfig = { bg: string; stroke: string; glyph: React.ReactNode };
 
@@ -26,16 +27,20 @@ const AVATARS: Record<string, AvatarConfig> = {
 };
 
 export function ProfilePill({ avatar }: { avatar?: string | null }) {
+  const navigate = useNavigate();
   const key = (avatar || 'strategist').toLowerCase();
   const av = AVATARS[key] ?? AVATARS.strategist;
   return (
-    <div
-      className="w-10 h-10 rounded-full flex items-center justify-center border flex-shrink-0"
+    <button
+      type="button"
+      onClick={() => navigate('/profile')}
+      aria-label="Open profile"
+      className="w-10 h-10 rounded-full flex items-center justify-center border flex-shrink-0 transition-opacity hover:opacity-80"
       style={{ backgroundColor: av.bg, borderColor: av.stroke + '1A' }}
     >
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={av.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {av.glyph}
       </svg>
-    </div>
+    </button>
   );
 }

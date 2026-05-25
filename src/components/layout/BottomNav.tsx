@@ -1,15 +1,16 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, BookmarkCheck, Target, UserCircle } from 'lucide-react';
+import { Home, MessageCircle, BookmarkCheck, Target } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 type Tab = { id: string; label: string; path: string; icon: LucideIcon };
 
+// Per Phase 2.9 Decision 2: 4 tabs. Profile is no longer in the nav — accessed
+// via the avatar pill in the header (HomePage, ChatPage). Route still exists.
 const tabs: Tab[] = [
   { id: 'home', label: 'Home', path: '/home', icon: Home },
   { id: 'chat', label: 'Chat', path: '/chat', icon: MessageCircle },
   { id: 'reflect', label: 'Reflect', path: '/reflect', icon: BookmarkCheck },
   { id: 'goals', label: 'Goals', path: '/goals', icon: Target },
-  { id: 'profile', label: 'Profile', path: '/profile', icon: UserCircle },
 ];
 
 export function BottomNav() {

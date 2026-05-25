@@ -59,6 +59,17 @@ const config = {
         borderSoft: 'rgba(0,0,0,0.07)',
         borderHover: 'rgba(0,0,0,0.14)',
 
+        // Accent border tokens — for accent-variant cards.
+        // Names are intent-based (yellow/blue/green/red), keyed by usage:
+        //   yellow = money-in (windfall)
+        //   blue   = ritual prompt (monthly check-in, Savio-led action)
+        //   green  = positive status (on-track, achieved)
+        //   red    = alert (over-budget, regret-rate)
+        'yellow-accent': '#F4D123',
+        'blue-accent':   '#0C447C',
+        'green-accent':  '#B2EF82',
+        'red-accent':    '#FF8F8F',
+
         border: "rgba(0, 0, 0, 0.06)",
         input: "rgba(0, 0, 0, 0.06)",
         ring: "hsl(var(--ring))",

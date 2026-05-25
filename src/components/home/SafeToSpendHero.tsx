@@ -1,5 +1,6 @@
 import React from 'react';
 import { today } from '../../lib/dates';
+import { Card, Pill } from '../primitives';
 
 type Props = {
   amount: number;
@@ -22,19 +23,22 @@ export function SafeToSpendHero({ amount, anchorDate, delta = null }: Props) {
   const ceilingLabel = ceiling >= 1000 ? `₹${Math.round(ceiling / 1000)}K` : `₹${formatINR(ceiling)}`;
 
   return (
-    <div className="bg-white rounded-[32px] p-7 shadow-sm border border-black/5 flex flex-col mb-3">
+    <Card variant="hero" className="flex flex-col mb-3">
       <div className="text-xs font-medium tracking-wider uppercase text-[#5A6B5F] mb-2">
         Safe to spend today
       </div>
 
       <div className="flex items-baseline gap-3 mb-5">
-        <span className="text-5xl font-bold tracking-tight text-[#0C447C] leading-none">
+        <span
+          className="text-5xl font-bold tracking-tight text-[#0C447C] leading-none"
+          style={{ letterSpacing: '-1.5px' }}
+        >
           ₹{formatINR(amount)}
         </span>
         {delta != null && (
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#B2EF82]/30 text-[#2D5016]">
+          <Pill variant="sage">
             {delta > 0 ? '+' : delta < 0 ? '−' : ''}₹{formatINR(Math.abs(delta))}
-          </span>
+          </Pill>
         )}
       </div>
 
@@ -60,6 +64,6 @@ export function SafeToSpendHero({ amount, anchorDate, delta = null }: Props) {
           <span>{ceilingLabel}</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
