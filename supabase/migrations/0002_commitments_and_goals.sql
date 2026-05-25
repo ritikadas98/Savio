@@ -7,6 +7,13 @@ create table public.commitments (
   amount numeric(10,2) not null,
   frequency text check (frequency in ('monthly','quarterly','annual','irregular')) default 'monthly',
   category text,
+  -- 'fixed' = mini-account where actual == budgeted (Rent, EMI, SIPs, etc.).
+  -- 'variable' = soft budget within discretionary spend (Groceries, Eating out,
+  --              Transport, etc.). Variable commitments do NOT subtract from
+  --              safe-to-spend; their actuals are summed from linked
+  --              transactions (transactions.commitment_id) and the buffer or
+  --              overrun is surfaced in the monthly ritual close-out.
+  kind text not null default 'fixed' check (kind in ('fixed','variable')),
   next_due_date date,
   source text check (source in ('detected_from_statement','user_added','manual')),
   created_at timestamptz default now(),
@@ -68,4 +75,5 @@ create trigger update_goals_updated_at
 
 -- Indexes
 create index idx_commitments_user_id on public.commitments(user_id);
+create index idx_commitments_user_kind on public.commitments(user_id, kind);
 create index idx_goals_user_id on public.goals(user_id);

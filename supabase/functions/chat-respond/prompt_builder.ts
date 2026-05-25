@@ -97,11 +97,21 @@ export const buildGroundingContext = (
   const incomeNet = Number(profile.monthly_income_net || 0);
   const activeGoals = (goals || []).filter(g => g.status === 'active');
 
-  const nonInvestingCommitments = (commitments || []).filter(c => !isInvestingCategory(c.category));
-  const investingCommitments    = (commitments || []).filter(c =>  isInvestingCategory(c.category));
+  // Phase 3: commitments now have a `kind` field. Fixed = mini-accounts where
+  // actual == budgeted (subtract from safe-to-spend formula). Variable = soft
+  // budgets within the discretionary bucket (NOT subtracted from safe-to-spend;
+  // their buffer/overrun is surfaced separately).
+  const isFixed = (c: any) => (c.kind ?? 'fixed') !== 'variable';
+
+  const fixedCommitments    = (commitments || []).filter(isFixed);
+  const variableCommitments = (commitments || []).filter((c: any) => !isFixed(c));
+
+  const nonInvestingCommitments = fixedCommitments.filter((c: any) => !isInvestingCategory(c.category));
+  const investingCommitments    = fixedCommitments.filter((c: any) =>  isInvestingCategory(c.category));
 
   const totalNonInvesting = nonInvestingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
   const totalInvesting    = investingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
+  const totalVariable     = variableCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
   const totalGoalContrib  = activeGoals.reduce((s, g) => s + Number(g.monthly_contribution || 0), 0);
 
   // Authoritative safe-to-spend: lock-in from ritual if present, else computed.
@@ -113,8 +123,9 @@ export const buildGroundingContext = (
   const anchorDay = Number(profile.anchor_day_of_month || 1);
   const daysUntilSalary = daysUntilNextAnchor(anchorDay);
 
+  const demoTodayLabel = DEMO_TODAY.toISOString().slice(0, 10);
   const lines: string[] = [];
-  lines.push('## GROUNDING CONTEXT (User Data — DEMO_TODAY = 2026-04-15)');
+  lines.push(`## GROUNDING CONTEXT (User Data — DEMO_TODAY = ${demoTodayLabel})`);
   lines.push('');
 
   lines.push('### Profile');
@@ -141,6 +152,16 @@ export const buildGroundingContext = (
   } else {
     investingCommitments.forEach(c => {
       lines.push(`- ${c.label}: ₹${INR(Number(c.amount || 0))}/month${c.category ? ` [${c.category}]` : ''}`);
+    });
+  }
+  lines.push('');
+
+  lines.push(`### Variable commitments (informational budgets — within discretionary, NOT subtracted from safe-to-spend — ${variableCommitments.length} items, total ₹${INR(totalVariable)}/month budgeted)`);
+  if (variableCommitments.length === 0) {
+    lines.push('- (none)');
+  } else {
+    variableCommitments.forEach((c: any) => {
+      lines.push(`- ${c.label}: ₹${INR(Number(c.amount || 0))}/month budget${c.category ? ` [${c.category}]` : ''}`);
     });
   }
   lines.push('');

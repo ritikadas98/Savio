@@ -33,21 +33,33 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET auth_user_id = v_auth_id;
 
-  -- Commitments (13 rows, ~62,468 total as requested)
-  INSERT INTO public.commitments (id, user_id, label, amount, frequency, category) VALUES
-    (gen_random_uuid(), v_user_id, 'Rent', 22000.00, 'monthly', 'Housing'),
-    (gen_random_uuid(), v_user_id, 'Personal Loan EMI', 8500.00, 'monthly', 'Debt'),
-    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 1', 10000.00, 'monthly', 'Investing'),
-    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 2', 5000.00, 'monthly', 'Investing'),
-    (gen_random_uuid(), v_user_id, 'Parents Support', 8000.00, 'monthly', 'Family'),
-    (gen_random_uuid(), v_user_id, 'Term Insurance', 950.00, 'monthly', 'Insurance'),
-    (gen_random_uuid(), v_user_id, 'Health Insurance', 1400.00, 'monthly', 'Insurance'),
-    (gen_random_uuid(), v_user_id, 'Broadband', 1000.00, 'monthly', 'Utilities'),
-    (gen_random_uuid(), v_user_id, 'Electricity (Avg)', 1800.00, 'monthly', 'Utilities'),
-    (gen_random_uuid(), v_user_id, 'Gym', 2200.00, 'monthly', 'Health'),
-    (gen_random_uuid(), v_user_id, 'Spotify', 119.00, 'monthly', 'Entertainment'),
-    (gen_random_uuid(), v_user_id, 'Netflix', 499.00, 'monthly', 'Entertainment'),
-    (gen_random_uuid(), v_user_id, 'Maid/Helper', 1000.00, 'monthly', 'Housing')
+  -- Commitments — 13 FIXED (mini-accounts where actual == budgeted) +
+  -- 3 VARIABLE (Phase 3 added; budgets that the user tries to stay within).
+  -- Variable commitments get FIXED UUIDs so the second DO block (transactions)
+  -- can reference them by lookup without parsing back. Total non-investing
+  -- monthly outflow stays ₹47,468 in the safe-to-spend formula — variable
+  -- commitments are informational budgets WITHIN the discretionary bucket,
+  -- they do NOT subtract from safe-to-spend.
+  INSERT INTO public.commitments (id, user_id, label, amount, frequency, category, kind) VALUES
+    -- Fixed commitments (13) — actual == budgeted, no buffer/overrun
+    (gen_random_uuid(), v_user_id, 'Rent',              22000.00, 'monthly', 'Housing',       'fixed'),
+    (gen_random_uuid(), v_user_id, 'Personal Loan EMI',  8500.00, 'monthly', 'Debt',          'fixed'),
+    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 1', 10000.00, 'monthly', 'Investing',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 2',  5000.00, 'monthly', 'Investing',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'Parents Support',    8000.00, 'monthly', 'Family',        'fixed'),
+    (gen_random_uuid(), v_user_id, 'Term Insurance',      950.00, 'monthly', 'Insurance',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'Health Insurance',   1400.00, 'monthly', 'Insurance',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'Broadband',          1000.00, 'monthly', 'Utilities',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'Electricity (Avg)',  1800.00, 'monthly', 'Utilities',     'fixed'),
+    (gen_random_uuid(), v_user_id, 'Gym',                2200.00, 'monthly', 'Health',        'fixed'),
+    (gen_random_uuid(), v_user_id, 'Spotify',             119.00, 'monthly', 'Entertainment', 'fixed'),
+    (gen_random_uuid(), v_user_id, 'Netflix',             499.00, 'monthly', 'Entertainment', 'fixed'),
+    (gen_random_uuid(), v_user_id, 'Maid/Helper',        1000.00, 'monthly', 'Housing',       'fixed'),
+    -- Variable commitments (3) — Phase 3 added. Budgets within discretionary,
+    -- NOT subtracted from safe-to-spend. Buffer/overrun is the case-study story.
+    ('d0000000-0000-4000-a000-000000000001', v_user_id, 'Groceries',   6000.00, 'monthly', 'Groceries', 'variable'),
+    ('d0000000-0000-4000-a000-000000000002', v_user_id, 'Eating out',  5500.00, 'monthly', 'Food',      'variable'),
+    ('d0000000-0000-4000-a000-000000000003', v_user_id, 'Transport',   5500.00, 'monthly', 'Transport', 'variable')
   ON CONFLICT DO NOTHING;
 
   -- Goals (3 rows)
@@ -60,9 +72,11 @@ BEGIN
 END $$;
 
 -- TRANSACTIONS AND REFLECTIONS
--- We need ~600 transactions over 6 months ending DEMO_TODAY (2026-05-01).
--- Instead of generating all 600 individually, we will generate bulk transactions dynamically
--- using generate_series and random functions.
+-- Generate ~250 random discretionary transactions over 6 months ending
+-- DEMO_TODAY. Earlier seed used 600, but the resulting ~₹30K/month of debits
+-- was unrealistic for a ₹68.5K-net-income earner (44% on discretionary).
+-- 250 brings it to ~₹13K/month — closer to realistic 20-25% discretionary
+-- share — and produces a positive net leftover for the monthly ritual rollover.
 
 DO $$
 DECLARE
@@ -77,9 +91,16 @@ DECLARE
   v_direction text;
   v_is_significant boolean;
   v_cat text;
+  -- Phase 3 additions
+  v_commitment record;
+  v_pay_day int;
+  v_payee text;
+  v_groceries_id uuid;
+  v_eating_out_id uuid;
+  v_transport_id uuid;
 BEGIN
-  -- Insert regular ~600 small transactions (groceries, transport, food delivery, coffee)
-  FOR i IN 1..600 LOOP
+  -- Insert ~250 small discretionary transactions (groceries, transport, food delivery, coffee)
+  FOR i IN 1..250 LOOP
     -- Pick a random date
     v_merchant := CASE (random() * 5)::int 
       WHEN 0 THEN 'Swiggy' 
@@ -188,5 +209,93 @@ BEGIN
     (v_user_id, '2026-02', 'completed', 68500, 11500),
     (v_user_id, '2026-03', 'completed', 68500, 12200),
     (v_user_id, '2026-04', 'pending', null, null);
+
+  ------------------------------------------------------------------
+  -- PHASE 3 — Commitment linkage backfill
+  ------------------------------------------------------------------
+  -- 1. Variable commitments: backfill existing random transactions
+  --    via category + merchant match. Only Blinkit/Swiggy/Uber get
+  --    linked; Starbucks/Amazon/UPI/Local Vendor stay NULL (truly
+  --    discretionary).
+
+  SELECT id INTO v_groceries_id  FROM public.commitments
+    WHERE user_id = v_user_id AND label = 'Groceries';
+  SELECT id INTO v_eating_out_id FROM public.commitments
+    WHERE user_id = v_user_id AND label = 'Eating out';
+  SELECT id INTO v_transport_id  FROM public.commitments
+    WHERE user_id = v_user_id AND label = 'Transport';
+
+  UPDATE public.transactions SET commitment_id = v_groceries_id
+    WHERE user_id = v_user_id AND category = 'Groceries' AND merchant = 'Blinkit';
+
+  UPDATE public.transactions SET commitment_id = v_eating_out_id
+    WHERE user_id = v_user_id AND category = 'Food' AND merchant = 'Swiggy';
+
+  UPDATE public.transactions SET commitment_id = v_transport_id
+    WHERE user_id = v_user_id AND category = 'Transport' AND merchant = 'Uber';
+
+  -- 2. Fixed commitments: insert one payment transaction per month per
+  --    fixed commitment for 6 months. Each insert sets commitment_id
+  --    directly. 13 fixed × 6 months = 78 new transactions.
+  --    Per-commitment payment days + payee names below are illustrative
+  --    and don't affect rollover math (actual == budgeted, buffer = 0).
+
+  FOR v_commitment IN
+    SELECT id, label, amount, category
+      FROM public.commitments
+      WHERE user_id = v_user_id AND kind = 'fixed'
+  LOOP
+    v_pay_day := CASE v_commitment.label
+      WHEN 'Rent'              THEN 1
+      WHEN 'Gym'               THEN 2
+      WHEN 'Parents Support'   THEN 3
+      WHEN 'Personal Loan EMI' THEN 5
+      WHEN 'SIP Mutual Fund 1' THEN 7
+      WHEN 'SIP Mutual Fund 2' THEN 7
+      WHEN 'Broadband'         THEN 10
+      WHEN 'Spotify'           THEN 12
+      WHEN 'Netflix'           THEN 14
+      WHEN 'Term Insurance'    THEN 15
+      WHEN 'Health Insurance'  THEN 15
+      WHEN 'Electricity (Avg)' THEN 18
+      WHEN 'Maid/Helper'       THEN 28
+      ELSE 1
+    END;
+    v_payee := CASE v_commitment.label
+      WHEN 'Rent'              THEN 'Landlord (HDFC NEFT)'
+      WHEN 'Personal Loan EMI' THEN 'HDFC Bank Loan EMI'
+      WHEN 'SIP Mutual Fund 1' THEN 'Zerodha Coin'
+      WHEN 'SIP Mutual Fund 2' THEN 'Zerodha Coin'
+      WHEN 'Parents Support'   THEN 'Parents (UPI)'
+      WHEN 'Term Insurance'    THEN 'LIC India'
+      WHEN 'Health Insurance'  THEN 'Star Health'
+      WHEN 'Broadband'         THEN 'ACT Fibernet'
+      WHEN 'Electricity (Avg)' THEN 'BESCOM'
+      WHEN 'Gym'               THEN 'Cult.fit'
+      WHEN 'Spotify'           THEN 'Spotify Premium'
+      WHEN 'Netflix'           THEN 'Netflix'
+      WHEN 'Maid/Helper'       THEN 'Domestic Help'
+      ELSE v_commitment.label
+    END;
+
+    FOR i IN 0..5 LOOP
+      INSERT INTO public.transactions (id, user_id, commitment_id, occurred_at, amount, direction, merchant, description, category, is_recurring, source)
+      VALUES (
+        gen_random_uuid(),
+        v_user_id,
+        v_commitment.id,
+        (date_trunc('month', v_demo_today - (i || ' months')::interval)
+          + (v_pay_day - 1) * interval '1 day'
+          + interval '10 hours')::timestamptz,
+        v_commitment.amount,
+        'debit',
+        v_payee,
+        'Monthly ' || v_commitment.label || ' payment',
+        v_commitment.category,
+        true,
+        'seeded_demo'
+      );
+    END LOOP;
+  END LOOP;
 
 END $$;
