@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, X } from 'lucide-react';
+import { Card } from '../primitives';
 
 type Props = {
   amount: number;
@@ -16,7 +17,7 @@ export function WindfallCard({ amount, source, onDismiss, onAllocate }: Props) {
   }).format(amount);
 
   return (
-    <div className="rounded-2xl border-2 border-[#F4D123]/40 bg-white p-5 space-y-3 mb-3">
+    <Card accentColor="yellow" className="space-y-3 mb-3">
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#F4D123]/20 flex items-center justify-center flex-shrink-0">
           <Sparkles size={20} className="text-[#B8860B]" />
@@ -59,6 +60,6 @@ export function WindfallCard({ amount, source, onDismiss, onAllocate }: Props) {
           Skip for now
         </button>
       </div>
-    </div>
+    </Card>
   );
 }

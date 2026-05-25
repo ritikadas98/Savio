@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
 import { formatMonthName } from '../../lib/dates';
+import { Card } from '../primitives';
 
 type Props = {
   monthYear: string;
@@ -11,7 +12,7 @@ export function MonthlyRitualBanner({ monthYear, onStart }: Props) {
   const monthName = formatMonthName(monthYear);
 
   return (
-    <div className="rounded-2xl border-2 border-[#0C447C]/30 bg-white p-5 mb-3 flex items-center gap-3">
+    <Card accentColor="blue" className="mb-3 flex items-center gap-3">
       <div className="w-10 h-10 rounded-xl bg-[#DCEEFF] flex items-center justify-center flex-shrink-0">
         <Calendar size={20} className="text-[#0C447C]" />
       </div>
@@ -32,6 +33,6 @@ export function MonthlyRitualBanner({ monthYear, onStart }: Props) {
       >
         Start
       </button>
-    </div>
+    </Card>
   );
 }

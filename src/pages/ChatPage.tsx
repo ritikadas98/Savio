@@ -7,7 +7,9 @@ import { TypingIndicator } from '../components/chat/TypingIndicator';
 import { SuggestedChips } from '../components/chat/SuggestedChips';
 import { DisclaimerFooter } from '../components/chat/DisclaimerFooter';
 import { ProfilePill } from '../components/layout/ProfilePill';
-import { Compass } from 'lucide-react';
+
+// Savio brand mark — rainbow gradient (NOT compass, which is Priya's avatar)
+const SAVIO_GRADIENT = 'linear-gradient(135deg, #FF8F8F, #F4D123, #B2EF82, #58B9FF)';
 
 export function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
@@ -139,9 +141,11 @@ export function ChatPage() {
 
           {isEmpty && (
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto bg-[#DCEEFF] rounded-full flex items-center justify-center mb-4">
-                <Compass size={28} strokeWidth={1.8} className="text-[#0C447C]" />
-              </div>
+              <div
+                className="w-16 h-16 mx-auto rounded-full mb-4"
+                style={{ background: SAVIO_GRADIENT }}
+                aria-label="Savio"
+              />
               <p className="text-body text-primary font-medium mb-1">Ask Savio anything about your money</p>
               <p className="text-caption text-secondary">Try one of these prompts:</p>
             </div>

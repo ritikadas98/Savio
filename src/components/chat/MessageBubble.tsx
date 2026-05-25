@@ -1,7 +1,12 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Compass, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { SaveDecisionButton } from './SaveDecisionButton';
+import { Pill } from '../primitives';
+
+// Savio's brand mark — a rainbow-gradient circle (NOT a compass icon).
+// Compass is reserved for Priya's Strategist avatar in ProfilePill.
+const SAVIO_GRADIENT = 'linear-gradient(135deg, #FF8F8F, #F4D123, #B2EF82, #58B9FF)';
 
 export function MessageBubble({ message }: { message: any }) {
   const isUser = message.role === 'user';
@@ -27,22 +32,24 @@ export function MessageBubble({ message }: { message: any }) {
   return (
     <div className="w-full mb-5 space-y-2">
       <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-full bg-[#DCEEFF] flex items-center justify-center flex-shrink-0">
-          <Compass size={14} className="text-[#0C447C]" />
-        </div>
+        <div
+          className="w-6 h-6 rounded-full flex-shrink-0"
+          style={{ background: SAVIO_GRADIENT }}
+          aria-label="Savio"
+        />
         <span className="font-semibold text-[#0C447C] text-sm">Savio</span>
         {verified && (
-          <span
-            className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-[#B2EF82]/40 text-[#2D5016] inline-flex items-center gap-1"
+          <Pill
+            variant="sage"
+            icon={<Check size={11} strokeWidth={2.5} />}
             title="Numbers in this response were verified against your actual data."
           >
-            <Check size={11} strokeWidth={2.5} />
             Verified
-          </span>
+          </Pill>
         )}
       </div>
 
-      <div className="text-body text-[#1A1A1A] pl-9">
+      <div className="text-body text-[#1A1A1A] pl-8">
         <ReactMarkdown
           components={{
             p: ({ children }) => <p className="mb-3 last:mb-0 leading-relaxed">{children}</p>,
@@ -59,7 +66,7 @@ export function MessageBubble({ message }: { message: any }) {
       </div>
 
       {showSaveDecision && (
-        <div className="pl-9">
+        <div className="pl-8">
           <SaveDecisionButton
             decisionText={message.content.slice(0, 100) + '...'}
             verdict="amber"
