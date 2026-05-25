@@ -85,12 +85,38 @@ async function applyMigrations() {
       return;
     }
 
+    // Compute DEMO_TODAY = 1st of current calendar month in IST, in YYYY-MM-DD
+    // form. The seed file (0006_seed_priya.sql) declares v_demo_today; we
+    // substitute it dynamically so re-running this script produces a world
+    // anchored to "the start of the month you ran it in" without manual edits.
+    const istParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+    }).formatToParts(new Date());
+    const demoYear = istParts.find(p => p.type === 'year').value;
+    const demoMonth = istParts.find(p => p.type === 'month').value;
+    const demoToday = `${demoYear}-${demoMonth}-01`;
+    console.log(`Dynamic DEMO_TODAY for this seed run: ${demoToday}`);
+
     const files = fs.readdirSync(migrationsDir).sort();
-    
+
     for (const file of files) {
       if (file.endsWith('.sql')) {
         console.log(`Applying ${file}...`);
-        const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+        let sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+        if (file === '0006_seed_priya.sql') {
+          const before = sql;
+          sql = sql.replace(
+            /v_demo_today date := '\d{4}-\d{2}-\d{2}'::date;/,
+            `v_demo_today date := '${demoToday}'::date;`,
+          );
+          if (sql === before) {
+            console.warn('  ! v_demo_today substitution did not match. Seed will use its hardcoded value.');
+          } else {
+            console.log(`  v_demo_today substituted to ${demoToday}`);
+          }
+        }
         await client.query(sql);
         console.log(`Applied ${file} successfully.`);
       }

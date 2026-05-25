@@ -1,4 +1,29 @@
-export const DEMO_TODAY = new Date('2026-05-01T09:00:00+05:30');
+// DEMO_TODAY is pinned to the 1st of the current real-world calendar month
+// at 9:00 AM IST. This keeps the demo's "month just began" framing always
+// current: visitors always open Savio at the most product-resonant moment
+// (salary just landed, safe-to-spend to plan the new month).
+//
+// Computed once at module load — the value is stable for the lifetime of
+// the page session. Crossing a month boundary requires a re-seed (see
+// scripts/apply-migrations.js, which automatically substitutes v_demo_today).
+//
+// Uses Intl with Asia/Kolkata so the "current month" is determined in IST
+// regardless of where the page is served from — keeps the demo's monthly
+// rollover predictable for an India-based audience.
+//
+// ESLint blocks new Date() outside this file; this is the one place it lives.
+function computeDemoToday(): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')!.value;
+  const month = parts.find(p => p.type === 'month')!.value;
+  return new Date(`${year}-${month}-01T09:00:00+05:30`);
+}
+
+export const DEMO_TODAY = computeDemoToday();
 
 export function today(): Date {
   return DEMO_TODAY;

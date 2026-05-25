@@ -1,7 +1,22 @@
 // Edge function uses Deno
 
-// DEMO_TODAY mirrors src/lib/dates.ts so date math on the server matches the UI.
-const DEMO_TODAY = new Date('2026-04-15T09:00:00+05:30');
+// DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
+// 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
+// Edge Function agree on which month is "current" regardless of the host's
+// own timezone. Computed once at module load and reused for the isolate's
+// lifetime (Supabase keeps Deno isolates warm for ~minutes).
+function computeDemoToday(): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')!.value;
+  const month = parts.find(p => p.type === 'month')!.value;
+  return new Date(`${year}-${month}-01T09:00:00+05:30`);
+}
+
+const DEMO_TODAY = computeDemoToday();
 
 const INR = (n: number) => n.toLocaleString('en-IN');
 
@@ -15,7 +30,10 @@ function daysUntilNextAnchor(anchorDay: number): number {
   const t = DEMO_TODAY;
   let year = t.getFullYear();
   let month = t.getMonth();
-  if (t.getDate() >= anchorDay) {
+  // Strict > (matches src/lib/dates.ts:getNextAnchorDate) so ON the anchor
+  // day itself this returns 0 — the prompt context can say "today is payday"
+  // instead of "31 days until salary".
+  if (t.getDate() > anchorDay) {
     month += 1;
     if (month > 11) { month = 0; year += 1; }
   }
