@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { calculateSafeToSpend } from '../lib/safeToSpend';
 import { generateGuidance } from '../lib/guidance';
-import { getNextAnchorDate, today } from '../lib/dates';
+import { getNextAnchorDate, today, getPreviousMonthFirstDate } from '../lib/dates';
 import { BottomNav } from '../components/layout/BottomNav';
 import { SafeToSpendHero } from '../components/home/SafeToSpendHero';
 import { WindfallCard } from '../components/home/WindfallCard';
@@ -14,6 +15,7 @@ import { CategorizationBanner } from '../components/home/CategorizationBanner';
 import { ProfilePill } from '../components/layout/ProfilePill';
 
 export function HomePage() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,21 +65,30 @@ export function HomePage() {
         // This matches the FK relationship: child.user_id -> profiles.id
         const profileId = profile.id;
 
+        const prevMonth = getPreviousMonthFirstDate();
+
         const [
           { data: goals },
           { data: commitments },
           { data: recentTransactions },
           { data: pendingWindfall },
           { data: currentRitual },
-          { data: recentReflections }
+          { data: recentReflections },
+          { data: carryForwardRows }
         ] = await Promise.all([
           supabase.from('goals').select('*').eq('user_id', profileId),
           supabase.from('commitments').select('*').eq('user_id', profileId),
           supabase.from('transactions').select('*').eq('user_id', profileId).order('occurred_at', { ascending: false }).limit(4),
           supabase.from('windfalls').select('*').eq('user_id', profileId).eq('status', 'pending_allocation').order('detected_at', { ascending: false }).limit(1).maybeSingle(),
           supabase.from('monthly_rituals').select('*').eq('user_id', profileId).eq('status', 'pending').limit(1).maybeSingle(),
-          supabase.from('reflections').select('*').eq('user_id', profileId).order('reflected_at', { ascending: false }).limit(10)
+          supabase.from('reflections').select('*').eq('user_id', profileId).order('reflected_at', { ascending: false }).limit(10),
+          // Phase 3: rollover carry-forward from last month's ritual
+          supabase.from('rollover_allocations').select('total_amount').eq('user_id', profileId).eq('ritual_month', prevMonth).eq('destination_kind', 'carry_forward')
         ]);
+
+        const carryForwardFromLastMonth = (carryForwardRows ?? []).reduce(
+          (s: number, r: any) => s + Number(r.total_amount || 0), 0,
+        );
 
         if (!cancelled) {
           setData({
@@ -87,7 +98,8 @@ export function HomePage() {
             recentTransactions: recentTransactions || [],
             pendingWindfall,
             currentRitual,
-            recentReflections: recentReflections || []
+            recentReflections: recentReflections || [],
+            carryForwardFromLastMonth,
           });
           setLoading(false);
         }
@@ -123,14 +135,14 @@ export function HomePage() {
     );
   }
 
-  const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections } = data;
+  const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections, carryForwardFromLastMonth } = data;
 
-  // Safe to spend
+  // Safe to spend (includes rollover carry-forward from last month, if any)
   let safeToSpend = 0;
   if (currentRitual && currentRitual.safe_to_spend_locked) {
-    safeToSpend = currentRitual.safe_to_spend_locked;
+    safeToSpend = Number(currentRitual.safe_to_spend_locked) + Number(carryForwardFromLastMonth || 0);
   } else {
-    safeToSpend = calculateSafeToSpend(profile?.monthly_income_net || 0, commitments, goals);
+    safeToSpend = calculateSafeToSpend(profile?.monthly_income_net || 0, commitments, goals, Number(carryForwardFromLastMonth || 0));
   }
 
   const anchorDay = profile?.anchor_day_of_month || 1;
@@ -170,7 +182,10 @@ export function HomePage() {
           <SafeToSpendHero amount={safeToSpend} anchorDate={nextAnchorDate} />
 
           {currentRitual && (
-            <MonthlyRitualBanner monthYear={currentRitual.month_year} />
+            <MonthlyRitualBanner
+              monthYear={currentRitual.month_year}
+              onStart={() => navigate(`/ritual/${currentRitual.month_year}`)}
+            />
           )}
 
           <CommitmentsCard ratio={ratioStr} total={commitmentsCount} isAnchorDay={isAnchorDay} />

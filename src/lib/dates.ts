@@ -78,6 +78,17 @@ export function formatMonthName(monthYear: string): string {
   return new Intl.DateTimeFormat('en-IN', { month: 'long' }).format(new Date(y, m, 1));
 }
 
+// Returns the previous month's 1st-of-month date as 'YYYY-MM-DD' (UTC-safe).
+// Used by the ritual rollover lookup — "what was last month's ritual_month?"
+export function getPreviousMonthFirstDate(): string {
+  const t = DEMO_TODAY;
+  let y = t.getFullYear();
+  let m = t.getMonth(); // 0-indexed
+  m -= 1;
+  if (m < 0) { m = 11; y -= 1; }
+  return `${y}-${String(m + 1).padStart(2, '0')}-01`;
+}
+
 // Calendar-day relative formatter pinned to DEMO_TODAY.
 // Returns "Today" / "Yesterday" / "N days ago" / "N weeks ago" / a short date.
 export function formatRelativeDate(input: Date | string | number): string {

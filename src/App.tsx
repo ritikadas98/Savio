@@ -7,6 +7,9 @@ import { ReflectPage } from './pages/ReflectPage';
 import { GoalsPage } from './pages/GoalsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PhoneShell } from './components/layout/PhoneShell';
+import { MonthlyRitualCloseOut } from './components/ritual/MonthlyRitualCloseOut';
+import { MonthlyRitualRollover } from './components/ritual/MonthlyRitualRollover';
+import { MonthlyRitualComplete } from './components/ritual/MonthlyRitualComplete';
 
 function App() {
   return (
@@ -19,6 +22,9 @@ function App() {
           <Route path="/reflect" element={<ReflectPage />} />
           <Route path="/goals" element={<GoalsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/ritual/:month" element={<MonthlyRitualCloseOut />} />
+          <Route path="/ritual/:month/rollover" element={<MonthlyRitualRollover />} />
+          <Route path="/ritual/:month/complete" element={<MonthlyRitualComplete />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </PhoneShell>
