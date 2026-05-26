@@ -247,6 +247,11 @@ BEGIN
     (v_user_id, 'Zara',   2, 2, 0, 2, 0, 100.00),
     (v_user_id, 'Swiggy', 1, 1, 0, 0, 1,   0.00);
 
+  -- Phase 3.5 — reflections_seed_snapshot is populated by 0010 after this
+  -- migration completes (0006 runs before 0010 in apply-migrations.js, so
+  -- the snapshot table doesn't exist yet at this point). The backfill in
+  -- 0010 reads from the reflections table we just populated.
+
   -- Monthly Rituals (Jan/Feb/Mar 2026 completed, April pending)
   INSERT INTO public.monthly_rituals (user_id, month_year, status, income_confirmed, safe_to_spend_locked) VALUES
     (v_user_id, '2026-01', 'completed', 68500, 12000),
