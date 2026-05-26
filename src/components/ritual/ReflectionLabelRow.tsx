@@ -90,7 +90,7 @@ export function ReflectionLabelRow({ transaction, existingLabel = null, onLabel 
                 type="button"
                 onClick={() => handleLabel(opt)}
                 disabled={pending}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-borderHover text-sm font-medium text-[#1A1A1A] hover:bg-[#E4ECE6]/60 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-borderHover text-sm font-medium text-[#1A1A1A] hover:bg-[#E4ECE6]/60 transition-colors disabled:opacity-50 whitespace-nowrap"
               >
                 {meta.icon}
                 <span>{meta.display}</span>

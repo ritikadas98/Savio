@@ -244,18 +244,34 @@ export function MonthlyRitualRollover() {
           );
         })()}
 
-        {/* Confirm */}
+        {/* Confirm — two visual states. Empty state nudges the user to choose
+            without looking truncated. Filled state shows the full commitment. */}
         <div className="pt-3">
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={!selected || submitting}
-            className="w-full px-5 py-3 rounded-full bg-[#0C447C] text-white text-base font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {submitting ? 'Saving…' : `Confirm — ${formatINRInt(data.total_leftover)} to ${selected
+          {(() => {
+            const destinationLabel = selected
               ? (selected.kind === 'carry_forward' ? 'next month' : selected.goal.label)
-              : '…'}`}
-          </button>
+              : null;
+            const isReady = !!selected && !submitting;
+            const copy = submitting
+              ? 'Saving…'
+              : destinationLabel
+                ? `Confirm — ${formatINRInt(data.total_leftover)} to ${destinationLabel}`
+                : `Choose where to send ${formatINRInt(data.total_leftover)}`;
+            return (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={!isReady}
+                className={`w-full px-5 py-3 rounded-full text-base font-medium transition-opacity ${
+                  isReady
+                    ? 'bg-[#0C447C] text-white hover:opacity-90'
+                    : 'bg-[#8B948E]/30 text-[#5A6B5F] cursor-not-allowed'
+                }`}
+              >
+                {copy}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>

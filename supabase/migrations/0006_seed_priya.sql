@@ -99,6 +99,12 @@ DECLARE
   v_eating_out_id uuid;
   v_transport_id uuid;
 BEGIN
+  -- Lock the random sequence so every reseed produces identical transaction
+  -- amounts, dates, and merchant selections. Doc 1.1 added — keeps the
+  -- canonical demo numbers stable across reseeds. Pick a value once and
+  -- never change it (changing breaks every screenshot taken at this point).
+  PERFORM setseed(0.42);
+
   -- Insert ~250 small discretionary transactions (groceries, transport, food delivery, coffee)
   FOR i IN 1..250 LOOP
     -- Pick a random date
@@ -164,44 +170,82 @@ BEGIN
     (v_user_id, v_diwali_bonus_id, 50000.00, (v_demo_today - interval '5 months 26 days')::timestamptz, 'pending_allocation'),
     (v_user_id, v_tax_refund_id, 6200.00, (v_demo_today - interval '1 month 7 days')::timestamptz, 'pending_allocation');
 
-  -- Pre-labeled reflections (5 rows: 3 glad, 2 regret)
-  -- 1. Glad - Myntra
-  v_txn_id := gen_random_uuid();
-  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (v_txn_id, v_user_id, v_demo_today - interval '10 days', 2500, 'debit', 'Myntra', 'Shopping', true);
-  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+  -- Pre-labeled reflection corpus (9 rows, spread Nov 2025 → March 2026).
+  -- Doc 1.1: redistributed from the previous 5-in-April layout so:
+  --   - April has NO pre-labeled high-impact (those become ritual-labeling candidates)
+  --   - Aggregated regret-rate (Doc 2) has enough corpus to be statistically interesting
+  --   - Pattern: Myntra 100% regret (4/4), Zara 100% regret (2/2), Amazon 50% (1/2), Swiggy neutral (1/1)
 
-  -- 2. Regret - Myntra
+  -- 1. Myntra regret — Nov 12, 2025  (~5.5 months ago)
   v_txn_id := gen_random_uuid();
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (v_txn_id, v_user_id, v_demo_today - interval '15 days', 3200, 'debit', 'Myntra', 'Shopping', true);
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '5 months 19 days')::timestamptz, 3200, 'debit', 'Myntra', 'Shopping', true);
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
 
-  -- 3. Regret - Myntra (to get 100% regret rate as requested in spec... wait, if I have 1 glad and 2 regrets, it's not 100%. Spec: "merchant_stats showing Myntra regret_rate=100 and Amazon regret_rate=0". I will adjust the first glad to something else.)
-  UPDATE public.transactions SET merchant = 'Zara' WHERE id = (SELECT transaction_id FROM public.reflections WHERE label = 'glad' LIMIT 1);
-  -- Now Myntra has 1 regret. Let's add another regret for Myntra.
+  -- 2. Myntra regret — Dec 8, 2025
   v_txn_id := gen_random_uuid();
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (v_txn_id, v_user_id, v_demo_today - interval '20 days', 4500, 'debit', 'Myntra', 'Shopping', true);
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '4 months 23 days')::timestamptz, 4500, 'debit', 'Myntra', 'Shopping', true);
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
 
-  -- 4. Glad - Amazon
+  -- 3. Amazon regret — Dec 22, 2025
   v_txn_id := gen_random_uuid();
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (v_txn_id, v_user_id, v_demo_today - interval '12 days', 1500, 'debit', 'Amazon', 'Shopping', true);
-  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '4 months 9 days')::timestamptz, 2100, 'debit', 'Amazon', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
 
-  -- 5. Glad - Amazon
+  -- 4. Myntra regret — Jan 18, 2026
   v_txn_id := gen_random_uuid();
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (v_txn_id, v_user_id, v_demo_today - interval '22 days', 800, 'debit', 'Amazon', 'Shopping', true);
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '3 months 13 days')::timestamptz, 2800, 'debit', 'Myntra', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- 5. Zara regret — Jan 25, 2026
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '3 months 6 days')::timestamptz, 2500, 'debit', 'Zara', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- 6. Myntra regret — Feb 14, 2026
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '2 months 15 days')::timestamptz, 3600, 'debit', 'Myntra', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- 7. Zara regret — Feb 22, 2026
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '2 months 7 days')::timestamptz, 1800, 'debit', 'Zara', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- 8. Amazon glad — Mar 10, 2026  (the contrast — useful purchase Priya was happy with)
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 month 21 days')::timestamptz, 1500, 'debit', 'Amazon', 'Shopping', true);
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
 
-  -- Update merchant stats explicitly for demo certainty
+  -- 9. Swiggy neutral — Mar 28, 2026  (low-stakes daily-life txn; pattern noise)
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 month 3 days')::timestamptz, 450, 'debit', 'Swiggy', 'Food', false);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'neutral');
+
+  -- April unlabeled high-impact transactions (NOT in reflections).
+  -- These are what the ritual close-out's "Looking back" prompts surface.
+  -- Doc 1.1: one ₹4,000+ and one ₹1,500+, both commitment_id NULL (discretionary).
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '13 days')::timestamptz, 4800, 'debit', 'Myntra',  'Shopping', true);
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '9 days')::timestamptz,  1950, 'debit', 'Amazon', 'Shopping', true);
+
+  -- Update merchant stats explicitly for demo certainty.
+  -- Numbers reflect the labeled corpus above (NOT all merchant txns — just labeled).
   INSERT INTO public.merchant_stats (user_id, merchant, total_transactions, total_labeled, glad_count, regret_count, neutral_count, regret_rate)
-  VALUES 
-    (v_user_id, 'Myntra', 2, 2, 0, 2, 0, 100.00),
-    (v_user_id, 'Amazon', 2, 2, 2, 0, 0, 0.00);
+  VALUES
+    (v_user_id, 'Myntra', 4, 4, 0, 4, 0, 100.00),
+    (v_user_id, 'Amazon', 2, 2, 1, 1, 0,  50.00),
+    (v_user_id, 'Zara',   2, 2, 0, 2, 0, 100.00),
+    (v_user_id, 'Swiggy', 1, 1, 0, 0, 1,   0.00);
 
   -- Monthly Rituals (Jan/Feb/Mar 2026 completed, April pending)
   INSERT INTO public.monthly_rituals (user_id, month_year, status, income_confirmed, safe_to_spend_locked) VALUES
@@ -233,6 +277,19 @@ BEGIN
 
   UPDATE public.transactions SET commitment_id = v_transport_id
     WHERE user_id = v_user_id AND category = 'Transport' AND merchant = 'Uber';
+
+  -- Doc 1.1 — explicit April Eating out transactions to push actual past
+  -- the ₹5,500 budget (creates the visual red overrun pill in close-out
+  -- against the green buffers on Groceries + Transport). Total: ~₹5,150
+  -- on top of the random Swiggy share (~₹1,177 deterministic from setseed),
+  -- landing actual ~₹6,327 → overrun ~₹827.
+  INSERT INTO public.transactions (id, user_id, commitment_id, occurred_at, amount, direction, merchant, description, category)
+  VALUES
+    (gen_random_uuid(), v_user_id, v_eating_out_id, (v_demo_today - interval '27 days')::timestamptz,  890, 'debit', 'Zomato',         'Sunday lunch order',    'Food'),
+    (gen_random_uuid(), v_user_id, v_eating_out_id, (v_demo_today - interval '20 days')::timestamptz, 1650, 'debit', 'Toit',            'Saturday outing',       'Food'),
+    (gen_random_uuid(), v_user_id, v_eating_out_id, (v_demo_today - interval '14 days')::timestamptz,  720, 'debit', 'Swiggy',          'Weeknight dinner',      'Food'),
+    (gen_random_uuid(), v_user_id, v_eating_out_id, (v_demo_today - interval '11 days')::timestamptz, 1200, 'debit', 'Mainland China',  'Mid-week dinner out',   'Food'),
+    (gen_random_uuid(), v_user_id, v_eating_out_id, (v_demo_today - interval '5 days')::timestamptz,   690, 'debit', 'Swiggy',          'Sunday lunch',          'Food');
 
   -- 2. Fixed commitments: insert one payment transaction per month per
   --    fixed commitment for 6 months. Each insert sets commitment_id
