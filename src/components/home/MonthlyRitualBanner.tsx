@@ -29,7 +29,7 @@ export function MonthlyRitualBanner({ monthYear, onStart }: Props) {
       <button
         type="button"
         onClick={onStart}
-        className="px-5 py-2.5 rounded-full bg-[#0C447C] text-white text-sm font-medium transition-opacity hover:opacity-90 flex-shrink-0"
+        className="min-w-[80px] px-5 py-2.5 rounded-full bg-[#0C447C] text-white text-sm font-medium transition-opacity hover:opacity-90 flex-shrink-0"
       >
         Start
       </button>
