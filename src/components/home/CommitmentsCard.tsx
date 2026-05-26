@@ -12,12 +12,14 @@ type Props = {
 export function CommitmentsCard({ ratio, total, isAnchorDay = false }: Props) {
   const displayRatio = isAnchorDay ? `0/${total}` : ratio;
   const subtitle = isAnchorDay ? 'This month just started' : 'All caught up this month';
-  const caption = isAnchorDay ? 'due this month' : 'paid';
+  // Shortened from "due this month" / "paid" so the right column doesn't
+  // expand wide enough to squeeze the title into a "track"-orphan wrap.
+  const caption = isAnchorDay ? 'this month' : 'paid';
 
   return (
     <Card className="flex items-center justify-between mb-3 !p-4">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-[#DEF2CB] flex items-center justify-center text-[#3B6D11]">
+        <div className="w-11 h-11 rounded-full bg-[#DEF2CB] flex items-center justify-center text-[#3B6D11] flex-shrink-0">
           <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
         </div>
         <div>
@@ -25,7 +27,7 @@ export function CommitmentsCard({ ratio, total, isAnchorDay = false }: Props) {
           <div className="text-caption text-secondary">{subtitle}</div>
         </div>
       </div>
-      <div className="text-right">
+      <div className="text-right w-20 flex-shrink-0">
         <div className="text-title font-medium text-primary">{displayRatio}</div>
         <div className="text-caption text-secondary">{caption}</div>
       </div>
