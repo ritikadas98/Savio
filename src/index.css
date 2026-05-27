@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Stream 0A: Neue Montreal self-hosted from public/fonts/. Trial weights
+ * Regular (400) + Medium (500) cover the entire type scale per master plan
+ * §2.1. Files are .otf — works on web, slightly larger than .woff2; convert
+ * to .woff2 as Phase D polish if needed.
+ * Fallback chain: Neue Montreal → Inter (Google Fonts CDN) → system-ui. */
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('/fonts/NeueMontreal-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Neue Montreal';
+  src: url('/fonts/NeueMontreal-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+html, body {
+  font-family: 'Neue Montreal', 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @layer base {
   :root {
     --background: #E4ECE6;

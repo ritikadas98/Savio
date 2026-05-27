@@ -12,15 +12,30 @@ type RowProps = {
   className?: string;
 };
 
+// Stream 0.5-C: sizes baked per JSX preview lines 385/386/390 (transaction row).
+//   label    14 / 400
+//   sublabel 11.5 / 400 / T.s
+//   value    14 / 500 / T.p
+// Row is currently only consumed by RecentTransactionsList — when other
+// consumers land (profile rows, etc.), inspect whether their JSX-spec sizes
+// match; if they don't, parameterize this primitive.
 export function Row({ icon, label, sublabel, value, trailing, onClick, className }: RowProps) {
   const content = (
     <>
       {icon && <div className="flex-shrink-0">{icon}</div>}
       <div className="flex-1 min-w-0">
-        <div className="font-medium text-[#1A1A1A] truncate">{label}</div>
-        {sublabel && <div className="text-sm text-[#5A6B5F] truncate">{sublabel}</div>}
+        <div style={{ fontSize: 14, color: '#1A1A1A', lineHeight: 1.2 }} className="truncate">{label}</div>
+        {sublabel && (
+          <div style={{ fontSize: 11.5, color: '#5F5E5A', lineHeight: 1.3, marginTop: 1 }} className="truncate">
+            {sublabel}
+          </div>
+        )}
       </div>
-      {value && <div className="font-medium text-[#0C447C] flex-shrink-0">{value}</div>}
+      {value && (
+        <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.2 }} className="flex-shrink-0">
+          {value}
+        </div>
+      )}
       {trailing && <div className="flex-shrink-0">{trailing}</div>}
     </>
   );

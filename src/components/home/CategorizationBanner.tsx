@@ -21,12 +21,12 @@ export function CategorizationBanner() {
   if (count === null || count === 0) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#E4ECE6]/60 text-sm mb-3">
-      <div className="flex items-center gap-2 text-[#0C447C]">
+    <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#E4ECE6]/60 mb-3">
+      <div className="flex items-center gap-2" style={{ fontSize: 12.5, color: '#5F5E5A' }}>
         <Tag size={16} />
         <span>{count} transactions need categorization</span>
       </div>
-      <span className="text-xs italic text-[#5A6B5F]">coming in V2</span>
+      <span style={{ fontSize: 10, fontStyle: 'italic', color: '#888780' }}>coming in V2</span>
     </div>
   );
 }

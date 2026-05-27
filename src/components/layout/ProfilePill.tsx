@@ -1,46 +1,56 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Compass, Sailboat, Hammer, type LucideIcon } from 'lucide-react';
 
-type AvatarConfig = { bg: string; stroke: string; glyph: React.ReactNode };
+// Stream 0G: top-bar avatar plate per master plan §3.3 (Behance-aligned):
+//   40×40 white rounded-square (radius 14), avatar icon T.avStop, size 18,
+//   strokeWidth 2. Navy stays the avatar identity color — that's the
+//   "navy reserved for avatar identity" exception (§2.1 #3).
+//
+// Phase C4 — reads localStorage['savio_demo_avatar'] (written by the
+// onboarding flow on Continue from Step 5). Falls back to Strategist /
+// Compass when absent — that's also the skip-path default. Chat behavior
+// stays Strategist for Priya regardless of the icon shown here per
+// PM_DECISIONS.C.18 (visual completeness, behavioral V2).
 
-const AVATARS: Record<string, AvatarConfig> = {
-  strategist: {
-    bg: '#DCEEFF',
-    stroke: '#0C447C',
-    glyph: (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-      </>
-    ),
-  },
-  adventurer: {
-    bg: '#FCF1CC',
-    stroke: '#854F0B',
-    glyph: <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />,
-  },
-  builder: {
-    bg: '#DEF2CB',
-    stroke: '#3B6D11',
-    glyph: <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4l-6.6 6.6a1.4 1.4 0 0 0 2 2l6.6-6.6a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-2 2.4-2.4z" />,
-  },
+const AVATAR_ICONS: Record<string, LucideIcon> = {
+  strategist: Compass,
+  adventurer: Sailboat,
+  builder: Hammer,
 };
 
-export function ProfilePill({ avatar }: { avatar?: string | null }) {
+export function ProfilePill({ avatar: _avatar }: { avatar?: string | null }) {
   const navigate = useNavigate();
-  const key = (avatar || 'strategist').toLowerCase();
-  const av = AVATARS[key] ?? AVATARS.strategist;
+  const [icon, setIcon] = useState<LucideIcon>(Compass);
+
+  useEffect(() => {
+    try {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('savio_demo_avatar') : null;
+      if (stored && AVATAR_ICONS[stored]) {
+        setIcon(() => AVATAR_ICONS[stored]);
+      }
+    } catch {
+      // private browsing or SSR — default Compass already set.
+    }
+  }, []);
+
+  const Icon = icon;
   return (
     <button
       type="button"
       onClick={() => navigate('/profile')}
       aria-label="Open profile"
-      className="w-10 h-10 rounded-full flex items-center justify-center border flex-shrink-0 transition-opacity hover:opacity-80"
-      style={{ backgroundColor: av.bg, borderColor: av.stroke + '1A' }}
+      className="flex-shrink-0 flex items-center justify-center transition-opacity hover:opacity-80"
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        backgroundColor: '#FFFFFF',
+        border: '0.5px solid rgba(0,0,0,0.07)',
+        color: '#0C447C',
+      }}
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={av.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {av.glyph}
-      </svg>
+      <Icon size={18} strokeWidth={2} />
     </button>
   );
 }

@@ -1,7 +1,7 @@
 // Phase 3 Doc 1 — end-to-end ritual walk-through.
-// Simulates: user lands on home → April ritual pending → close-out fetch →
-// pick destination → confirm RPC → ritual completed → home banner gone +
-// safe-to-spend reflects carry-forward (if that's the destination).
+// Updated by Doc 1.2 to use the new 2-arg complete_monthly_ritual signature
+// (p_month_year, p_allocations jsonb array) and to look up allocations by
+// ritual_month rather than the dropped monthly_rituals.rollover_allocation_id FK.
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
@@ -29,62 +29,60 @@ console.log(`discretionary_leftover: ₹${closeOut.discretionary_leftover.toLoca
 console.log(`buffers: ${closeOut.commitment_buffers.length}, overruns: ${closeOut.commitment_overruns.length}`);
 
 if (closeOut.total_leftover <= 0) {
-  console.log('\n[Negative-leftover branch] Confirming skip-rollover…');
-  const { error } = await sb.rpc('complete_monthly_ritual', {
-    p_month_year: '2026-04', p_skip_rollover: true,
-    p_source_breakdown: null, p_total_amount: null,
-    p_destination_kind: null, p_destination_goal_id: null,
-    p_close_out_snapshot: closeOut,
+  console.log('\n[Negative-leftover branch] Calling complete with empty allocations…');
+  const { data: skipRes, error } = await sb.rpc('complete_monthly_ritual', {
+    p_month_year: '2026-04',
+    p_allocations: [],
   });
   if (error) { console.error('RPC error:', error); process.exit(1); }
-  console.log('Ritual completed (no rollover).');
+  console.log(`Skip result: ${JSON.stringify(skipRes)}`);
 } else {
-  console.log('\n=== Step 3 — pick destination (Phone fund) ===');
+  console.log('\n=== Step 3 — pick destination (Phone fund, single allocation) ===');
   const { data: goals } = await sb.from('goals').select('*').eq('user_id', PRIYA_ID).eq('status', 'active');
   const phoneFund = goals.find(g => g.label.toLowerCase().includes('phone'));
   if (!phoneFund) { console.error('No Phone fund goal'); process.exit(1); }
   const phoneFundBefore = Number(phoneFund.current_amount);
   console.log(`Phone fund before: ₹${phoneFundBefore.toLocaleString('en-IN')} of ₹${Number(phoneFund.target_amount).toLocaleString('en-IN')}`);
 
-  console.log('\n=== Step 4 — RPC: complete_monthly_ritual ===');
-  const { data: rolloverId, error: rpcErr } = await sb.rpc('complete_monthly_ritual', {
+  console.log('\n=== Step 4 — RPC: complete_monthly_ritual (single allocation) ===');
+  const { data: rpcRes, error: rpcErr } = await sb.rpc('complete_monthly_ritual', {
     p_month_year: '2026-04',
-    p_skip_rollover: false,
-    p_source_breakdown: {
-      discretionary_leftover: closeOut.discretionary_leftover,
-      commitment_buffers: closeOut.commitment_buffers,
-      commitment_overruns: closeOut.commitment_overruns,
-    },
-    p_total_amount: closeOut.total_leftover,
-    p_destination_kind: 'goal',
-    p_destination_goal_id: phoneFund.id,
-    p_close_out_snapshot: closeOut,
+    p_allocations: [
+      {
+        destination_kind: 'goal',
+        destination_goal_id: phoneFund.id,
+        total_amount: closeOut.total_leftover,
+        source_breakdown: {
+          discretionary_leftover: closeOut.discretionary_leftover,
+          commitment_buffers: closeOut.commitment_buffers,
+          commitment_overruns: closeOut.commitment_overruns,
+        },
+      },
+    ],
   });
   if (rpcErr) { console.error('RPC error:', rpcErr); process.exit(1); }
-  console.log(`RPC succeeded — rollover_allocation_id = ${rolloverId}`);
+  console.log(`RPC result: ${JSON.stringify(rpcRes)}`);
+  const allocationIds = rpcRes.allocation_ids ?? [];
+  console.log(`Allocations written: ${rpcRes.allocations_written}  IDs: [${allocationIds.join(', ')}]`);
 
   console.log('\n=== Step 5 — verify writes ===');
   const { data: postRitual } = await sb.from('monthly_rituals').select('*').eq('user_id', PRIYA_ID).eq('month_year', '2026-04').single();
-  console.log(`April ritual status: ${postRitual.status}, completed_at: ${postRitual.completed_at != null}, rollover_id set: ${postRitual.rollover_allocation_id === rolloverId}, snapshot present: ${postRitual.close_out_snapshot != null}`);
+  console.log(`April ritual: status=${postRitual.status}, completed_at set=${postRitual.completed_at != null}, snapshot present=${postRitual.close_out_snapshot != null}`);
+  console.log(`Snapshot.allocations length: ${Array.isArray(postRitual.close_out_snapshot?.allocations) ? postRitual.close_out_snapshot.allocations.length : 'not-an-array'}`);
 
   const { data: phoneFundAfter } = await sb.from('goals').select('current_amount').eq('id', phoneFund.id).single();
   console.log(`Phone fund after: ₹${Number(phoneFundAfter.current_amount).toLocaleString('en-IN')} (delta +₹${(Number(phoneFundAfter.current_amount) - phoneFundBefore).toLocaleString('en-IN')})`);
 
-  const { data: rolloverRow } = await sb.from('rollover_allocations').select('*').eq('id', rolloverId).single();
-  console.log(`Rollover row: total=₹${rolloverRow.total_amount}, destination_kind=${rolloverRow.destination_kind}, ritual_month=${rolloverRow.ritual_month}`);
+  const { data: allocRows } = await sb.from('rollover_allocations').select('*').eq('user_id', PRIYA_ID).eq('ritual_month', '2026-04-01');
+  console.log(`rollover_allocations rows for April: ${allocRows.length}`);
+  for (const r of allocRows) {
+    console.log(`  total=₹${r.total_amount}, destination_kind=${r.destination_kind}, ritual_month=${r.ritual_month}`);
+  }
 }
 
 console.log('\n=== Step 6 — home state post-ritual ===');
 const { data: post } = await sb.from('monthly_rituals').select('*').eq('user_id', PRIYA_ID).eq('status', 'pending').maybeSingle();
 console.log('Pending ritual now:', post ? `${post.month_year}` : 'none ✓ (banner will hide)');
 
-console.log('\n=== Step 7 — reset for next demo run ===');
-await sb.rpc('complete_monthly_ritual', {
-  // Roundtripping won't work for reset — we just want to verify the walkthrough.
-  // For an actual reset, run scripts/apply-migrations.js.
-  p_month_year: '__noop__', p_skip_rollover: true, p_source_breakdown: null, p_total_amount: null,
-  p_destination_kind: null, p_destination_goal_id: null, p_close_out_snapshot: null,
-}).catch(() => null);  // expected to error (no such month_year); just demonstrating
-console.log('To reset: node scripts/apply-migrations.js');
-
+console.log('\nTo reset: node scripts/apply-migrations.js (or call reset_april_ritual via Reviewer Console)');
 process.exit(0);

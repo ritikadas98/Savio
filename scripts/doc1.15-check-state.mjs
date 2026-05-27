@@ -1,0 +1,13 @@
+import { Client } from 'pg';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+const c = new Client({ connectionString: process.env.DATABASE_URL });
+await c.connect();
+const ID = '00000000-0000-4000-a000-000000000001';
+const rituals = await c.query(`SELECT month_year, status, completed_at FROM monthly_rituals WHERE user_id = $1 ORDER BY month_year`, [ID]);
+console.log('monthly_rituals:');
+for (const r of rituals.rows) console.log(`  ${r.month_year}  status=${r.status}  completed_at=${r.completed_at}`);
+const allocs = await c.query(`SELECT ritual_month, destination_kind, total_amount FROM rollover_allocations WHERE user_id = $1 ORDER BY ritual_month`, [ID]);
+console.log(`\nrollover_allocations (${allocs.rows.length} rows):`);
+for (const r of allocs.rows) console.log(`  ${r.ritual_month}  ${r.destination_kind}  ₹${r.total_amount}`);
+await c.end();

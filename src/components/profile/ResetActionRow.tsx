@@ -59,24 +59,24 @@ export function ResetActionRow({ title, description, buttonLabel, confirmCopy, o
         : buttonLabel;
 
   const buttonClass = isRunning || lastResult
-    ? 'bg-[#8B948E]/30 text-[#5A6B5F] cursor-default'
+    ? 'bg-[#888780]/30 text-[#5F5E5A] cursor-default'
     : isConfirming
       ? 'bg-[#791F1F] text-white hover:bg-[#791F1F]/90'
-      : 'bg-[#0C447C] text-white hover:bg-[#0C447C]/90';
+      : 'bg-[#1A1A1A] text-white hover:bg-[#1A1A1A]/90';
 
   return (
     <div className="border-t border-black/[0.07] pt-3 first:border-t-0 first:pt-0">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-[#1A1A1A]">{title}</h3>
-          <p className="text-sm text-[#5A6B5F] mt-1 leading-relaxed">{description}</p>
+          <p className="text-sm text-[#5F5E5A] mt-1 leading-relaxed">{description}</p>
           {isConfirming && !lastResult && (
             <p className="text-sm text-[#791F1F] mt-2 italic leading-relaxed">{confirmCopy}</p>
           )}
           {lastResult && (
             <p
               className={`text-sm mt-2 leading-relaxed ${
-                isError ? 'text-[#791F1F]' : isNoOp ? 'text-[#5A6B5F]' : 'text-[#2D5016]'
+                isError ? 'text-[#791F1F]' : isNoOp ? 'text-[#5F5E5A]' : 'text-[#2D5016]'
               }`}
             >
               {lastResult.message}

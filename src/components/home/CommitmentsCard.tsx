@@ -1,35 +1,52 @@
 import React from 'react';
+import { Calendar } from 'lucide-react';
 import { Card } from '../primitives';
 
 type Props = {
-  ratio: string;
-  total: number;
-  /** True on the salary-anchor day itself — no commitments could plausibly be
-   *  paid yet, so the card shows 0/N instead of the lying full ratio. */
-  isAnchorDay?: boolean;
+  /** Count of commitment-linked transactions in this week's date range whose
+   *  commitment_id matches one of this week's due commitments. */
+  paidThisWeek: number;
+  /** Count of fixed commitments with due_day_of_month inside the current
+   *  7-day window. Variable budgets are excluded (they're spending buckets,
+   *  not scheduled debits). */
+  totalThisWeek: number;
 };
 
-export function CommitmentsCard({ ratio, total, isAnchorDay = false }: Props) {
-  const displayRatio = isAnchorDay ? `0/${total}` : ratio;
-  const subtitle = isAnchorDay ? 'This month just started' : 'All caught up this month';
-  // Shortened from "due this month" / "paid" so the right column doesn't
-  // expand wide enough to squeeze the title into a "track"-orphan wrap.
-  const caption = isAnchorDay ? 'this month' : 'paid';
+export function CommitmentsCard({ paidThisWeek, totalThisWeek }: Props) {
+  // Three states for the subtitle, depending on what's outstanding:
+  //   - nothing scheduled this week: "Nothing due this week"
+  //   - some paid, some pending:     "N due this week"
+  //   - all paid:                    "All paid this week"
+  // On the anchor day itself, paidThisWeek=0 / totalThisWeek=N → subtitle
+  // shows "N due this week" — the honest read of fresh-month state.
+  const remaining = Math.max(0, totalThisWeek - paidThisWeek);
+  let subtitle: string;
+  if (totalThisWeek === 0) {
+    subtitle = 'Nothing due this week';
+  } else if (remaining === 0) {
+    subtitle = 'All paid this week';
+  } else {
+    subtitle = `${remaining} due this week`;
+  }
 
   return (
     <Card className="flex items-center justify-between mb-3 !p-4">
       <div className="flex items-center gap-3">
-        <div className="w-11 h-11 rounded-full bg-[#DEF2CB] flex items-center justify-center text-[#3B6D11] flex-shrink-0">
-          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <div className="w-11 h-11 rounded-2xl bg-[#DEF2CB] flex items-center justify-center text-[#3B6D11] flex-shrink-0">
+          <Calendar size={20} strokeWidth={2} />
         </div>
         <div>
-          <div className="text-body font-medium text-primary">Commitments on track</div>
-          <div className="text-caption text-secondary">{subtitle}</div>
+          <div style={{ fontSize: 15, color: '#1A1A1A', fontWeight: 400 }}>Commitments on track</div>
+          <div style={{ fontSize: 12.5, color: '#5F5E5A', marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>
-      <div className="text-right w-20 flex-shrink-0">
-        <div className="text-title font-medium text-primary">{displayRatio}</div>
-        <div className="text-caption text-secondary">{caption}</div>
+      <div className="text-right flex-shrink-0 flex items-baseline gap-0.5">
+        <span style={{ fontSize: 26, fontWeight: 500, color: '#1A1A1A', lineHeight: 1 }}>
+          {paidThisWeek}
+        </span>
+        <span style={{ fontSize: 16, fontWeight: 400, color: '#5F5E5A', lineHeight: 1 }}>
+          /{totalThisWeek}
+        </span>
       </div>
     </Card>
   );

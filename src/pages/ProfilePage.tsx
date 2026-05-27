@@ -1,31 +1,173 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Compass } from 'lucide-react';
+import { ArrowLeft, Compass, Sailboat, Hammer, ChevronRight, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ReviewerConsole } from '../components/profile/ReviewerConsole';
+import { Card, Pill } from '../components/primitives';
+import { Snackbar } from '../components/profile/Snackbar';
+import { formatRupeesIndian, ordinalSuffix, formatDateLong } from '../lib/formatters';
+import { DEMO_MODE_MESSAGE } from '../lib/copy';
 
-type ProfileSummary = {
+// Stream 0.5n — Profile identity hero reads the same localStorage avatar
+// hint as ProfilePill (Phase C4). DB stays authoritative for chat behavior
+// (Priya remains Strategist regardless per PM_DECISIONS.C.18). localStorage
+// wins for presentation. Threshold for useUserAvatar() hook extraction is
+// 3+ sites; ProfilePill + ProfilePage = 2, so inline pattern stays.
+type AvatarKey = 'strategist' | 'adventurer' | 'builder';
+
+const AVATAR_ICONS: Record<AvatarKey, LucideIcon> = {
+  strategist: Compass,
+  adventurer: Sailboat,
+  builder:    Hammer,
+};
+
+const AVATAR_LABELS: Record<AvatarKey, string> = {
+  strategist: 'The Strategist',
+  adventurer: 'The Adventurer',
+  builder:    'The Builder',
+};
+
+function isAvatarKey(v: unknown): v is AvatarKey {
+  return v === 'strategist' || v === 'adventurer' || v === 'builder';
+}
+
+// Same pattern as the avatar above — localStorage-first label resolution
+// for the life-stage pill. Labels match the onboarding Step 6 options
+// verbatim (JSX line 763-768) so the Profile pill reads identically to
+// what the user picked. Presentation-only; DB profile.life_stage stays
+// the canonical Priya value for chat grounding.
+type LifeStageKey = 'student' | 'working_no_dependents' | 'supporting_dependents' | 'pre_retiree';
+
+const LIFE_STAGE_LABELS: Record<LifeStageKey, string> = {
+  student:                'Student',
+  working_no_dependents:  'Working, no dependents',
+  supporting_dependents:  'Supporting dependents',
+  pre_retiree:            'Planning for retirement',
+};
+
+function isLifeStageKey(v: unknown): v is LifeStageKey {
+  return v === 'student' || v === 'working_no_dependents'
+      || v === 'supporting_dependents' || v === 'pre_retiree';
+}
+
+type ProfileRow = {
   full_name: string | null;
   avatar: string | null;
   life_stage: string | null;
+  monthly_income_net: number | null;
+  anchor_day_of_month: number | null;
+  primary_bank: string | null;
+  disclaimer_acknowledged_at: string | null;
 };
 
-const formatLifeStage = (raw: string | null) => {
-  if (!raw) return '';
-  return raw
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
+// Stream 0.5n+ — formatLifeStage helper retired in favor of LIFE_STAGE_LABELS
+// lookup (same pattern as AVATAR_LABELS), so the displayed copy matches the
+// onboarding Step 6 options exactly. The old title-case helper produced
+// "Supporting Dependents"; onboarding shows "Supporting dependents".
+
+// Pre-0.5n this helper produced the human label from raw DB string. Stream
+// 0.5n replaces its call sites with AVATAR_LABELS lookups keyed on a
+// localStorage-first avatar key — removing this helper to avoid drift
+// between two label-source paths.
+
+// Phase B1: rows that read profile data but stub edit on tap. Per
+// PM_DECISIONS three-mode build classification, these are [PRESENTATIONAL].
+// Stream 0.5i: snackbar copy sourced from DEMO_MODE_MESSAGE constant —
+// no per-surface variation.
+
+// JSX preview line 836-838 disclaimer copy. Spec doc has a slightly longer
+// 5-sentence version (adds "doesn't store your financial info"); using that
+// per the spec doc directive ("don't paraphrase").
+const DISCLAIMER_BODY = "Savio helps you think about your money. It is not a financial advisor, investment advisor, or registered financial planner. All numerical estimates are AI-generated and may contain errors. Verify all calculations independently before making important decisions. Savio does not store your financial information beyond your local session.";
+
+// Schema column profiles.disclaimer_acknowledged_at exists but seed never
+// populates it. Fall back to this static date — matches Priya's persona
+// timeline (April 2026 onboarding before May 1 demo state).
+const FALLBACK_ACK_DATE = '2026-04-12';
+
+function ProfileSectionHeader({ title }: { title: string }) {
+  return (
+    <h2
+      style={{
+        fontSize: 13,
+        fontWeight: 500,
+        color: '#5F5E5A',
+        padding: '20px 6px 8px',
+        margin: 0,
+      }}
+    >
+      {title}
+    </h2>
+  );
+}
+
+type ProfileFieldRowProps = {
+  label: string;
+  value: React.ReactNode;
+  onClick?: () => void;
+  isLast?: boolean;
 };
 
-const formatAvatar = (raw: string | null) => {
-  if (!raw) return 'Strategist';
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
-};
+function ProfileFieldRow({ label, value, onClick, isLast }: ProfileFieldRowProps) {
+  const content = (
+    <>
+      <span style={{ fontSize: 14, color: '#1A1A1A', flex: 1 }}>{label}</span>
+      <span style={{ fontSize: 14, color: '#5F5E5A', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {value}
+        {onClick && <ChevronRight size={16} className="text-[#888780]" />}
+      </span>
+    </>
+  );
+
+  const base: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    width: '100%',
+    padding: '14px 16px',
+    borderBottom: isLast ? 'none' : '0.5px solid rgba(0,0,0,0.07)',
+    textAlign: 'left',
+  };
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="hover:bg-black/[0.02] transition-colors"
+        style={{ ...base, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+      >
+        {content}
+      </button>
+    );
+  }
+  return <div style={base}>{content}</div>;
+}
 
 export function ProfilePage() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ProfileSummary | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [snackMessage, setSnackMessage] = useState<string | null>(null);
+
+  // Stream 0.5n — localStorage avatar hint, read once on mount (matches
+  // ProfilePill pattern). Skip-path users (no onboarding) have no key set;
+  // walkthrough users have one of {strategist, adventurer, builder}. DB
+  // value is the final fallback; ultimate default is 'strategist'.
+  const [demoAvatar, setDemoAvatar] = useState<AvatarKey | null>(null);
+  const [demoLifeStage, setDemoLifeStage] = useState<LifeStageKey | null>(null);
+  useEffect(() => {
+    try {
+      const storedAvatar = typeof window !== 'undefined' ? localStorage.getItem('savio_demo_avatar') : null;
+      if (isAvatarKey(storedAvatar)) setDemoAvatar(storedAvatar);
+      const storedStage = typeof window !== 'undefined' ? localStorage.getItem('savio_demo_life_stage') : null;
+      if (isLifeStageKey(storedStage)) setDemoLifeStage(storedStage);
+    } catch {
+      // private browsing / SSR — defaults stay null, fall through to DB.
+    }
+  }, []);
+
+  const showStub = useCallback(() => setSnackMessage(DEMO_MODE_MESSAGE), []);
+  const dismissSnack = useCallback(() => setSnackMessage(null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,17 +176,39 @@ export function ProfilePage() {
       if (!user) return;
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, avatar, life_stage')
+        .select('full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at')
         .eq('auth_user_id', user.id)
         .single();
-      if (!cancelled && data) setProfile(data);
+      if (!cancelled && data) setProfile(data as ProfileRow);
     })();
     return () => { cancelled = true; };
   }, []);
 
+  const income = profile?.monthly_income_net ?? 68500;
+  const anchorDay = profile?.anchor_day_of_month ?? 1;
+  const bank = profile?.primary_bank ?? 'HDFC';
+  const ackDateRaw = profile?.disclaimer_acknowledged_at ?? FALLBACK_ACK_DATE;
+
+  // 0.5n — localStorage wins, then DB, then 'strategist'. Invalid values
+  // in any source fall through to 'strategist' via isAvatarKey guard.
+  const dbAvatar = profile?.avatar;
+  const avatarKey: AvatarKey = demoAvatar ?? (isAvatarKey(dbAvatar) ? dbAvatar : 'strategist');
+  const IdentityIcon = AVATAR_ICONS[avatarKey];
+  const identityFullLabel = AVATAR_LABELS[avatarKey];                       // "The Strategist"
+  const identityShortLabel = identityFullLabel.replace(/^The\s+/, '');      // "Strategist" — for the Rules row
+
+  // localStorage wins, then DB, then 'supporting_dependents'. Invalid values
+  // at either source fall through via the isLifeStageKey guard.
+  const dbLifeStage = profile?.life_stage;
+  const lifeStageKey: LifeStageKey = demoLifeStage
+    ?? (isLifeStageKey(dbLifeStage) ? dbLifeStage : 'supporting_dependents');
+  const lifeStageLabel = LIFE_STAGE_LABELS[lifeStageKey];
+
+  const displayName = profile?.full_name ?? 'Priya Sharma';
+
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
-      {/* Header with back arrow */}
+      {/* Header */}
       <header className="flex-shrink-0 px-5 pt-4 pb-2 flex items-center gap-3">
         <button
           type="button"
@@ -54,28 +218,157 @@ export function ProfilePage() {
         >
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-semibold text-[#0C447C]">Profile</h1>
+        <h1 style={{ fontSize: 36, fontWeight: 400, color: '#1A1A1A', lineHeight: 1.2, letterSpacing: '-0.8px' }}>
+          Profile
+        </h1>
       </header>
 
-      <div className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4 space-y-4">
-        {/* Identity strip — Phase 4 will expand this into a full hero. */}
-        <div className="flex items-center gap-3 px-1 py-2">
-          <div className="w-12 h-12 rounded-full bg-[#DCEEFF] flex items-center justify-center flex-shrink-0">
-            <Compass size={24} className="text-[#0C447C]" />
+      <div className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-6">
+        {/* Identity hero — 84×84 circular avPlate with avatar-keyed icon
+            (0.5n: was hardcoded Compass; now Compass/Sailboat/Hammer based
+            on the localStorage hint, matching ProfilePill on home). */}
+        <div className="flex flex-col items-center" style={{ padding: '8px 0 22px' }}>
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 999,
+              backgroundColor: '#DCEEFF',
+              color: '#0C447C',
+              marginBottom: 14,
+            }}
+          >
+            <IdentityIcon size={36} strokeWidth={1.7} />
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-[#1A1A1A] truncate">
-              {profile?.full_name ?? 'Priya Sharma'}
-            </h2>
-            <p className="text-sm text-[#5A6B5F] truncate">
-              {formatAvatar(profile?.avatar ?? 'strategist')}
-              {profile?.life_stage ? ` · ${formatLifeStage(profile.life_stage)}` : ''}
-            </p>
+          <div style={{ fontSize: 22, color: '#1A1A1A', fontWeight: 500, marginBottom: 8 }}>
+            {displayName}
+          </div>
+          <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
+            <Pill variant="navy" size="md">{identityFullLabel}</Pill>
+            <Pill variant="neutral" size="md">{lifeStageLabel}</Pill>
           </div>
         </div>
 
-        <ReviewerConsole />
+        {/* Your finances */}
+        <ProfileSectionHeader title="Your finances" />
+        <Card className="!p-0">
+          <ProfileFieldRow
+            label="Monthly income"
+            value={`${formatRupeesIndian(income)} net`}
+            onClick={showStub}
+          />
+          <ProfileFieldRow
+            label="Anchor date"
+            value={`${ordinalSuffix(anchorDay)} of month`}
+            onClick={showStub}
+          />
+          <ProfileFieldRow
+            label="Primary bank"
+            value={bank}
+            onClick={showStub}
+            isLast
+          />
+        </Card>
+
+        {/* Your rules — buffer_floor + impulse_threshold not yet in schema;
+            hardcoded for MVP demo. V2 adds columns + edit flow. */}
+        <ProfileSectionHeader title="Your rules" />
+        <Card className="!p-0">
+          <ProfileFieldRow
+            label="Buffer floor"
+            value={formatRupeesIndian(100000)}
+            onClick={showStub}
+          />
+          <ProfileFieldRow
+            label="Impulse purchase wait"
+            value="48 hrs over ₹3K"
+            onClick={showStub}
+          />
+          <ProfileFieldRow
+            label="Avatar"
+            value={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                {identityShortLabel}
+                <span style={{ color: '#0C447C', fontWeight: 500, fontSize: 13 }}>Change</span>
+              </span>
+            }
+            onClick={showStub}
+            isLast
+          />
+        </Card>
+
+        {/* Disclaimer — full body + acknowledged date */}
+        <ProfileSectionHeader title="Disclaimer" />
+        <Card>
+          <div style={{ fontSize: 12.5, color: '#5F5E5A', lineHeight: 1.55 }}>
+            {DISCLAIMER_BODY}
+          </div>
+          <div
+            style={{
+              fontSize: 10.5,
+              color: '#888780',
+              marginTop: 10,
+              paddingTop: 10,
+              borderTop: '0.5px solid rgba(0,0,0,0.07)',
+            }}
+          >
+            Acknowledged on {formatDateLong(ackDateRaw)}
+          </div>
+        </Card>
+
+        {/* For reviewers — navy callout introducing the Reviewer Console.
+            JSX preview lines 844-858. */}
+        <div
+          style={{
+            marginTop: 24,
+            padding: '14px 16px',
+            backgroundColor: '#DCEEFF',
+            borderRadius: 18,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: '#0C447C',
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+            }}
+          >
+            For reviewers
+          </div>
+          <div style={{ fontSize: 12, color: '#0C447C', lineHeight: 1.5, opacity: 0.85 }}>
+            This is a portfolio demo running on a single seeded user (Priya). The affordances below let you experience parts of the product that are normally event-triggered, plus stubs for case-study artifacts.
+          </div>
+        </div>
+
+        {/* Reviewer Console — functional resets (existing) + presentational stubs */}
+        <div style={{ marginTop: 10 }}>
+          <ReviewerConsole onStub={showStub} />
+        </div>
+
+        {/* About */}
+        <ProfileSectionHeader title="About Savio" />
+        <Card className="!p-0">
+          <ProfileFieldRow label="Version" value="0.3.0 (Demo MVP)" isLast />
+        </Card>
+
+        {/* Footer */}
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '32px 0 24px',
+            fontSize: 11,
+            color: '#888780',
+          }}
+        >
+          Built with care · Bengaluru, 2026
+        </div>
       </div>
+
+      <Snackbar message={snackMessage} onDismiss={dismissSnack} />
 
       <BottomNav />
     </div>
