@@ -14,6 +14,10 @@ function StatusBar() {
   );
 }
 
+// Phone-frame chrome — kept by explicit user preference. Master plan §2.1 #8
+// recommended removal ("responsive mobile web, no phone-frame chrome") but
+// the bezel was reinstated as a deliberate portfolio-presentation choice.
+// Bezel + notch + status bar only render on md+ viewports; mobile fills screen.
 export function PhoneShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-neutral-300 flex items-center justify-center md:py-10">

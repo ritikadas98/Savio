@@ -40,26 +40,35 @@ BEGIN
   -- monthly outflow stays ₹47,468 in the safe-to-spend formula — variable
   -- commitments are informational budgets WITHIN the discretionary bucket,
   -- they do NOT subtract from safe-to-spend.
-  INSERT INTO public.commitments (id, user_id, label, amount, frequency, category, kind) VALUES
+  -- Doc 1.15: due_day_of_month populated for fixed commitments so the home
+  -- CommitmentsCard can compute real "due this week" / "paid this week"
+  -- ratios. Variable commitments stay NULL — they're spending buckets, not
+  -- scheduled debits, so they don't belong in the weekly ratio.
+  --
+  -- Days chosen to reflect plausible Indian billing patterns: rent / domestic
+  -- help on the 1st, family support right after salary on the 2nd, EMIs and
+  -- SIPs on standard "5th of month" auto-debit, utilities spread across the
+  -- month so the weekly view shows movement across multiple weeks.
+  INSERT INTO public.commitments (id, user_id, label, amount, frequency, category, kind, due_day_of_month) VALUES
     -- Fixed commitments (13) — actual == budgeted, no buffer/overrun
-    (gen_random_uuid(), v_user_id, 'Rent',              22000.00, 'monthly', 'Housing',       'fixed'),
-    (gen_random_uuid(), v_user_id, 'Personal Loan EMI',  8500.00, 'monthly', 'Debt',          'fixed'),
-    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 1', 10000.00, 'monthly', 'Investing',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 2',  5000.00, 'monthly', 'Investing',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'Parents Support',    8000.00, 'monthly', 'Family',        'fixed'),
-    (gen_random_uuid(), v_user_id, 'Term Insurance',      950.00, 'monthly', 'Insurance',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'Health Insurance',   1400.00, 'monthly', 'Insurance',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'Broadband',          1000.00, 'monthly', 'Utilities',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'Electricity (Avg)',  1800.00, 'monthly', 'Utilities',     'fixed'),
-    (gen_random_uuid(), v_user_id, 'Gym',                2200.00, 'monthly', 'Health',        'fixed'),
-    (gen_random_uuid(), v_user_id, 'Spotify',             119.00, 'monthly', 'Entertainment', 'fixed'),
-    (gen_random_uuid(), v_user_id, 'Netflix',             499.00, 'monthly', 'Entertainment', 'fixed'),
-    (gen_random_uuid(), v_user_id, 'Maid/Helper',        1000.00, 'monthly', 'Housing',       'fixed'),
+    (gen_random_uuid(), v_user_id, 'Rent',              22000.00, 'monthly', 'Housing',       'fixed',  1),
+    (gen_random_uuid(), v_user_id, 'Maid/Helper',        1000.00, 'monthly', 'Housing',       'fixed',  1),
+    (gen_random_uuid(), v_user_id, 'Parents Support',    8000.00, 'monthly', 'Family',        'fixed',  2),
+    (gen_random_uuid(), v_user_id, 'Personal Loan EMI',  8500.00, 'monthly', 'Debt',          'fixed',  5),
+    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 1', 10000.00, 'monthly', 'Investing',     'fixed',  5),
+    (gen_random_uuid(), v_user_id, 'SIP Mutual Fund 2',  5000.00, 'monthly', 'Investing',     'fixed',  5),
+    (gen_random_uuid(), v_user_id, 'Gym',                2200.00, 'monthly', 'Health',        'fixed',  5),
+    (gen_random_uuid(), v_user_id, 'Spotify',             119.00, 'monthly', 'Entertainment', 'fixed',  7),
+    (gen_random_uuid(), v_user_id, 'Broadband',          1000.00, 'monthly', 'Utilities',     'fixed',  8),
+    (gen_random_uuid(), v_user_id, 'Term Insurance',      950.00, 'monthly', 'Insurance',     'fixed', 10),
+    (gen_random_uuid(), v_user_id, 'Health Insurance',   1400.00, 'monthly', 'Insurance',     'fixed', 10),
+    (gen_random_uuid(), v_user_id, 'Netflix',             499.00, 'monthly', 'Entertainment', 'fixed', 12),
+    (gen_random_uuid(), v_user_id, 'Electricity (Avg)',  1800.00, 'monthly', 'Utilities',     'fixed', 15),
     -- Variable commitments (3) — Phase 3 added. Budgets within discretionary,
-    -- NOT subtracted from safe-to-spend. Buffer/overrun is the case-study story.
-    ('d0000000-0000-4000-a000-000000000001', v_user_id, 'Groceries',   6000.00, 'monthly', 'Groceries', 'variable'),
-    ('d0000000-0000-4000-a000-000000000002', v_user_id, 'Eating out',  5500.00, 'monthly', 'Food',      'variable'),
-    ('d0000000-0000-4000-a000-000000000003', v_user_id, 'Transport',   5500.00, 'monthly', 'Transport', 'variable')
+    -- NOT subtracted from safe-to-spend. due_day_of_month stays NULL.
+    ('d0000000-0000-4000-a000-000000000001', v_user_id, 'Groceries',   6000.00, 'monthly', 'Groceries', 'variable', NULL),
+    ('d0000000-0000-4000-a000-000000000002', v_user_id, 'Eating out',  5500.00, 'monthly', 'Food',      'variable', NULL),
+    ('d0000000-0000-4000-a000-000000000003', v_user_id, 'Transport',   5500.00, 'monthly', 'Transport', 'variable', NULL)
   ON CONFLICT DO NOTHING;
 
   -- Goals (3 rows)

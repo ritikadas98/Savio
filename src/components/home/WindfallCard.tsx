@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, X } from 'lucide-react';
+import { tokens } from '../../lib/design-tokens';
 import { Card } from '../primitives';
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
   onAllocate?: () => void;
 };
 
-export function WindfallCard({ amount, source, onDismiss, onAllocate }: Props) {
+export function WindfallCard({ amount, source: _source, onDismiss, onAllocate }: Props) {
   const formattedAmount = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -23,24 +24,28 @@ export function WindfallCard({ amount, source, onDismiss, onAllocate }: Props) {
           <Sparkles size={20} className="text-[#B8860B]" />
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="text-sm text-[#5A6B5F] mb-0.5">{source}</div>
-          <div className="font-semibold text-[#0C447C]">
-            {formattedAmount} landed today — well above your usual.
-          </div>
+        {/* Doc 1.15 Stream E: amount IS the headline. The prior small source
+            label above the amount has been removed — preview reserves that
+            slot pattern for elsewhere. */}
+        <div
+          className="flex-1 min-w-0"
+          style={{ fontSize: 15, color: tokens.p, fontWeight: 500, lineHeight: 1.35 }}
+        >
+          {formattedAmount} landed today — well above your usual.
         </div>
 
         <button
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="text-[#5A6B5F] hover:text-[#0C447C] transition-colors flex-shrink-0"
+          className="flex-shrink-0 transition-colors"
+          style={{ color: tokens.s }}
         >
           <X size={18} />
         </button>
       </div>
 
-      <p className="text-sm text-[#5A6B5F] leading-relaxed">
+      <p style={{ fontSize: 12.5, color: tokens.s, lineHeight: 1.4 }}>
         Money that breaks pattern is the easiest to spend without noticing. Want to spend 60 seconds deciding what this is for?
       </p>
 
@@ -48,14 +53,16 @@ export function WindfallCard({ amount, source, onDismiss, onAllocate }: Props) {
         <button
           type="button"
           onClick={onAllocate}
-          className="px-5 py-2.5 rounded-full bg-[#0C447C] text-white text-sm font-medium transition-opacity hover:opacity-90"
+          className="px-5 py-2.5 rounded-full text-sm font-medium transition-opacity hover:opacity-90"
+          style={{ backgroundColor: tokens.p, color: tokens.card }}
         >
           Allocate now
         </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="px-5 py-2.5 rounded-full bg-white border border-[#0C447C]/20 text-[#0C447C] text-sm font-medium transition-colors hover:bg-[#0C447C]/5"
+          className="px-5 py-2.5 rounded-full text-sm font-medium transition-colors hover:bg-black/[0.02]"
+          style={{ backgroundColor: 'transparent', color: tokens.p, border: `0.5px solid ${tokens.borderHover}` }}
         >
           Skip for now
         </button>

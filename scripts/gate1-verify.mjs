@@ -42,7 +42,9 @@ for (const r of q3.rows) {
   console.log(`  ${r.column_name.padEnd(24)} ${r.data_type.padEnd(28)} nullable=${r.is_nullable}`);
 }
 
-console.log('\n=== Q4. monthly_rituals new columns ===');
+console.log('\n=== Q4. monthly_rituals — close_out_snapshot present, rollover_allocation_id DROPPED ===');
+// Doc 1.2 dropped rollover_allocation_id in favor of a many-to-one query
+// against rollover_allocations.ritual_month. close_out_snapshot still lives.
 const q4 = await c.query(`
   SELECT column_name, data_type, is_nullable
   FROM information_schema.columns
@@ -52,10 +54,13 @@ const q4 = await c.query(`
 for (const r of q4.rows) {
   console.log(`  ${r.column_name.padEnd(24)} ${r.data_type.padEnd(28)} nullable=${r.is_nullable}`);
 }
-if (q4.rows.length !== 2) {
-  console.log(`  ✗ Expected 2 new columns, got ${q4.rows.length}`);
+const hasOldFk = q4.rows.some(r => r.column_name === 'rollover_allocation_id');
+const hasSnapshot = q4.rows.some(r => r.column_name === 'close_out_snapshot');
+if (hasOldFk || !hasSnapshot) {
+  console.log(`  ✗ Expected rollover_allocation_id ABSENT and close_out_snapshot present.`);
   process.exit(1);
 }
+console.log(`  ✓ rollover_allocation_id dropped, close_out_snapshot present`);
 
 console.log('\n=== Q5. April commitment-vs-actual for ritual close-out (re-confirm Gate 0) ===');
 const q5 = await c.query(`

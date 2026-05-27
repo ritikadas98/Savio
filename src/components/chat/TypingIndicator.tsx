@@ -12,7 +12,7 @@ export function TypingIndicator() {
           style={{ background: SAVIO_GRADIENT }}
           aria-label="Savio"
         />
-        <span className="font-semibold text-[#0C447C] text-sm">Savio</span>
+        <span className="font-medium text-[#0C447C] text-sm">Savio</span>
       </div>
 
       <div className="pl-8 flex items-center gap-1.5 h-6" aria-label="Savio is thinking">

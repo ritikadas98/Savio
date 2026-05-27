@@ -54,11 +54,18 @@ const PATTERNS: Record<ScopeFilterFamily, RegExp[]> = {
     /\bINDmoney\b/i,
   ],
 
-  // Market timing questions
+  // Market timing questions. Phase C3 fix: the prior "should I buy/sell/exit"
+  // pattern terminated with `(?:…)?` — the outer `?` made the timing-context
+  // group optional, so the regex fired on *any* "should I buy" query
+  // including verdict-eligible ones ("Should I buy a ₹50k laptop?"). The
+  // intent was to require trailing market-timing words. Group is now
+  // mandatory: at least one of {now|today|tomorrow|this week|stocks|shares|
+  // NIFTY|SENSEX} must appear within 40 chars after "should I buy/sell/exit"
+  // for the deflection to trigger.
   timing: [
     /\bbest\s+time\s+to\s+(?:invest|buy|sell)\b/i,
     /\bmarket\s+(?:timing|crash|rally|correction|dip)\b/i,
-    /\bshould\s+I\s+(?:buy|sell|exit)\b(?:.{0,40}?\b(?:now|today|tomorrow|this\s+week|stocks?|shares?|NIFTY|SENSEX)\b)?/i,
+    /\bshould\s+I\s+(?:buy|sell|exit)\b.{0,40}?\b(?:now|today|tomorrow|this\s+week|stocks?|shares?|NIFTY|SENSEX)\b/i,
     /\bwhen\s+(?:to|should\s+I)\s+(?:invest|buy|sell)\b/i,
     /\bnow\s+is\s+a\s+good\s+time\b/i,
     /\bwait\s+until\b/i,

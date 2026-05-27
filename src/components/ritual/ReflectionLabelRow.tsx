@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Smile, Meh, Frown } from 'lucide-react';
 import { parseDate } from '../../lib/dates';
 import { Pill } from '../primitives';
+import { MOOD_META, ORDERED_MOODS, type ReflectionLabel } from '../../lib/mood';
 
-// Schema's reflections.label CHECK constraint is ('glad','regret','neutral').
-// Display labels here are friendlier ("Worth it" / "Regret" / "Neutral") but
-// the stored value is the schema value.
-export type ReflectionLabel = 'glad' | 'regret' | 'neutral';
+// Phase B2: refactored to import the shared mood config from src/lib/mood.ts
+// so this surface and the Reflect-tab labeling surface stay in sync. Display
+// labels still "Worth it / Neutral / Regret" per PM_DECISIONS reflection lock.
+// Layout unchanged from Stream 0.5-E (rounded-rectangle equal-width buttons).
+export type { ReflectionLabel };
 
 type ReflectionLabelRowProps = {
   transaction: {
@@ -20,12 +21,6 @@ type ReflectionLabelRowProps = {
   onLabel: (label: ReflectionLabel) => Promise<void>;
 };
 
-const LABEL_META: Record<ReflectionLabel, { display: string; pillVariant: 'sage' | 'red' | 'neutral'; icon: React.ReactNode }> = {
-  glad:    { display: 'Worth it', pillVariant: 'sage',    icon: <Smile size={14} strokeWidth={2} /> },
-  neutral: { display: 'Neutral',  pillVariant: 'neutral', icon: <Meh size={14} strokeWidth={2} /> },
-  regret:  { display: 'Regret',   pillVariant: 'red',     icon: <Frown size={14} strokeWidth={2} /> },
-};
-
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
 
@@ -36,7 +31,7 @@ export function ReflectionLabelRow({ transaction, existingLabel = null, onLabel 
   const handleLabel = async (next: ReflectionLabel) => {
     if (pending) return;
     const prev = label;
-    setLabel(next);          // optimistic
+    setLabel(next);
     setPending(true);
     try {
       await onLabel(next);
@@ -52,11 +47,10 @@ export function ReflectionLabelRow({ transaction, existingLabel = null, onLabel 
 
   return (
     <div className="py-3">
-      {/* Transaction summary */}
       <div className="flex items-baseline justify-between mb-2">
         <div className="min-w-0 flex-1">
           <div className="font-medium text-[#1A1A1A] truncate">{transaction.merchant ?? 'Unknown'}</div>
-          <div className="text-xs text-[#5A6B5F] truncate">
+          <div className="text-xs text-[#5F5E5A] truncate">
             {dateStr}
             {transaction.category ? ` · ${transaction.category}` : ''}
           </div>
@@ -64,35 +58,48 @@ export function ReflectionLabelRow({ transaction, existingLabel = null, onLabel 
         <div className="font-medium text-[#1A1A1A] flex-shrink-0 ml-3">{formatINR(transaction.amount)}</div>
       </div>
 
-      {/* Labeled state — compact summary with undo */}
       {label !== null ? (
         <div className="flex items-center gap-2">
-          <Pill variant={LABEL_META[label].pillVariant} icon={LABEL_META[label].icon}>
-            {LABEL_META[label].display}
+          <Pill variant={MOOD_META[label].pillVariant} icon={<MoodIcon mood={label} size={14} />}>
+            {MOOD_META[label].display}
           </Pill>
           <button
             type="button"
             onClick={() => setLabel(null)}
-            className="text-xs text-[#8B948E] hover:text-[#5A6B5F] transition-colors underline-offset-2 hover:underline"
+            className="text-xs text-[#888780] hover:text-[#5F5E5A] transition-colors underline-offset-2 hover:underline"
             disabled={pending}
           >
             Change
           </button>
         </div>
       ) : (
-        // Unlabeled state — three labeling buttons
-        <div className="flex gap-2">
-          {(['regret', 'neutral', 'glad'] as ReflectionLabel[]).map(opt => {
-            const meta = LABEL_META[opt];
+        <div className="flex" style={{ gap: 6 }}>
+          {ORDERED_MOODS.map(opt => {
+            const meta = MOOD_META[opt];
             return (
               <button
                 key={opt}
                 type="button"
                 onClick={() => handleLabel(opt)}
                 disabled={pending}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-borderHover text-sm font-medium text-[#1A1A1A] hover:bg-[#E4ECE6]/60 transition-colors disabled:opacity-50 whitespace-nowrap"
+                className="hover:bg-[#E4ECE6]/40 transition-colors disabled:opacity-50 whitespace-nowrap"
+                style={{
+                  flex: 1,
+                  padding: '9px 8px',
+                  border: '0.5px solid rgba(0,0,0,0.07)',
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 12,
+                  fontSize: 12.5,
+                  color: '#1A1A1A',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  fontFamily: 'inherit',
+                  cursor: pending ? 'default' : 'pointer',
+                }}
               >
-                {meta.icon}
+                <MoodIcon mood={opt} size={14} />
                 <span>{meta.display}</span>
               </button>
             );
@@ -101,4 +108,9 @@ export function ReflectionLabelRow({ transaction, existingLabel = null, onLabel 
       )}
     </div>
   );
+}
+
+function MoodIcon({ mood, size }: { mood: ReflectionLabel; size: number }) {
+  const { Icon } = MOOD_META[mood];
+  return <Icon size={size} strokeWidth={2} />;
 }

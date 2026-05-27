@@ -1,29 +1,51 @@
 import React from 'react';
-import { GuidanceItem } from '../../lib/guidance';
+import { Target, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../primitives';
+import { Card, SectionHeader } from '../primitives';
+import type { FocusGoalInsight } from '../../lib/guidance';
 
-export function ForYouTodayCard({ items }: { items: GuidanceItem[] }) {
+// Doc 1.16 + Stream 0.5-D: primary "For you today" insight with target-icon
+// plate (32×32 avPlate / Target icon T.avStop / size 15). Layout matches JSX
+// preview lines 338-355.
+export function ForYouTodayCard({ insight }: { insight: FocusGoalInsight | null }) {
   const navigate = useNavigate();
 
-  if (!items || items.length === 0) return null;
+  if (!insight) return null;
 
   return (
-    <Card className="mb-3">
-      <div className="text-base font-medium text-[#1A1A1A] mb-4">For you today</div>
-      <div className="flex flex-col gap-3">
-        {items.map(item => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => navigate(item.link)}
-            className="flex items-center justify-between p-3 rounded-2xl bg-[#E4ECE6]/30 text-left hover:bg-[#E4ECE6]/60 transition-colors w-full"
+    <div className="mb-3">
+      <SectionHeader title="For you today" />
+      <Card>
+        <button
+          type="button"
+          onClick={() => navigate(insight.link)}
+          className="flex items-start w-full text-left hover:opacity-90 transition-opacity"
+          style={{ gap: 12 }}
+        >
+          <div
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 999,
+              backgroundColor: '#DCEEFF',
+              color: '#0C447C',
+              marginTop: 1,
+            }}
           >
-            <span className="text-sm text-[#1A1A1A]">{item.message}</span>
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#5A6B5F] ml-2 flex-shrink-0"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
-        ))}
-      </div>
-    </Card>
+            <Target size={15} strokeWidth={2} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 400, lineHeight: 1.35 }}>
+              {insight.message}
+            </div>
+            <div style={{ fontSize: 12, color: '#5F5E5A', marginTop: 2 }}>
+              {insight.subDetail}
+            </div>
+          </div>
+          <ChevronRight size={18} className="text-[#888780] flex-shrink-0 mt-0.5" />
+        </button>
+      </Card>
+    </div>
   );
 }

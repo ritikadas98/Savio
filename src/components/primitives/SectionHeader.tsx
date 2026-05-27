@@ -10,14 +10,22 @@ type SectionHeaderProps = {
   className?: string;
 };
 
+// Doc 1.16: spec is { padding: '12px 6px 4px', fontSize 13, color T.s, weight 500 }
+// per preview line 335. The padding pulls the header inward when rendered above
+// a card (outside-card usage like "For you today" / "Patterns this week"), and
+// remains intentional when rendered inside a card.
 export function SectionHeader({ title, action, variant = 'default', className }: SectionHeaderProps) {
-  const titleClass =
+  const titleStyle: React.CSSProperties =
     variant === 'uppercase'
-      ? 'text-xs font-medium tracking-wider uppercase text-[#5A6B5F]'
-      : 'text-sm font-medium text-[#5A6B5F]';
+      ? { fontSize: 11, color: '#5F5E5A', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }
+      : { fontSize: 13, color: '#5F5E5A', fontWeight: 500 };
+
   return (
-    <div className={cn('flex items-center justify-between mb-2', className)}>
-      <h2 className={titleClass}>{title}</h2>
+    <div
+      className={cn('flex items-center justify-between', className)}
+      style={{ padding: '12px 0 4px' }}
+    >
+      <h2 style={titleStyle}>{title}</h2>
       {action}
     </div>
   );

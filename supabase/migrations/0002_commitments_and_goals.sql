@@ -14,6 +14,10 @@ create table public.commitments (
   --              transactions (transactions.commitment_id) and the buffer or
   --              overrun is surfaced in the monthly ritual close-out.
   kind text not null default 'fixed' check (kind in ('fixed','variable')),
+  -- Doc 1.15: day-of-month the commitment is typically debited. NULL for
+  -- variable budgets (spending buckets, not scheduled) or irregular
+  -- commitments. Used by home CommitmentsCard to compute weekly due/paid.
+  due_day_of_month smallint check (due_day_of_month is null or (due_day_of_month >= 1 and due_day_of_month <= 31)),
   next_due_date date,
   source text check (source in ('detected_from_statement','user_added','manual')),
   created_at timestamptz default now(),
@@ -76,4 +80,5 @@ create trigger update_goals_updated_at
 -- Indexes
 create index idx_commitments_user_id on public.commitments(user_id);
 create index idx_commitments_user_kind on public.commitments(user_id, kind);
+create index idx_commitments_due_day_of_month on public.commitments(due_day_of_month) where due_day_of_month is not null;
 create index idx_goals_user_id on public.goals(user_id);

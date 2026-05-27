@@ -18,7 +18,7 @@ const VARIANT_STYLES: Record<PillVariant, string> = {
   navy:    'bg-[#DCEEFF] text-[#0C447C]',
   yellow:  'bg-[#F4D123]/20 text-[#854F0B]',
   red:     'bg-[#FFE1E1] text-[#791F1F]',
-  neutral: 'bg-black/5 text-[#5A6B5F]',
+  neutral: 'bg-black/5 text-[#5F5E5A]',
 };
 
 const SIZE_STYLES: Record<PillSize, string> = {

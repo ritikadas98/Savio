@@ -4,8 +4,10 @@ import { cn } from '../../lib/utils';
 type AccentColor = 'yellow' | 'blue' | 'green' | 'red';
 
 type CardProps = {
-  /** default = regular card; hero = larger radius/padding for headline cards; accent overrides borders */
-  variant?: 'default' | 'hero';
+  /** default = regular card; hero = larger radius/padding for headline cards;
+   *  inset = compact nested card (tradeoff callouts, secondary surfaces).
+   *  accent overrides borders */
+  variant?: 'default' | 'hero' | 'inset';
   /** When set, gives the card a 2px accent-color border (overrides the default thin border) */
   accentColor?: AccentColor;
   className?: string;
@@ -21,9 +23,14 @@ const ACCENT_BORDER: Record<AccentColor, string> = {
   red:    'border-2 border-red-accent/30',
 };
 
+// Doc 1.16 tightening + Stream 0.5-F shadow removal. Per master plan §2.1 #5
+// and JSX preview Card component (lines 57-72), card chrome is hairline
+// border only — no shadows, no elevations. Border-radius matches JSX: 22
+// default, 24 hero, 16 inset.
 const VARIANT_BASE: Record<NonNullable<CardProps['variant']>, string> = {
-  default: 'p-5 rounded-[24px] shadow-sm',
-  hero:    'p-7 rounded-[32px] shadow-sm',
+  default: 'p-4 rounded-[22px]',
+  hero:    'p-5 rounded-[24px]',
+  inset:   'p-3 rounded-[16px]',
 };
 
 export function Card({ variant = 'default', accentColor, className, children, ...rest }: CardProps) {

@@ -10,6 +10,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Phase C3 — structured verdict shape. Mirrored on the frontend in
+// src/lib/chat-types.ts so MessageBubble can route to VerdictCard.
+type VerdictColor = 'GREEN' | 'YELLOW' | 'RED';
+interface StructuredVerdict {
+  verdict_color: VerdictColor;
+  verdict_line: string;
+  body: string;
+  tradeoffs: string[];
+  best_next_step: string;
+}
+
+function isValidStructured(s: unknown): s is StructuredVerdict {
+  if (!s || typeof s !== 'object') return false;
+  const v = s as Record<string, unknown>;
+  return (
+    (v.verdict_color === 'GREEN' || v.verdict_color === 'YELLOW' || v.verdict_color === 'RED')
+    && typeof v.verdict_line === 'string' && v.verdict_line.length > 0
+    && typeof v.body === 'string' && v.body.length > 0
+    && Array.isArray(v.tradeoffs) && v.tradeoffs.length >= 2 && v.tradeoffs.length <= 4
+    && v.tradeoffs.every((t) => typeof t === 'string' && t.length > 0)
+    && typeof v.best_next_step === 'string' && v.best_next_step.length > 0
+  );
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -90,7 +114,8 @@ serve(async (req) => {
       contents: history,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 800,
+        maxOutputTokens: 4096,
+        responseMimeType: 'application/json',
         thinkingConfig: {
           thinkingBudget: 256
         }
@@ -100,21 +125,70 @@ serve(async (req) => {
     console.log(`[chat-respond] Profile: ${profile.full_name}, prompt: ${systemPrompt.length} chars, model: ${model}, history: ${history.length} turns`);
 
     const json = await generateContent(model, payload);
-    let assistantMessage = json.candidates?.[0]?.content?.parts?.[0]?.text || "I'm not sure how to respond to that.";
+    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // Guard & Filter
+    // Phase C3 — parse the {kind, message?, structured?} contract. Verdict-
+    // eligible queries return structured; everything else is prose. Bad JSON
+    // or schema mismatch falls back to treating the whole raw text as prose
+    // so the user never sees an error.
+    let assistantMessage = "I'm not sure how to respond to that.";
+    let structured: StructuredVerdict | null = null;
+
+    if (rawText) {
+      const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+      try {
+        const parsed = JSON.parse(cleaned);
+        if (parsed?.kind === 'structured' && isValidStructured(parsed.structured)) {
+          structured = parsed.structured as StructuredVerdict;
+          // Use verdict_line as the canonical text for the prose fallback,
+          // hallucination guard, and chat history rendering.
+          assistantMessage = String(structured.verdict_line);
+        } else if (typeof parsed?.message === 'string' && parsed.message.length > 0) {
+          assistantMessage = parsed.message;
+        } else {
+          // Unrecognized JSON shape — treat whole text as prose.
+          assistantMessage = rawText;
+        }
+      } catch {
+        // Truncated or otherwise malformed JSON. Defensive extraction:
+        // when the model produces `{"kind":"prose","message":"..."` but runs
+        // out of tokens before the closing quote, JSON.parse fails. We pull
+        // the message contents out of the partial envelope so the user sees
+        // useful prose rather than literal `{"kind":"prose"...`. If even
+        // this fails (e.g. the rawText isn't an envelope at all), use raw.
+        const m = cleaned.match(/"message"\s*:\s*"((?:\\"|[^"])*?)(?:"|$)/);
+        if (m && m[1]) {
+          // Unescape standard JSON string escapes the model emitted.
+          assistantMessage = m[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+        } else {
+          assistantMessage = rawText;
+        }
+      }
+    }
+
+    // Guard & Filter — operate on the assistantMessage text (verdict_line
+    // when structured, the prose body otherwise).
     const guardResult = hallucinationGuard(assistantMessage, systemPrompt, message);
     assistantMessage = guardResult.finalResponse;
 
     // Scope filter checks ONLY the user message — an in-scope answer that
-    // mentions a flagged term in passing should not deflect itself.
+    // mentions a flagged term in passing should not deflect itself. When it
+    // triggers, the response becomes the deflection prose and any structured
+    // payload is dropped (a scope-deflection is never a verdict).
     const scopeResult = checkScopeFilter(message);
     if (scopeResult.triggered && scopeResult.family) {
       assistantMessage = buildScopeDeflection(scopeResult.family);
+      structured = null;
     }
 
-    // Purchase check verdict detection
-    const isVerdict = /\b(afford|buy|purchase|track)\b/i.test(message);
+    // Purchase check verdict detection — kept for backward compatibility
+    // with existing 7-case audit assertions and the metadata-driven Save
+    // Decision button. `is_verdict: true` now ALSO implies a structured
+    // payload should be present (unless scope filter dropped it).
+    const isVerdict = structured !== null || /\b(afford|buy|purchase|track)\b/i.test(message);
 
     const latency = Math.round(performance.now() - startTime);
 
@@ -125,10 +199,11 @@ serve(async (req) => {
       corrections: guardResult.corrections || null,
       fallback_used: guardResult.fallback_used || false,
       scope_filter_triggered: scopeResult.family || null,
-      is_verdict: isVerdict
+      is_verdict: isVerdict,
+      structured,    // Phase C3: full verdict tuple or null
     };
 
-    console.log(`[chat-respond] Total latency: ${latency}ms`);
+    console.log(`[chat-respond] Total latency: ${latency}ms, structured=${structured ? 'yes' : 'no'}`);
 
     return new Response(
       JSON.stringify({ response: assistantMessage, ai_metadata }),

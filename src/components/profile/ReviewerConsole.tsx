@@ -1,60 +1,149 @@
 import React from 'react';
+import { Download, FileText, Beaker, ChevronRight } from 'lucide-react';
 import { Card, SectionHeader } from '../primitives';
 import { ResetActionRow } from './ResetActionRow';
 import { resetAprilRitual, clearChatHistory, resetReflectionsToSeed } from '../../lib/reviewer-actions';
+import { getPreviousMonthName } from '../../lib/dates';
 
 /**
- * Reviewer Console — Phase 3.5 minimal version.
+ * Reviewer Console — Phase B1 expanded version.
  *
- * Three demo affordances surfaced as a real product section (not a hidden
- * dev tool). The framing: "These let reviewers re-experience Savio's flows
- * by resetting demo state without touching the underlying seed."
+ * Layer 1: functional resets (Phase 3.5 era). Reset the previous-month ritual,
+ * clear chat history, restore reflections to the seeded set. These actually
+ * mutate DB state via RPC.
  *
- * Phase 4's full Profile page will absorb this as a collapsible section;
- * for now it's the only thing on /profile besides the identity strip.
+ * Layer 2: presentational case-study links (Phase B1 add). View seed CSV,
+ * Read case study, View divergence tests. These show portfolio reviewers
+ * what the case study contains even when the artifacts aren't wired up.
+ * onStub callback fires the parent's snackbar.
  *
- * Cache-invalidation note: the app uses raw supabase-js queries with
- * useEffect, NOT React Query. After a reset, the user navigates to the
- * affected surface (Home / Chat / Reflect) and the component's mount-time
- * fetch picks up fresh data. No explicit invalidation needed — just the
- * existing fetch-on-mount pattern handles it.
+ * Visual separation: existing reset card on top (with confirm-tap UX),
+ * then the presentational links card below.
  */
-export function ReviewerConsole() {
+type Props = {
+  /** Called when a presentational stub is tapped. Parent shows a snackbar. */
+  onStub?: () => void;
+};
+
+type StubRowProps = {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  label: string;
+  sublabel: string;
+  onClick: () => void;
+  isLast?: boolean;
+};
+
+function StubRow({ icon: Icon, label, sublabel, onClick, isLast }: StubRowProps) {
   return (
-    <Card>
-      <SectionHeader title="Reviewer tools" variant="uppercase" />
-
-      <p className="text-sm text-[#5A6B5F] leading-relaxed mb-4">
-        These let you re-experience Savio&rsquo;s flows by resetting state to
-        demo-ready conditions. Dev-only in spirit; visible by design so portfolio
-        reviewers can replay a ritual, clear chat, or restore reflections.
-      </p>
-
-      <div>
-        <ResetActionRow
-          title="Reset April ritual"
-          description="Returns April&rsquo;s monthly ritual to pending state. The check-in banner reappears on Home, the linked goal balance reverts, and the rollover allocation row is deleted."
-          buttonLabel="Reset"
-          confirmCopy="This will undo April&rsquo;s rollover allocation. Your goal balance reverts to its pre-ritual value. Continue?"
-          onConfirm={resetAprilRitual}
-        />
-
-        <ResetActionRow
-          title="Clear chat history"
-          description="Removes all chat messages for your account. The Edge Function and grounding context aren&rsquo;t affected — only the conversation log."
-          buttonLabel="Clear"
-          confirmCopy="This deletes every chat message in your history. The next conversation starts fresh. Continue?"
-          onConfirm={clearChatHistory}
-        />
-
-        <ResetActionRow
-          title="Restore reflection labels"
-          description="Restores reflections to the seeded set (the 9 historical labels behind Myntra 100% regret rate, etc.). Labels you added during demo iteration will be cleared."
-          buttonLabel="Restore"
-          confirmCopy="Reflections added during this session will be deleted. The 9 seeded reflections come back. Continue?"
-          onConfirm={resetReflectionsToSeed}
-        />
+    <button
+      type="button"
+      onClick={onClick}
+      className="hover:bg-black/[0.02] transition-colors"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 14,
+        padding: '14px 16px',
+        width: '100%',
+        textAlign: 'left',
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        borderBottom: isLast ? 'none' : '0.5px solid rgba(0,0,0,0.07)',
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 999,
+          backgroundColor: '#F4F4F2',
+          color: '#5F5E5A',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <Icon size={15} strokeWidth={2} />
       </div>
-    </Card>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, color: '#1A1A1A', lineHeight: 1.2 }}>{label}</div>
+        <div style={{ fontSize: 11.5, color: '#888780', marginTop: 2 }}>{sublabel}</div>
+      </div>
+      <ChevronRight size={16} className="text-[#888780] flex-shrink-0" />
+    </button>
+  );
+}
+
+export function ReviewerConsole({ onStub }: Props) {
+  const prevMonth = getPreviousMonthName();
+  const handleStub = onStub ?? (() => {});
+
+  return (
+    <>
+      {/* Layer 1 — functional resets */}
+      <Card>
+        <SectionHeader title="Reviewer tools" variant="uppercase" />
+
+        <p className="text-sm text-[#5F5E5A] leading-relaxed mb-4">
+          These let you re-experience Savio&rsquo;s flows by resetting state to
+          demo-ready conditions. Dev-only in spirit; visible by design so portfolio
+          reviewers can replay a ritual, clear chat, or restore reflections.
+        </p>
+
+        <div>
+          <ResetActionRow
+            title={`Reset ${prevMonth} ritual`}
+            description={`Returns ${prevMonth}'s monthly ritual to pending state. The check-in banner reappears on Home, the linked goal balance reverts, and the rollover allocation row is deleted.`}
+            buttonLabel="Reset"
+            confirmCopy={`This will undo ${prevMonth}'s rollover allocation. Your goal balance reverts to its pre-ritual value. Continue?`}
+            onConfirm={resetAprilRitual}
+          />
+
+          <ResetActionRow
+            title="Clear chat history"
+            description="Removes all chat messages for your account. The Edge Function and grounding context aren&rsquo;t affected — only the conversation log."
+            buttonLabel="Clear"
+            confirmCopy="This deletes every chat message in your history. The next conversation starts fresh. Continue?"
+            onConfirm={clearChatHistory}
+          />
+
+          <ResetActionRow
+            title="Restore reflection labels"
+            description="Restores reflections to the seeded set (the 9 historical labels behind Myntra 100% regret rate, etc.). Labels you added during demo iteration will be cleared."
+            buttonLabel="Restore"
+            confirmCopy="Reflections added during this session will be deleted. The 9 seeded reflections come back. Continue?"
+            onConfirm={resetReflectionsToSeed}
+          />
+        </div>
+      </Card>
+
+      {/* Layer 2 — presentational case-study links */}
+      <div style={{ marginTop: 10 }}>
+        <Card className="!p-0">
+          <StubRow
+            icon={Download}
+            label="View seed data CSV"
+            sublabel="Priya's 352 transactions, 13 commitments, 9 reflections"
+            onClick={handleStub}
+          />
+          <StubRow
+            icon={FileText}
+            label="Read the case study"
+            sublabel="What I built and why — full PM writeup"
+            onClick={handleStub}
+          />
+          <StubRow
+            icon={Beaker}
+            label="View divergence tests"
+            sublabel="Architectural changes from the team v1 build"
+            onClick={handleStub}
+            isLast
+          />
+        </Card>
+      </div>
+    </>
   );
 }

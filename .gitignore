@@ -15,6 +15,9 @@ dist-ssr
 # Supabase CLI working state — per-developer, not source
 supabase/.temp/
 
+# Claude Code session state — per-developer, not source
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

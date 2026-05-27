@@ -19,7 +19,7 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ['Neue Montreal', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Neue Montreal', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
       },
       colors: {
         canvas: '#E4ECE6',
@@ -104,9 +104,12 @@ const config = {
       textColor: {
         // Override only text utilities — leaves bg-secondary / bg-primary
         // (used by shadcn ui components) untouched.
-        primary: '#1A1A1A',
-        secondary: '#5C6660',
-        tertiary: '#8B948E',
+        //
+        // Doc 1.15: values aligned to the preview's T object (src/lib/design-tokens.ts).
+        // T.p (primary, near-black) is the dominant body/title/hero color across the app.
+        primary: '#1A1A1A',   // T.p
+        secondary: '#5F5E5A', // T.s (mid-grey)
+        tertiary: '#888780',  // T.t (subdued grey)
       },
       borderRadius: {
         lg: "32px",

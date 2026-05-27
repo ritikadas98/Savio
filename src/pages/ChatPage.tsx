@@ -126,13 +126,18 @@ export function ChatPage() {
       {/* Header */}
       <header className="px-5 pt-4 pb-3 flex-shrink-0">
         <div className="flex items-center justify-between mb-1">
-          <div className="text-sm text-[#5A6B5F]">
+          <div style={{ fontSize: 13, color: '#888780' }}>
             <span className="mr-1">👋</span>
             Welcome in, {profile?.full_name?.split(' ')[0] || 'User'}
           </div>
           <ProfilePill avatar={profile?.avatar} />
         </div>
-        <h1 className="text-3xl font-bold text-[#0C447C] mt-1">Chat with Savio</h1>
+        <h1
+          className="mt-1"
+          style={{ fontSize: 36, fontWeight: 400, color: '#1A1A1A', lineHeight: 1.2, letterSpacing: '-0.8px' }}
+        >
+          Savio
+        </h1>
       </header>
 
       {/* Messages area */}
