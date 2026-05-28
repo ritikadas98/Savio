@@ -396,8 +396,34 @@ function sumEmotion(points: EmotionChartData, key: 'worthIt' | 'regret' | 'neutr
   return points.reduce((sum, p) => sum + p[key], 0);
 }
 
+function sumTotal(points: EmotionChartData): number {
+  return points.reduce((sum, p) => sum + p.total, 0);
+}
+
+// D.45 (Stream 0.5s post-ship patch) — switched from absolute-count
+// comparison to rate-based comparison. The previous count math biased
+// the headline: any user whose reflection volume grew over time (a
+// realistic usage curve) would show positive worthItChange purely
+// from volume, not from actual rate improvement. Rate-based logic
+// answers "is regret a SMALLER SHARE of recent reflections than it
+// was?" — which is the question the headline implicitly claims to
+// answer.
+//
+// Branch ordering also reshuffled: strong-improving / strong-worsening
+// are now checked before crossover. Crossover is a weaker signal —
+// "recent worth-it is bigger than recent regret" can be true without
+// any real direction-of-change information. The dual-rate-delta tests
+// (>10pp improvement AND >10pp worsening of regret simultaneously)
+// are stricter and read as "actually trending" rather than just
+// "currently leaning."
+//
+// Threshold: 0.10 (10 percentage points) — gates out small-sample
+// noise. A 3-of-10 → 4-of-10 shift on its own isn't enough to claim
+// a trend; needs to pair with the opposite emotion moving too.
+const SIGNIFICANT_RATE_CHANGE = 0.10;
+
 export function deriveEmotionHeadline(data: EmotionChartData): EmotionHeadline {
-  const total = data.reduce((sum, p) => sum + p.total, 0);
+  const total = sumTotal(data);
 
   if (total < 5) {
     return { prefix: 'Not enough data yet — keep reflecting', emphasis: null, emphasisColor: HEADLINE_NEUTRAL, suffix: '' };
@@ -407,35 +433,47 @@ export function deriveEmotionHeadline(data: EmotionChartData): EmotionHeadline {
   // change at the edges of the 6-month window — middle months smooth out.
   const recent = data.slice(-2);
   const older  = data.slice(0, 2);
-  const recentWorthIt = sumEmotion(recent, 'worthIt');
-  const recentRegret  = sumEmotion(recent, 'regret');
-  const olderWorthIt  = sumEmotion(older, 'worthIt');
-  const olderRegret   = sumEmotion(older, 'regret');
+  const recentTotal = sumTotal(recent);
+  const olderTotal  = sumTotal(older);
 
-  const worthItChange = recentWorthIt - olderWorthIt;
-  const regretChange  = recentRegret  - olderRegret;
-
-  // Crossover — strongest signal when prior was regret-dominated and recent
-  // is worth-it-dominated.
-  if (recentWorthIt > recentRegret && olderRegret > olderWorthIt) {
-    return { prefix: "Worth-it is overtaking ", emphasis: 'regret', emphasisColor: HEADLINE_RED, suffix: '' };
+  // D.45 — if either window has zero reflections, the rate is undefined.
+  // Fall back to "not enough data" rather than dividing by zero or making
+  // a claim from one-sided data.
+  if (recentTotal === 0 || olderTotal === 0) {
+    return { prefix: 'Not enough data yet — keep reflecting', emphasis: null, emphasisColor: HEADLINE_NEUTRAL, suffix: '' };
   }
 
-  // Strong improving: worth-it up AND regret down
-  if (worthItChange > 0 && regretChange < 0) {
+  const recentWorthItRate = sumEmotion(recent, 'worthIt') / recentTotal;
+  const recentRegretRate  = sumEmotion(recent, 'regret')  / recentTotal;
+  const olderWorthItRate  = sumEmotion(older, 'worthIt')  / olderTotal;
+  const olderRegretRate   = sumEmotion(older, 'regret')   / olderTotal;
+
+  const worthItRateChange = recentWorthItRate - olderWorthItRate;
+  const regretRateChange  = recentRegretRate  - olderRegretRate;
+
+  // Strong improving: worth-it rate up AND regret rate down, both
+  // beyond the noise threshold.
+  if (worthItRateChange > SIGNIFICANT_RATE_CHANGE && regretRateChange < -SIGNIFICANT_RATE_CHANGE) {
     return { prefix: "You're trending toward ", emphasis: 'worth-it', emphasisColor: HEADLINE_SAGE, suffix: '' };
   }
 
-  // Strong worsening: regret up AND worth-it down
-  if (worthItChange < 0 && regretChange > 0) {
+  // Strong worsening: regret rate up AND worth-it rate down.
+  if (regretRateChange > SIGNIFICANT_RATE_CHANGE && worthItRateChange < -SIGNIFICANT_RATE_CHANGE) {
     return { prefix: '', emphasis: 'Regret', emphasisColor: HEADLINE_RED, suffix: ' is dominating recently' };
   }
 
-  // Stable patterns — recent dominance
-  if (recentRegret > recentWorthIt * 1.5) {
+  // Crossover — recent worth-it leads regret AND the older window was
+  // the opposite. Weaker than the dual-delta signals above (no rate-
+  // change magnitude requirement), so checked after them.
+  if (recentWorthItRate > recentRegretRate && olderRegretRate > olderWorthItRate) {
+    return { prefix: "Worth-it is overtaking ", emphasis: 'regret', emphasisColor: HEADLINE_RED, suffix: '' };
+  }
+
+  // Stable patterns — recent dominance by 1.5× on rate (not count).
+  if (recentRegretRate > recentWorthItRate * 1.5) {
     return { prefix: '', emphasis: 'Regret', emphasisColor: HEADLINE_RED, suffix: ' still dominates your reflections' };
   }
-  if (recentWorthIt > recentRegret * 1.5) {
+  if (recentWorthItRate > recentRegretRate * 1.5) {
     return { prefix: '', emphasis: 'Worth-it', emphasisColor: HEADLINE_SAGE, suffix: ' leads your recent reflections' };
   }
 

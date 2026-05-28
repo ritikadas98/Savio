@@ -4,7 +4,7 @@ This is the running record of product decisions made during Savio's build. Engin
 
 This file is curated, not exhaustive. Engineering details live in CLAUDE.md and the build docs. Product opinions live here.
 
-Last updated: 2026-05-29 — Phase 3 complete (tag `phase-3-complete`). All Phase A/B/C/D work shipped: B1 Profile expansion · B2 v2 Reflect hybrid · B3 Goals · C1 Monthly Ritual 7-screen · C2 WindfallFlow · C3 Verdict Cards · C4 Onboarding · 0.5j-n polish streams · D audit + lint sweep. Stream 0.5p (8 pre-delivery enhancements) shipped under Phase 3 Build B.18 + C.26 + C.27 + C.28 + D.20–D.24 (D.25 resolved via Path B per B.18). Stream 0.5q (6 post-0.5p refinements) shipped D.27 / D.29 / D.30 / D.31 / D.32 (D.23 + D.28 superseded by D.32). Stream 0.5r (6 post-0.5q refinements) shipped D.33 / D.34 / D.35 / D.36 / D.37 / D.38. Stream 0.5s (7 pieces) shipped D.40 AI prose replaced with deterministic rule engine (synthesize-patterns Edge Function dormant) · D.41 sticky button hides post-generation · D.42 auto-scroll to chart on generation complete · D.43 Reflect post-generation surface redesigned to chart-primary with per-merchant trend cards + rule-engine prose behind "Know more" expand · D.44 (addendum) swap one Zerodha SIP off Reflect labeling list for a Bblunt Salon ₹2,800 April-9 row that ranks above the SIPs via date-DESC ordering. Banked for post-delivery: divergence test artifact (Phase 3 Build C.23) and case study writeup (Phase 3 Build C.24).
+Last updated: 2026-05-29 — Phase 3 complete (tag `phase-3-complete`). All Phase A/B/C/D work shipped: B1 Profile expansion · B2 v2 Reflect hybrid · B3 Goals · C1 Monthly Ritual 7-screen · C2 WindfallFlow · C3 Verdict Cards · C4 Onboarding · 0.5j-n polish streams · D audit + lint sweep. Stream 0.5p (8 pre-delivery enhancements) shipped under Phase 3 Build B.18 + C.26 + C.27 + C.28 + D.20–D.24 (D.25 resolved via Path B per B.18). Stream 0.5q (6 post-0.5p refinements) shipped D.27 / D.29 / D.30 / D.31 / D.32 (D.23 + D.28 superseded by D.32). Stream 0.5r (6 post-0.5q refinements) shipped D.33 / D.34 / D.35 / D.36 / D.37 / D.38. Stream 0.5s (7 pieces) shipped D.40 AI prose replaced with deterministic rule engine (synthesize-patterns Edge Function dormant) · D.41 sticky button hides post-generation · D.42 auto-scroll to chart on generation complete · D.43 Reflect post-generation surface redesigned to chart-primary with per-merchant trend cards + rule-engine prose behind "Know more" expand · D.44 (addendum) swap one Zerodha SIP off Reflect labeling list for a Bblunt Salon ₹2,800 April-9 row · D.45 (addendum) deriveEmotionHeadline switched from count-based to rate-based comparison + branch order reshuffled so strong-improving wins over crossover (Priya canonical headline now reads "You're trending toward worth-it" per Gate H.A). Banked for post-delivery: divergence test artifact (Phase 3 Build C.23) and case study writeup (Phase 3 Build C.24).
 
 ---
 
@@ -782,6 +782,26 @@ Fix without breaking commitment math: add one new April-9 discretionary transact
 Why a salon visit: discretionary (frequency is a choice), ambiguous outcome (worth-it OR regret feels equally valid until reflected), demographically aligned with Priya's late-20s working-professional persona. New merchant + new category — no pollution of existing trend cards or merchant_stats, no chart math change (the line chart already sums by month so a fresh worth-it/regret label in April lands in the existing April column).
 
 Transaction count shifts 361 → 362; `doc1.1-verify.mjs` Gate 1 logs the new total without asserting. Gate 2 (April unlabeled ≥₹1,500) still passes — top stays Myntra ₹4,800, second becomes Bblunt ₹2,800 (was Amazon ₹1,950). Case-study line: *"Real-user testing flagged that the labeling tray was full of things users would never label — fixed commitments. The fix wasn't to filter them out, it was to add a single deliberate-spend row that pushes one SIP off the visible list via natural date ordering. Commitment data preserved, demo intent restored."*
+
+#### D.45 deriveEmotionHeadline: rate-based comparison + branch reorder
+Stream 0.5s post-ship patch (Spec banked D.44, but D.44 was already in use for the Bblunt-Salon Reflect-tray swap committed earlier the same day; banked as D.45). PM surfaced two issues with the headline logic shipped in D.43:
+
+(a) **Count-based bias.** The original used absolute count deltas (`recentWorthIt - olderWorthIt`) to decide branches. Users whose reflection volume grows over time (a realistic usage curve) would skew toward positive `worthItChange` purely from volume — not from actual rate improvement. A user with 4 older reflections all regret + 20 recent reflections at 75% regret would have `worthItChange = +5` and trigger "trending toward worth-it" despite the recent regret rate being roughly unchanged.
+
+(b) **Branch order had crossover before strong-improving.** For the canonical Priya state (older: 0% worth-it / 100% regret; recent: 67% worth-it / 33% regret) both branches matched, and crossover fired first → "Worth-it is overtaking regret." PM expectation per Gate H.A was "You're trending toward worth-it" — the dual-rate-delta signal is stricter and reads as actual directional change, where crossover only requires "recent worth-it leads recent regret" with no magnitude requirement.
+
+Fix:
+- `worthItRateChange = recent worth-it/total − older worth-it/total` (rates, not counts). Same for regret.
+- New `SIGNIFICANT_RATE_CHANGE = 0.10` threshold gates out small-sample noise; <10pp swing on either emotion doesn't qualify as a trend on its own.
+- Zero-data guard: if either `recentTotal === 0` or `olderTotal === 0`, fall back to "Not enough data yet — keep reflecting" rather than dividing by zero or making a claim from one-sided data.
+- Branch order reshuffled: strong-improving → strong-worsening → crossover → persistent-regret → persistent-worth-it → mixed signals. The dual-delta branches lead because they're stricter; crossover is weaker and shouldn't preempt them.
+- Stable-dominance branches (regret > 1.5× worth-it, etc.) now compare rates rather than counts — same semantic but consistent with the rest.
+
+Priya canonical headline shifts as a side-effect of the branch reorder: was "Worth-it is overtaking regret" (crossover, fired first under the old order), now "You're trending toward worth-it" (strong-improving, fired first under the new order). This matches the Gate H.A expectation stated in the spec.
+
+`EmotionHeadline` return shape unchanged (`{prefix, emphasis, emphasisColor, suffix}`); only the decision tree changed. The chart UI consumes the structured object unchanged.
+
+Pairs with D.40 (rule-engine over LLM) — same family of "the headline IS the user's understanding of their trend; it must be derived from accurate semantics, not flexible-but-biased ones." The bias was caught before any non-canonical user state was tested — a discipline win for second-pass review.
 
 ---
 
