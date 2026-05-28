@@ -12,7 +12,15 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "noEmit": true,
+
+    /* Project-reference requirements (tsc -b under TS 6.0):
+       composite: true is mandatory for any referenced project.
+       emit can't be disabled — replace noEmit with emitDeclarationOnly
+       (only .d.ts files emit, no .js output). outDir routes them into
+       the existing gitignored node_modules/.tmp cache. */
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./node_modules/.tmp/node-types",
 
     /* Linting */
     "noUnusedLocals": true,

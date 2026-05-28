@@ -20,8 +20,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
-    /* Path Aliases */
-    "baseUrl": ".",
+    /* Path Aliases — TS 5.0+ resolves `paths` relative to this tsconfig
+       file's directory, so `baseUrl` is no longer needed for the @/* alias
+       to work. Dropped to avoid the TS 6.0 deprecation that tsc -b raised
+       as an error on Netlify; works the same locally and in CI. */
     "paths": {
       "@/*": ["./src/*"]
     }
