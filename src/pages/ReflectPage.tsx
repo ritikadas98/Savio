@@ -438,12 +438,12 @@ export function ReflectPage() {
 
 // D.32 — sticky bottom button component. State machine:
 //   disabled — light gray, no tap (user still has unlabeled items)
-//   enabled  — deeper sage (#78A353 per D.33 Stream 0.5r), Sparkles + label
-//   loading  — deeper sage, rotating LOADING_PHRASES with fade animation
+//   enabled  — vivid green (#66C22D per D.33 Stream 0.5r), Sparkles + label
+//   loading  — vivid green, rotating LOADING_PHRASES with fade animation
 //
-// D.33 (Stream 0.5r piece #1) — ENABLED background tightened from the
-// original #B2EF82 (read as "candy") to #78A353 (grounded, confident).
-// Text color #173404 unchanged; contrast ratio passes WCAG AA (~5.2:1).
+// D.33 (Stream 0.5r piece #1) — ENABLED background iterated from the
+// original #B2EF82 (read as "candy") through #78A353 (too muted) to
+// #66C22D (vivid, decisive). Text color #173404 unchanged.
 // D.34 (Stream 0.5r piece #2) — label "Generate Reflections" → "Show my
 // reflections" (possessive, user-centric, resists LLM-default "Generate X").
 // D.35 (Stream 0.5r piece #3) — state-aware discovery hint below the
@@ -465,7 +465,7 @@ function GenerateReflectionsButton({
   const isEnabled = state === 'enabled';
   const isDisabled = state === 'disabled';
 
-  const bg = isDisabled ? '#F1EFE8' : '#78A353';
+  const bg = isDisabled ? '#F1EFE8' : '#66C22D';
   const fg = isDisabled ? '#888880' : '#173404';
   const cursor = isLoading ? 'wait' : isEnabled ? 'pointer' : 'not-allowed';
 
