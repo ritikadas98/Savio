@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { Client as PgClient } from 'pg';
 import dotenv from 'dotenv';
+import { snapshotChat } from './lib/chat-snapshot.mjs';
 dotenv.config({ path: '.env.local' });
 
 const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
@@ -17,6 +18,12 @@ const PRIYA_ID = profile.id;
 
 const pg = new PgClient({ connectionString: process.env.DATABASE_URL });
 await pg.connect();
+
+// Snapshot Priya's chat before this script's test inserts + clear cycles.
+// Restored at the end so a reviewer's live conversation isn't wiped by
+// running regression. Same pattern as phasec3-verdict-check.mjs +
+// phase05m-prose-labels.mjs.
+const restoreChat = await snapshotChat(sb, PRIYA_ID);
 
 console.log('\n=== Gate 1.a — RPCs exist ===');
 const fns = await pg.query(`SELECT proname FROM pg_proc WHERE proname IN ('reset_april_ritual','clear_chat_history','reset_reflections_to_seed') ORDER BY proname`);
@@ -141,5 +148,6 @@ console.log(`  After restore: ${finalCount}  ${finalCount === seedCount ? '✓ (
 const { data: restored2 } = await sb.rpc('reset_reflections_to_seed');
 console.log(`  Idempotency: status=${restored2.status}, message="${restored2.message}"`);
 
+await restoreChat();
 await pg.end();
 process.exit(0);
