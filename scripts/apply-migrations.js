@@ -106,14 +106,17 @@ async function applyMigrations() {
         console.log(`Applying ${file}...`);
         let sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
         if (file === '0006_seed_priya.sql') {
-          const before = sql;
-          sql = sql.replace(
-            /v_demo_today date := '\d{4}-\d{2}-\d{2}'::date;/,
-            `v_demo_today date := '${demoToday}'::date;`,
-          );
-          if (sql === before) {
+          // Phase D D.12 — gate the "did not match" warning on the actual
+          // regex test, not on sql === before. The replace returns the
+          // same string both when the regex didn't match AND when the
+          // replacement value equals the original. The latter is the
+          // common case on the 1st of the month (seed already says e.g.
+          // '2026-05-01' and demoToday computes to '2026-05-01').
+          const pattern = /v_demo_today date := '\d{4}-\d{2}-\d{2}'::date;/;
+          if (!pattern.test(sql)) {
             console.warn('  ! v_demo_today substitution did not match. Seed will use its hardcoded value.');
           } else {
+            sql = sql.replace(pattern, `v_demo_today date := '${demoToday}'::date;`);
             console.log(`  v_demo_today substituted to ${demoToday}`);
           }
         }
