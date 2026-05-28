@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Compass, Sailboat, Hammer, ChevronRight, LogOut, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Compass, Sailboat, Hammer, ChevronRight, ChevronDown, LogOut, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ReviewerConsole } from '../components/profile/ReviewerConsole';
@@ -163,6 +163,10 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [commitments, setCommitments] = useState<FixedCommitment[]>([]);
+  // D.37 (Stream 0.5r piece #5) — commitments default collapsed. Total
+  // card itself is the affordance — single tappable element, no separate
+  // expand button. Per-session state; resets on navigation away.
+  const [commitmentsExpanded, setCommitmentsExpanded] = useState(false);
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
 
   // Stream 0.5n — localStorage avatar hint, read once on mount (matches
@@ -311,55 +315,81 @@ export function ProfilePage() {
           />
         </Card>
 
-        {/* D.31 (Stream 0.5q piece #2) — Your commitments. Fixed-only,
-            read-only. Variable categories (Groceries / Eating out /
-            Transport) shown in close-out screen 1 and ritual flow, not
-            here. No edit affordance yet — V2 work. */}
+        {/* D.31 + D.37 (Streams 0.5q + 0.5r) — Your commitments.
+            Default collapsed: only the Monthly total card visible, which
+            is itself the tap target (no separate expand button — single
+            affordance pattern). Chevron rotates 180° on expand. List
+            renders below the total when expanded. Fixed-only filter;
+            variable categories surface on the close-out + ritual flow. */}
         {commitments.length > 0 && (
           <>
             <ProfileSectionHeader title="Your commitments" />
             <Card className="!p-0">
-              {commitments.map(c => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    width: '100%',
-                    padding: '12px 16px',
-                    borderBottom: '0.5px solid rgba(0,0,0,0.07)',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.3 }}>
-                      {c.label}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#888780', marginTop: 2, lineHeight: 1.3 }}>
-                      {[c.category, c.frequency].filter(Boolean).join(' · ')}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                    {formatRupeesIndian(c.amount)}
-                  </div>
-                </div>
-              ))}
-              <div
+              <button
+                type="button"
+                onClick={() => setCommitmentsExpanded(e => !e)}
+                aria-expanded={commitmentsExpanded}
+                aria-controls="commitments-list"
+                className="hover:bg-black/[0.02] transition-colors"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   width: '100%',
-                  padding: '12px 16px',
-                  background: 'rgba(0,0,0,0.02)',
+                  padding: '14px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
+                  borderBottom: commitmentsExpanded ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
                 }}
               >
-                <span style={{ flex: 1, fontSize: 13, color: '#5F5E5A', fontWeight: 500 }}>
+                <span style={{ flex: 1, fontSize: 13, color: '#5F5E5A', fontWeight: 400 }}>
                   Monthly total
                 </span>
-                <span style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ fontSize: 16, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginRight: 10 }}>
                   {formatRupeesIndian(commitmentTotal)}
                 </span>
-              </div>
+                <ChevronDown
+                  size={20}
+                  color="#5A6B5F"
+                  style={{
+                    transform: commitmentsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 200ms ease',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden
+                />
+              </button>
+              {commitmentsExpanded && (
+                <div id="commitments-list">
+                  {commitments.map((c, i) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderBottom: i < commitments.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.3 }}>
+                          {c.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888780', marginTop: 2, lineHeight: 1.3 }}>
+                          {[c.category, c.frequency].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                        {formatRupeesIndian(c.amount)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Card>
           </>
         )}

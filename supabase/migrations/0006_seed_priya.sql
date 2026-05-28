@@ -239,6 +239,81 @@ BEGIN
   VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 month 3 days')::timestamptz, 450, 'debit', 'Swiggy', 'Food', false);
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'neutral');
 
+  -- =====================================================================
+  -- D.38 (Stream 0.5r piece #7) — three distinct merchant trend stories
+  -- =====================================================================
+  -- Stream 0.5p Piece #7 shipped Path B (occurred_at bucketing) as the right
+  -- semantic, but canonical seed left every merchant card showing "—". The
+  -- following additions reshape the demo so trend cards show meaningful
+  -- comparisons: Amazon IMPROVING, Myntra WORSENING (75% → 100%), Zara
+  -- IMPROVING. Path B windows: current = last 30 days; prior = 30-120 days
+  -- ago. New rows placed accordingly. The two existing April unlabeled
+  -- transactions (below) stay as the user's labeling surface — after they
+  -- label them, those reflections add to the current window too.
+
+  -- ---- Prior-window additions (30-120 days ago) ----
+  -- Myntra prior: existing 2 in window (Jan 18 + Feb 14 regret) + 2 new =
+  -- 4 total, 3 regret + 1 glad = 75% prior. Pairs with Myntra current at
+  -- 100% (below) → +25 percentage point worsening, red stripe.
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '2 months 5 days')::timestamptz, 2400, 'debit', 'Myntra', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 month 18 days')::timestamptz, 1900, 'debit', 'Myntra', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+
+  -- Amazon prior: existing Mar 10 glad + 1 new regret → 1 glad + 1 regret =
+  -- 50% prior. Pairs with Amazon current at 0% (below) → -50 percentage
+  -- point improving, sage stripe.
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 month 10 days')::timestamptz, 2200, 'debit', 'Amazon', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- ---- Current-window additions (last 30 days) ----
+  -- Path B current window is [DEMO_TODAY - 30 days, DEMO_TODAY) strictly,
+  -- so May 1 itself is excluded. New rows placed in the last week of April.
+  -- Spec language calls these "May 2026 transactions"; same demo intent.
+
+  -- Amazon current: 2 new glad → 0% current → improving.
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '5 days')::timestamptz, 1800, 'debit', 'Amazon', 'Amazon - Books', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '2 days')::timestamptz, 2350, 'debit', 'Amazon', 'Amazon - Kitchen', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+
+  -- Myntra current: 2 new regret → 100% current → worsening (red stripe
+  -- via persistent-high-regret rule).
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '7 days')::timestamptz, 3400, 'debit', 'Myntra', 'Myntra - Apparel', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '1 day')::timestamptz, 2900, 'debit', 'Myntra', 'Myntra - Footwear', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'regret');
+
+  -- Zara current: 2 new glad → 0% current. Pairs with Zara prior at 100%
+  -- (existing Jan 25 + Feb 22 regret) → -100 percentage point improving,
+  -- sage stripe. Starkest delta of the three stories.
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '4 days')::timestamptz, 2100, 'debit', 'Zara', 'Zara - Apparel', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+
+  v_txn_id := gen_random_uuid();
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (v_txn_id, v_user_id, (v_demo_today - interval '3 days')::timestamptz, 2750, 'debit', 'Zara', 'Zara - Apparel', 'Shopping', true);
+  INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
+
   -- April unlabeled high-impact transactions (NOT in reflections).
   -- These are what the ritual close-out's "Looking back" prompts surface.
   -- Doc 1.1: one ₹4,000+ and one ₹1,500+, both commitment_id NULL (discretionary).
@@ -249,12 +324,21 @@ BEGIN
 
   -- Update merchant stats explicitly for demo certainty.
   -- Numbers reflect the labeled corpus above (NOT all merchant txns — just labeled).
+  -- D.38 (Stream 0.5r piece #7) — totals updated to include the 9 new
+  -- reflections that drive the three trend stories:
+  --   Myntra: 4 prior + 2 new prior + 2 new current = 8 reflections
+  --           = 7 regret + 1 glad → 87.50% overall (chat grounding)
+  --   Amazon: 2 prior + 1 new prior + 2 new current = 5 reflections
+  --           = 2 regret + 3 glad → 40.00%
+  --   Zara:   2 prior + 0 new prior + 2 new current = 4 reflections
+  --           = 2 regret + 2 glad → 50.00%
+  --   Swiggy: unchanged.
   INSERT INTO public.merchant_stats (user_id, merchant, total_transactions, total_labeled, glad_count, regret_count, neutral_count, regret_rate)
   VALUES
-    (v_user_id, 'Myntra', 4, 4, 0, 4, 0, 100.00),
-    (v_user_id, 'Amazon', 2, 2, 1, 1, 0,  50.00),
-    (v_user_id, 'Zara',   2, 2, 0, 2, 0, 100.00),
-    (v_user_id, 'Swiggy', 1, 1, 0, 0, 1,   0.00);
+    (v_user_id, 'Myntra', 8, 8, 1, 7, 0, 87.50),
+    (v_user_id, 'Amazon', 5, 5, 3, 2, 0, 40.00),
+    (v_user_id, 'Zara',   4, 4, 2, 2, 0, 50.00),
+    (v_user_id, 'Swiggy', 1, 1, 0, 0, 1,  0.00);
 
   -- Phase 3.5 — reflections_seed_snapshot is populated by 0010 after this
   -- migration completes (0006 runs before 0010 in apply-migrations.js, so
