@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Compass, Sailboat, Hammer, ChevronRight, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Compass, Sailboat, Hammer, ChevronRight, LogOut, type LucideIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { BottomNav } from '../components/layout/BottomNav';
 import { ReviewerConsole } from '../components/profile/ReviewerConsole';
@@ -8,6 +8,7 @@ import { Card, Pill } from '../components/primitives';
 import { Snackbar } from '../components/profile/Snackbar';
 import { formatRupeesIndian, ordinalSuffix, formatDateLong } from '../lib/formatters';
 import { DEMO_MODE_MESSAGE } from '../lib/copy';
+import { logoutFromPriya } from '../lib/auth';
 
 // Stream 0.5n — Profile identity hero reads the same localStorage avatar
 // hint as ProfilePill (Phase C4). DB stays authoritative for chat behavior
@@ -354,6 +355,44 @@ export function ProfilePage() {
         <Card className="!p-0">
           <ProfileFieldRow label="Version" value="0.3.0 (Demo MVP)" isLast />
         </Card>
+
+        {/* D.21 (Stream 0.5p #1) — sign out. Utility action, not a featured
+            destructive button — single understated row at the bottom of the
+            page. Navigate to / after sign-out succeeds; the auth-gate (D.17)
+            doesn't fire post-logout because no session is present, so the
+            Welcome screen renders normally. */}
+        <div style={{ marginTop: 24, marginBottom: 4 }}>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await logoutFromPriya();
+                navigate('/', { replace: true });
+              } catch (err) {
+                setSnackMessage('Sign out failed — please try again.');
+                console.error('[profile] logout failed', err);
+              }
+            }}
+            className="w-full hover:bg-black/[0.02] transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '14px 16px',
+              backgroundColor: 'transparent',
+              border: '0.5px solid rgba(0,0,0,0.10)',
+              borderRadius: 999,
+              fontSize: 13.5,
+              color: '#5F5E5A',
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={14} strokeWidth={2} />
+            Sign out
+          </button>
+        </div>
 
         {/* Footer */}
         <div
