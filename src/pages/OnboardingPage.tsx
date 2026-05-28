@@ -176,6 +176,27 @@ export function OnboardingPage() {
   const set = <K extends keyof OnboardingState>(k: K, v: OnboardingState[K]) =>
     setStateInternal(s => ({ ...s, [k]: v }));
 
+  // Stream 0.5o D.17 — auth-gate the `/` route. If the user already has
+  // an active Supabase session (e.g. they logged in earlier in this
+  // browser, or refreshed during a chat), skip the Welcome screen and
+  // route straight to /home. `replace: true` so `/` doesn't sit in
+  // back-stack. Non-fatal try/catch falls through to the Welcome render
+  // if the session check fails for any reason.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!cancelled && session) {
+          navigate('/home', { replace: true });
+        }
+      } catch (err) {
+        console.warn('[onboarding] session check failed (non-fatal)', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [navigate]);
+
   const next = () => setStep(s => s + 1);
   const back = () => setStep(s => Math.max(0, s - 1));
 
