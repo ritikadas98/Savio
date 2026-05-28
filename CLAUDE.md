@@ -11,17 +11,37 @@ The owner (Ritika) is a PM in transition, not an engineer. She directs the agent
 
 ## Current state
 
-- **Phase 1 (Foundation):** COMPLETE. Schema deployed, Priya seeded, Edge Functions deployed (`chat-respond`, `suggest-windfall-allocation`, `gemini-test`). Edge Functions migrated to Vertex AI on GCP (was AI Studio Direct Gemini API) — Gemini calls auth via service-account JWT → OAuth Bearer token in `supabase/functions/_shared/gemini.ts`.
-- **Phase 2 (Home + Chat):** COMPLETE — tagged `phase-2-complete` on commit `00ddfc6`. 7/7 chat audit passing (Case 4 phone-fund has a known pre-existing limitation in the hallucination guard's arithmetic check around date math, deferred to Phase 3+).
-  - **Phase 2.9:** Primitives extracted (`Card`, `Pill`, `Row`, `SectionHeader`). Design decisions 1/2/4 from the JSX preview applied (hero size, 4-tab nav with ProfilePill route to /profile, rainbow-gradient Savio avatar). Decision 3 (chat card-with-asymmetric-corners + structured Tradeoffs/Best-next-step blocks) deferred to Phase 5.
-  - **Phase 2.95:** DEMO_TODAY now dynamic, pinned to 1st of current real-world month at 9 AM IST. Seed auto-substitutes via `scripts/apply-migrations.js`. Crossing a month boundary requires one re-run of that script.
-- **Phase 3+:** Not started. Rituals (ritual flow logic, rollover model, commitment payment tracking), reflection labeling, goals CRUD, profile page proper, structured chat responses, conversational mutation, polish/deploy.
+**Phase 3 complete** (tag `phase-3-complete`, 2026-05-28). Demo user: Priya, Strategist archetype, May 1 2026 state.
+
+- **Phase 1 (Foundation):** COMPLETE. Schema deployed, Priya seeded, Edge Functions deployed. Edge Functions on Vertex AI (`supabase/functions/_shared/gemini.ts` mints OAuth Bearer from service-account JWT).
+- **Phase 2 (Home + Chat):** COMPLETE — tagged `phase-2-complete` on commit `00ddfc6`. 7/7 chat audit passing.
+  - **Phase 2.9 / 2.95:** primitives, dynamic DEMO_TODAY pinned to 1st-of-month IST.
+- **Phase 3 (Surfaces + AI + Onboarding):** COMPLETE.
+  - **B1** Profile expansion · **B2 v2** Reflect hybrid (labeling + patterns) · **B3** Goals
+  - **C1** Monthly Ritual 7-screen (close-out 3 + setup 4) · **C2** WindfallFlow · **C3** Verdict Cards · **C4** Onboarding walkthrough (11 surfaces)
+  - **0.5j-n** polish streams: AI Reflect patterns + race fix + manual refresh, Windfall slider invariant, verdict alignment, prose path Card chrome + new labels, Profile localStorage avatar + life stage
+  - **D** Phase D audit + Migration 0017 ritual hardening + lint sweep 73 → 22 + PM_DECISIONS batch
+- **Banked for post-delivery (not in `phase-3-complete`):**
+  - **C.23** Divergence test artifact (`scripts/run-divergence-tests.mjs` + `docs/divergence-tests.md`)
+  - **C.24** Case study writeup
+- **Next:** V2 planning. No active phase.
 
 ## Key project documents
 
-- `savio-rebuild-build-spec_new.md` — canonical spec, ~1500 lines
-- `savio-design-system-spec.md` — visual system, the source of truth (not Appendix B of the build spec, which is stale)
-- `savio_prd.md` — strategic PRD with phase sequencing and acceptance criteria
+- `PM_DECISIONS.md` — product opinions + locked decisions; case-study source of truth. Two sections: Foundation Decisions (Stream 0/0.5 era, banked 2026-05-27) and Phase 3 Build Decisions (per-phase A/B/C/D work, banked 2026-05-28). Cite as "Phase 3 Build C.7" / "Foundation C.1" to disambiguate.
+- `phase3_completion_plan_master.md` — master plan; section 2 has locked decisions
+- `docs/savio_preview.jsx` — canonical visual reference (home / chat / reflect / goals)
+- `docs/savio_onboarding.jsx` — canonical onboarding reference (11-step walkthrough, Phase C4)
+- `docs/credifyx_behance_reference/` — Behance source imagery
+- `docs/divergence-tests.md` — TBD post-delivery per C.23 (not built yet)
+- `docs/case-study.md` — TBD post-delivery per C.24 (not built yet)
+
+## What lives where
+
+- Architecture decisions: `PM_DECISIONS.md`
+- Verification scripts: `scripts/phase*-check.mjs`, `scripts/phase05*.mjs`, `scripts/gate3-ritual-walkthrough.mjs`, `scripts/doc1.1-verify.mjs`, `scripts/test-chat-7cases.mjs`
+- Migrations: `supabase/migrations/` (latest 0017 — ritual hardening: legacy completed_at backfill + complete_monthly_setup precondition)
+- Edge Functions deployed: `chat-respond` (verdict + prose-structure layers), `synthesize-patterns` (Reflect AI), `onboarding-synthesize` (Step 8 Ready), `ritual-close-out`, `gemini-test`
 
 ## Demo user — Priya Sharma
 
