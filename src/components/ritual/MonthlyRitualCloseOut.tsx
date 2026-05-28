@@ -146,10 +146,15 @@ export function MonthlyRitualCloseOut() {
           </div>
         </Card>
 
-        {/* Commitments breakdown */}
+        {/* Spending-category breakdown. D.20 (Stream 0.5p #4): rows here are
+            variable spending categories (Eating out, Transport, Groceries)
+            with budget caps, not fixed commitments. Real fixed commitments
+            (Rent, SIPs, EMIs) have no variance to display so they don't
+            appear on this screen. Schema unchanged — commitments table still
+            holds both kinds; the is_fixed split is V2 work. */}
         {(data.commitment_overruns.length > 0 || data.commitment_buffers.length > 0) && (
           <Card className="mb-3">
-            <SectionHeader title="Commitments" />
+            <SectionHeader title="Spending categories" />
             <div className="flex flex-col divide-y divide-borderSoft">
               {/* Overruns first (the felt-consequence stories) */}
               {data.commitment_overruns.map(o => (
