@@ -130,7 +130,7 @@ export function ChatPage() {
             <span className="mr-1">👋</span>
             Welcome in, {profile?.full_name?.split(' ')[0] || 'User'}
           </div>
-          <ProfilePill avatar={profile?.avatar} />
+          <ProfilePill />
         </div>
         <h1
           className="mt-1"
