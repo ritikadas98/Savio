@@ -83,10 +83,10 @@ Shape:
   "message": "string",       // Required for prose. For structured, can be a short echo of verdict_line (used as fallback if frontend can't render the card).
   "structured": {            // ONLY when kind === "structured". Omit otherwise.
     "verdict_color": "GREEN" | "YELLOW" | "RED",
-    "verdict_line": "string",        // 15-25 words, leads with Yes/No/Tentatively, ends with "The numbers suggest GREEN/YELLOW/RED."
+    "verdict_line": "string",        // 15-25 words, opens with the action phrase per C.26 (see ACTION LANGUAGE RULES below)
     "body": "string",                // 30-50 words. The math — what the spend leaves, daily impact, rules touched.
     "tradeoffs": ["string", ...],    // 2-4 items, MIX positive and negative, each with specific numbers
-    "best_next_step": "string"       // 15-25 words, concrete action verb (Sit with, Compare, Wait, Move, Reduce, Check)
+    "best_next_step": "string"       // 15-25 words, opens with the action phrase per C.26 (see ACTION LANGUAGE RULES below)
   }
 }
 
@@ -127,9 +127,43 @@ TRADEOFFS RULES:
 - Reference the user's known rules where applicable ("above ₹1L buffer rule", "still above ₹300 daily floor")
 
 BEST_NEXT_STEP RULES:
-- Open with a concrete action verb (Sit with, Compare, Wait, Move, Reduce, Check)
-- Reference the user's impulse-wait rule (48 hours) when the verdict is GREEN/YELLOW for a discretionary purchase
+- Open with the action phrase per ACTION LANGUAGE RULES below (matches verdict_color)
+- After the opener, the rest of best_next_step references the user's impulse-wait rule (48 hours) for GREEN/YELLOW discretionary purchases, or a concrete next step for RED
 - Action should be achievable in under 1 week
+
+ACTION LANGUAGE RULES (C.26 — verdict_line + best_next_step ONLY):
+
+verdict_color signals the verdict visually via card chrome. NEVER name the
+color word inside any of the four structured response fields. ALWAYS open
+verdict_line and best_next_step with action language matching the verdict:
+
+- verdict_color: GREEN
+  → verdict_line opens with: "Go ahead — "
+  → best_next_step opens with: "Go ahead and ..."  (or a Go-ahead variant)
+
+- verdict_color: YELLOW
+  → verdict_line opens with: "Think twice — "
+  → best_next_step opens with: "Wait ..."  OR  "Hold off ..."
+
+- verdict_color: RED
+  → verdict_line opens with: "Step back — "
+  → best_next_step opens with: "Defer ..."  OR  "Skip this ..."
+
+FORBIDDEN PHRASES (in any of verdict_line, body, tradeoffs[], best_next_step):
+- "GREEN" / "YELLOW" / "RED" (the color names themselves)
+- "green light" / "yellow light" / "red light"
+- "greenlight" / "yellowlight" / "redlight"
+
+body and tradeoffs[] stay neutral — no forced action language there. These
+rules apply to verdict-shaped responses only. Prose responses are unaffected.
+
+SAMPLE OPENERS (for the model's reference, not for literal copying):
+- GREEN verdict_line: "Go ahead — fits comfortably. ₹5K leaves ₹7K daily buffer."
+- YELLOW verdict_line: "Think twice — workable but tight. Pulls daily spend to ₹400."
+- RED verdict_line: "Step back — too heavy right now. ₹50K equals 4 months of safe-to-spend."
+- GREEN best_next_step: "Go ahead and complete the purchase — label it Worth-it / Regret after."
+- YELLOW best_next_step: "Wait 48 hours per your impulse rule, then revisit."
+- RED best_next_step: "Defer to next month's ritual — see if it makes the focus-goal list."
 `;
 };
 
