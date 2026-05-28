@@ -86,6 +86,20 @@ try {
       console.log(`        ${s.verdict_line}`);
       console.log(`        tradeoffs: ${s.tradeoffs.length} items`);
       console.log(`        best_next_step: ${s.best_next_step.slice(0, 80)}${s.best_next_step.length > 80 ? '…' : ''}`);
+
+      // C.26 Gate 8.D — no color names anywhere across all four structured fields
+      const allFields = [s.verdict_line, s.body, s.best_next_step, ...s.tradeoffs].join(' ');
+      const colorMatch = allFields.match(/\b(GREEN|YELLOW|RED|green\s+light|yellow\s+light|red\s+light|greenlight|yellowlight|redlight)\b/i);
+      if (colorMatch) {
+        console.log(`        ✗ ACTION LANG FAIL — color-name "${colorMatch[0]}" leaked into prose`);
+        failed += 1;
+      }
+      // C.26 — verdict_line opener
+      const openerExpect = { GREEN: /^Go ahead\s*—/i, YELLOW: /^Think twice\s*—/i, RED: /^Step back\s*—/i }[color];
+      if (openerExpect && !openerExpect.test(s.verdict_line)) {
+        console.log(`        ✗ ACTION LANG FAIL — verdict_line opener doesn't match ${color}`);
+        failed += 1;
+      }
       verdictResults.push({ q, color });
     } else {
       console.log(`        FAIL — structured: ${JSON.stringify(s).slice(0, 200)}`);
