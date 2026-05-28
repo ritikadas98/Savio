@@ -306,3 +306,138 @@ export function computeMerchantTrends(reflections: ReflectionWithTx[]): Merchant
   return trends.sort((a, b) => b.reflectionCount - a.reflectionCount);
 }
 
+// =====================================================================
+// D.43 (Stream 0.5s pieces #5 + #6) — aggregate emotion trend chart
+// =====================================================================
+//
+// Replaces per-merchant cards as the primary Reflect post-generation
+// surface. Three lines (worth-it / regret / neutral) over the last 6
+// months, percentage of each month's total reflections. Bucket by
+// transaction.occurred_at per B.18 Path B. Headline interpretation
+// computed from the same chart data.
+
+export type MonthlyEmotionPoint = {
+  month: string;        // "Dec", "Jan", "Feb", "Mar", "Apr", "May"
+  monthDate: Date;      // start-of-month, for sorting + tooltip
+  worthIt: number;      // count of 'glad' labels with occurred_at in month
+  regret: number;       // count of 'regret' labels in month
+  neutral: number;      // count of 'neutral' labels in month
+  total: number;        // sum (drives % computation)
+};
+
+export type EmotionChartData = MonthlyEmotionPoint[];
+
+export type EmotionHeadline = {
+  // Pre/post-emphasis text plus the emphasis word + color so the consumer
+  // can render with an inline-accent span without re-parsing the string.
+  prefix: string;
+  emphasis: string | null;
+  emphasisColor: string;
+  suffix: string;
+};
+
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function computeLast6MonthStarts(demoToday: Date): Date[] {
+  // Returns 6 month-start Date objects, oldest first, ending at the month
+  // containing demoToday. For DEMO_TODAY = 2026-05-01 returns:
+  //   [Dec 1 2025, Jan 1 2026, Feb 1 2026, Mar 1 2026, Apr 1 2026, May 1 2026]
+  const out: Date[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(demoToday.getFullYear(), demoToday.getMonth() - i, 1);
+    out.push(d);
+  }
+  return out;
+}
+
+function isInMonth(occurred: Date, monthStart: Date): boolean {
+  return occurred.getFullYear() === monthStart.getFullYear()
+      && occurred.getMonth()   === monthStart.getMonth();
+}
+
+export function computeMonthlyEmotionTrend(
+  reflections: ReflectionWithTx[],
+  demoToday: Date,
+): EmotionChartData {
+  const valid = reflections.filter(r => r.transactions != null);
+  const monthStarts = computeLast6MonthStarts(demoToday);
+
+  return monthStarts.map(monthStart => {
+    let worthIt = 0;
+    let regret = 0;
+    let neutral = 0;
+    for (const r of valid) {
+      const occurred = new Date(r.transactions!.occurred_at);
+      if (!isInMonth(occurred, monthStart)) continue;
+      if (r.label === 'glad') worthIt++;
+      else if (r.label === 'regret') regret++;
+      else if (r.label === 'neutral') neutral++;
+    }
+    return {
+      month: SHORT_MONTHS[monthStart.getMonth()],
+      monthDate: monthStart,
+      worthIt,
+      regret,
+      neutral,
+      total: worthIt + regret + neutral,
+    };
+  });
+}
+
+// Color constants mirror the chart's line colors so the headline emphasis
+// word matches its line visually. Kept inline rather than in design-tokens
+// because they're tightly bound to the Path B stripe palette (sage = good
+// trajectory, red = regret-dominant).
+const HEADLINE_SAGE    = '#3B6D11';
+const HEADLINE_RED     = '#A32D2D';
+const HEADLINE_NEUTRAL = '#5A6B5F';
+
+function sumEmotion(points: EmotionChartData, key: 'worthIt' | 'regret' | 'neutral'): number {
+  return points.reduce((sum, p) => sum + p[key], 0);
+}
+
+export function deriveEmotionHeadline(data: EmotionChartData): EmotionHeadline {
+  const total = data.reduce((sum, p) => sum + p.total, 0);
+
+  if (total < 5) {
+    return { prefix: 'Not enough data yet — keep reflecting', emphasis: null, emphasisColor: HEADLINE_NEUTRAL, suffix: '' };
+  }
+
+  // Recent = last 2 months; older = first 2 months. Tracks directional
+  // change at the edges of the 6-month window — middle months smooth out.
+  const recent = data.slice(-2);
+  const older  = data.slice(0, 2);
+  const recentWorthIt = sumEmotion(recent, 'worthIt');
+  const recentRegret  = sumEmotion(recent, 'regret');
+  const olderWorthIt  = sumEmotion(older, 'worthIt');
+  const olderRegret   = sumEmotion(older, 'regret');
+
+  const worthItChange = recentWorthIt - olderWorthIt;
+  const regretChange  = recentRegret  - olderRegret;
+
+  // Crossover — strongest signal when prior was regret-dominated and recent
+  // is worth-it-dominated.
+  if (recentWorthIt > recentRegret && olderRegret > olderWorthIt) {
+    return { prefix: "Worth-it is overtaking ", emphasis: 'regret', emphasisColor: HEADLINE_RED, suffix: '' };
+  }
+
+  // Strong improving: worth-it up AND regret down
+  if (worthItChange > 0 && regretChange < 0) {
+    return { prefix: "You're trending toward ", emphasis: 'worth-it', emphasisColor: HEADLINE_SAGE, suffix: '' };
+  }
+
+  // Strong worsening: regret up AND worth-it down
+  if (worthItChange < 0 && regretChange > 0) {
+    return { prefix: '', emphasis: 'Regret', emphasisColor: HEADLINE_RED, suffix: ' is dominating recently' };
+  }
+
+  // Stable patterns — recent dominance
+  if (recentRegret > recentWorthIt * 1.5) {
+    return { prefix: '', emphasis: 'Regret', emphasisColor: HEADLINE_RED, suffix: ' still dominates your reflections' };
+  }
+  if (recentWorthIt > recentRegret * 1.5) {
+    return { prefix: '', emphasis: 'Worth-it', emphasisColor: HEADLINE_SAGE, suffix: ' leads your recent reflections' };
+  }
+
+  return { prefix: 'Mixed signals — patterns are varying', emphasis: null, emphasisColor: HEADLINE_NEUTRAL, suffix: '' };
+}

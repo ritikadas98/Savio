@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { BottomNav } from '../components/layout/BottomNav';
 import { Card } from '../components/primitives';
@@ -8,9 +8,17 @@ import { Snackbar } from '../components/profile/Snackbar';
 import { UnlabeledTxCard, type UnlabeledTxLike } from '../components/reflect/UnlabeledTxCard';
 import { getMerchantIcon } from '../lib/merchant-icons';
 import { daysAgo, today } from '../lib/dates';
-import { fetchAllReflections, derivePatterns, computeMerchantTrends, type Pattern, type ReflectionWithTx } from '../lib/reflect-patterns';
+import {
+  fetchAllReflections,
+  derivePatterns,
+  computeMerchantTrends,
+  computeMonthlyEmotionTrend,
+  deriveEmotionHeadline,
+  type Pattern,
+  type ReflectionWithTx,
+} from '../lib/reflect-patterns';
 import { MerchantTrendCard } from '../components/reflect/MerchantTrendCard';
-import { forceResynthesizePatterns } from '../lib/reviewer-actions';
+import { EmotionTrendChart } from '../components/reflect/EmotionTrendChart';
 import type { ReflectionLabel } from '../lib/mood';
 
 // Phase B2 (v2 hybrid):
@@ -115,12 +123,29 @@ export function ReflectPage() {
   // the AI-synthesis surface.
   const [patterns, setPatterns] = useState<Pattern[] | null>(null);
 
-  // D.32 — per-session "user has tapped Generate Reflections at least once"
+  // D.32 — per-session "user has tapped Show my reflections at least once"
   // flag. Patterns + trend section only render when true. Auto-reset (D.15)
   // clears it naturally on the next session via component unmount.
   const [hasGeneratedThisSession, setHasGeneratedThisSession] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [loadingPhraseIndex, setLoadingPhraseIndex] = useState(0);
+
+  // D.42 (Stream 0.5s piece #2) — chart container ref for auto-scroll on
+  // generation complete. Effect below watches hasGeneratedThisSession;
+  // when it flips true, scrolls the chart into view.
+  const chartRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!hasGeneratedThisSession) return;
+    const handle = window.setTimeout(() => {
+      chartRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => window.clearTimeout(handle);
+  }, [hasGeneratedThisSession]);
+
+  // D.43 (Stream 0.5s piece #7) — Know more expand state. Default collapsed;
+  // depth content (per-merchant trend cards + rule-engine prose) renders only
+  // when expanded.
+  const [knowMoreExpanded, setKnowMoreExpanded] = useState(false);
 
   // Stream 0.5g-C: session-only dismissed-tx state. Reset on component unmount
   // (navigation away and back). No localStorage — production Savio would
@@ -175,49 +200,29 @@ export function ReflectPage() {
     return () => window.clearInterval(id);
   }, [generating]);
 
-  // D.32 — Generate Reflections handler. Sticky bottom button's tap target.
-  // Sequence: enter loading state → invoke Edge Function (cache-bypassing
-  // via forceResynthesizePatterns from 0.5j-fix2 era) → on success, set
-  // patterns + flip hasGeneratedThisSession so the trend + patterns section
-  // becomes visible. Rule-engine fallback preserves a useful result if the
-  // Edge Function fails or returns empty.
+  // D.40 (Stream 0.5s piece #1) — Show my reflections handler. Pattern
+  // synthesis now goes through the deterministic `derivePatterns()` rule
+  // engine (in-memory, <50ms) instead of the `synthesize-patterns` Edge
+  // Function. Real-user testing on the 0.5r post-migration state caught
+  // Gemini hallucinating numbers ("8 of 9 / 89%" against pre-computed
+  // aggregates of "7 of 8 / 88%"); the D.18 hallucination guard never
+  // extended to this surface. Rule engine is the existing fallback path
+  // promoted to primary. AI synthesizer preserved as dormant code for
+  // potential V2 revival with proper guard wiring.
+  //
+  // D.36 — MIN_LOADING_MS race still applies. Rule engine completes
+  // instantly, so without the minimum the loading state would flash
+  // and disappear before the rotating phrases register. Now mandatory.
   const handleGenerate = useCallback(async () => {
     if (generating) return;
     setLoadingPhraseIndex(0);
     setGenerating(true);
     setPatterns(null);
-    const startedAt = Date.now();
-    // D.36 (Stream 0.5r piece #4) — Promise.all race ensures the loading
-    // state is visible for at least MIN_LOADING_MS even when AI returns
-    // fast (warm Vertex isolates can return in <1s). The min-delay promise
-    // runs in parallel with the AI call, so user-perceived loading time
-    // is max(ai_latency, MIN_LOADING_MS) — whichever wins.
-    const minDelay = new Promise<void>(resolve => setTimeout(resolve, MIN_LOADING_MS));
-    try {
-      const [result] = await Promise.all([forceResynthesizePatterns(), minDelay]);
-      const fresh = result.patterns ?? [];
-      if (fresh.length === 0) {
-        const rule = derivePatterns(reflections);
-        setPatterns(rule);
-      } else {
-        setPatterns(fresh);
-      }
-      setHasGeneratedThisSession(true);
-    } catch (err) {
-      console.warn('[ReflectPage] generate failed, falling back to rule engine', err);
-      // D.36 — respect MIN_LOADING_MS on the error path too, so an error
-      // doesn't flash on screen for <1s. Compute remaining delay against
-      // actual elapsed time.
-      const elapsed = Date.now() - startedAt;
-      if (elapsed < MIN_LOADING_MS) {
-        await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - elapsed));
-      }
-      const rule = derivePatterns(reflections);
-      setPatterns(rule);
-      setHasGeneratedThisSession(true);
-    } finally {
-      setGenerating(false);
-    }
+    await new Promise<void>(resolve => setTimeout(resolve, MIN_LOADING_MS));
+    const derived = derivePatterns(reflections);
+    setPatterns(derived);
+    setHasGeneratedThisSession(true);
+    setGenerating(false);
   }, [generating, reflections]);
 
   const refreshReflections = useCallback(async () => {
@@ -283,6 +288,12 @@ export function ReflectPage() {
   // Path B (occurred_at bucketing). Memoized so React-Strict double-mounts
   // don't re-bucket on every render.
   const merchantTrends = useMemo(() => computeMerchantTrends(reflections), [reflections]);
+
+  // D.43 (Stream 0.5s pieces #5 + #6) — aggregate monthly emotion chart
+  // data + headline interpretation, both derived from the same reflections
+  // set the trend cards consume. Memoized for the same reason.
+  const chartData = useMemo(() => computeMonthlyEmotionTrend(reflections, today()), [reflections]);
+  const chartHeadline = useMemo(() => deriveEmotionHeadline(chartData), [chartData]);
 
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
@@ -352,12 +363,15 @@ export function ReflectPage() {
           </div>
         )}
 
-        {/* D.32 — patterns / trend section, gated on hasGeneratedThisSession.
-            User must tap the sticky Generate Reflections button at least
-            once per session before this surface appears. Auto-reset (D.15)
-            clears the flag naturally on the next session. */}
+        {/* D.43 (Stream 0.5s pieces #4-7) — post-generation surface.
+            Restructured from 0.5q's trend-cards-as-primary into chart-as-
+            primary with depth content behind "Know more" expand:
+              1. EmotionTrendChart card (headline + 3-line monthly chart)
+              2. Know more card (collapsed): tapping reveals trend cards +
+                 rule-engine prose
+            Auto-scroll lands the user at the chart top per D.42. */}
         {hasGeneratedThisSession && (
-          <>
+          <div ref={chartRef}>
             <div
               style={{
                 borderTop: '0.5px solid rgba(0,0,0,0.07)',
@@ -366,69 +380,125 @@ export function ReflectPage() {
               }}
             />
 
-            {/* B.18 — per-merchant trend section header (kept; sticky
-                button now carries the AI-synthesis affordance). */}
-            <div style={{ padding: '0 6px 8px' }}>
-              <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 500, lineHeight: 1.3 }}>
-                Regret rate change by merchant
-              </div>
-              <div style={{ fontSize: 10, color: '#5A6B5F', marginTop: 1, lineHeight: 1.3 }}>
-                Recent purchases vs prior 3 months
-              </div>
-            </div>
+            <EmotionTrendChart data={chartData} headline={chartHeadline} />
 
-            {merchantTrends.length > 0 ? (
-              <div style={{ padding: '0 0 12px' }}>
-                {merchantTrends.map(t => (
-                  <MerchantTrendCard key={t.merchant} trend={t} />
-                ))}
-              </div>
-            ) : (
-              <Card style={{ padding: 18, textAlign: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: '#5A6B5F', fontStyle: 'italic' }}>
-                  No merchant patterns yet. Label a few more transactions to start seeing trends.
+            {/* D.43 piece #7 — Know more expand. Default collapsed; tap to
+                reveal per-merchant trend cards + rule-engine prose. Single
+                affordance (card-as-button), chevron rotates 180° on expand. */}
+            <button
+              type="button"
+              onClick={() => setKnowMoreExpanded(e => !e)}
+              aria-expanded={knowMoreExpanded}
+              aria-controls="know-more-content"
+              className="w-full hover:bg-black/[0.02] transition-colors"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                width: '100%',
+                padding: '14px 16px',
+                background: '#FFFFFF',
+                border: 'none',
+                borderRadius: 12,
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontFamily: 'inherit',
+                marginBottom: knowMoreExpanded ? 12 : 0,
+                boxShadow: '0 0 0 0.5px rgba(0,0,0,0.07)',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.3 }}>
+                  Know more
                 </div>
-              </Card>
-            )}
+                <div style={{ fontSize: 11, color: '#5A6B5F', marginTop: 2, lineHeight: 1.3 }}>
+                  Per-merchant breakdown · patterns Savio noticed
+                </div>
+              </div>
+              <ChevronDown
+                size={18}
+                color="#5A6B5F"
+                style={{
+                  transform: knowMoreExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 200ms ease',
+                  flexShrink: 0,
+                }}
+                aria-hidden
+              />
+            </button>
 
-            {patterns && patterns.length > 0 && (
-              <Card style={{ padding: '16px 18px' }}>
-                {patterns.map((p, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      paddingBottom: i < patterns.length - 1 ? 14 : 0,
-                      marginBottom: i < patterns.length - 1 ? 14 : 0,
-                      borderBottom: i < patterns.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
-                    }}
-                  >
-                    <div style={{ fontSize: 13.5, color: '#1A1A1A', lineHeight: 1.45 }}>
-                      <strong style={{ fontWeight: 500, color: '#0C447C' }}>{p.label}</strong>{' '}
-                      {p.body}
-                    </div>
+            {knowMoreExpanded && (
+              <div id="know-more-content">
+                {/* B.18 — per-merchant trend cards. Section header now
+                    inside the depth expand rather than primary. */}
+                <div style={{ padding: '0 6px 8px' }}>
+                  <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 500, lineHeight: 1.3 }}>
+                    Per-merchant breakdown
                   </div>
-                ))}
-              </Card>
+                  <div style={{ fontSize: 10, color: '#5A6B5F', marginTop: 1, lineHeight: 1.3 }}>
+                    Regret rate change · recent purchases vs prior 3 months
+                  </div>
+                </div>
+
+                {merchantTrends.length > 0 ? (
+                  <div style={{ padding: '0 0 12px' }}>
+                    {merchantTrends.map(t => (
+                      <MerchantTrendCard key={t.merchant} trend={t} />
+                    ))}
+                  </div>
+                ) : (
+                  <Card style={{ padding: 18, textAlign: 'center', marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: '#5A6B5F', fontStyle: 'italic' }}>
+                      No merchant patterns yet. Label a few more transactions to start seeing trends.
+                    </div>
+                  </Card>
+                )}
+
+                {/* D.40 — rule-engine prose. Deterministic, no hallucination. */}
+                {patterns && patterns.length > 0 && (
+                  <>
+                    <div style={{ padding: '8px 6px 8px' }}>
+                      <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 500, lineHeight: 1.3 }}>
+                        Patterns Savio noticed
+                      </div>
+                    </div>
+                    <Card style={{ padding: '16px 18px' }}>
+                      {patterns.map((p, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            paddingBottom: i < patterns.length - 1 ? 14 : 0,
+                            marginBottom: i < patterns.length - 1 ? 14 : 0,
+                            borderBottom: i < patterns.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                          }}
+                        >
+                          <div style={{ fontSize: 13.5, color: '#1A1A1A', lineHeight: 1.45 }}>
+                            <strong style={{ fontWeight: 500, color: '#0C447C' }}>{p.label}</strong>{' '}
+                            {p.body}
+                          </div>
+                        </div>
+                      ))}
+                    </Card>
+                  </>
+                )}
+              </div>
             )}
-          </>
+          </div>
         )}
       </div>
 
-      {/* D.32 — sticky "Show my reflections" button. Sits above BottomNav
-          via the flex-shrink-0 order in the parent column. Three states:
-          DISABLED (any unlabeled), ENABLED (allLabeled), LOADING (in
-          synthesis). Loading state replaces the label with rotating
-          phrases keyed by loadingPhraseIndex so each phrase re-runs the
-          CSS fade-in animation.
-          D.33/D.34/D.35 (Stream 0.5r) — button restyled (sage #78A353),
-          label changed to "Show my reflections", and a state-aware
-          discovery hint rendered below in DISABLED + pre-tap ENABLED. */}
-      <GenerateReflectionsButton
-        state={generating ? 'loading' : allLabeled ? 'enabled' : 'disabled'}
-        hasGenerated={hasGeneratedThisSession}
-        phraseIndex={loadingPhraseIndex}
-        onTap={handleGenerate}
-      />
+      {/* D.32 / D.41 — sticky "Show my reflections" button. Hides post-
+          generation (D.41 Stream 0.5s piece #3) — once the user has tapped
+          and seen the chart, the button has done its job and removing it
+          declutters the surface. Auto-reset (D.15) restores via the
+          hasGeneratedThisSession reset on session boundary. */}
+      {!hasGeneratedThisSession && (
+        <GenerateReflectionsButton
+          state={generating ? 'loading' : allLabeled ? 'enabled' : 'disabled'}
+          hasGenerated={hasGeneratedThisSession}
+          phraseIndex={loadingPhraseIndex}
+          onTap={handleGenerate}
+        />
+      )}
 
       <Snackbar message={snackMessage} onDismiss={dismissSnack} />
       <BottomNav />

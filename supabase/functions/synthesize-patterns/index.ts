@@ -1,5 +1,24 @@
 // Stream 0.5j — AI-powered Reflect patterns synthesis.
 //
+// =====================================================================
+// DORMANT as of Stream 0.5s (D.40, 2026-05-29).
+// =====================================================================
+// Reflect tab now derives patterns via the deterministic rule engine at
+// `src/lib/reflect-patterns.ts::derivePatterns()` instead of calling this
+// Edge Function. Real-user testing on Stream 0.5r's post-migration state
+// surfaced Gemini hallucinating numbers ("8 of 9 / 89% regret" against
+// pre-computed aggregates correctly stating "7 of 8 / 88%"). The
+// natural-language constraint in SYSTEM_PROMPT below ("Never make claims
+// beyond the data") is NOT programmatically enforced; the D.18
+// hallucination guard from Stream 0.5o was scoped to chat-respond only
+// and never imported here.
+//
+// This function is preserved (not deleted, not undeployed) for potential
+// V2 revival with proper hallucination guard wiring — extract the chat
+// hallucination guard pattern, run every cited number/amount against the
+// `aggregates` object, fall back to rule engine on any mismatch. Until
+// that work happens, frontend bypasses this surface entirely.
+//
 // Frontend calls supabase.functions.invoke('synthesize-patterns') from ReflectPage.
 // This function:
 //   1. Authenticates the caller, resolves profile.id
@@ -11,6 +30,7 @@
 //
 // Aggregates are pre-computed server-side so the AI is anchored to specific
 // counts (PM_DECISIONS.B.15). It cannot fabricate facts beyond the inputs.
+// (But it can and did — see D.40.)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
