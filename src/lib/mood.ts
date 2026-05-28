@@ -1,4 +1,3 @@
-import React from 'react';
 import { Smile, Meh, Frown, type LucideIcon } from 'lucide-react';
 
 // Phase B2: shared mood config for reflection labeling surfaces (Reflect tab,

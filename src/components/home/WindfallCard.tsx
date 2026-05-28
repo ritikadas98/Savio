@@ -5,12 +5,16 @@ import { Card } from '../primitives';
 
 type Props = {
   amount: number;
-  source: string;
+  // `source` is unused after Doc 1.15 Stream E removed the source label
+  // above the amount line. Kept as optional for backward-compat with the
+  // HomePage call site; safe to drop in a V2 cleanup if a `source` field
+  // never re-emerges in the design.
+  source?: string;
   onDismiss?: () => void;
   onAllocate?: () => void;
 };
 
-export function WindfallCard({ amount, source: _source, onDismiss, onAllocate }: Props) {
+export function WindfallCard({ amount, onDismiss, onAllocate }: Props) {
   const formattedAmount = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
