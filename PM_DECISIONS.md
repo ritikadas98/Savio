@@ -4,7 +4,7 @@ This is the running record of product decisions made during Savio's build. Engin
 
 This file is curated, not exhaustive. Engineering details live in CLAUDE.md and the build docs. Product opinions live here.
 
-Last updated: Phase 3.5 shipped; Doc 1.1 + Doc 1.2 + Onboarding walkthrough in queue; onboarding committed to Phase 3 as walkthrough (Option D), real ephemeral-user functionality deferred to V2.
+Last updated: 2026-05-28 — Phase 3 complete (tag `phase-3-complete`). All Phase A/B/C/D work shipped: B1 Profile expansion · B2 v2 Reflect hybrid · B3 Goals · C1 Monthly Ritual 7-screen · C2 WindfallFlow · C3 Verdict Cards · C4 Onboarding · 0.5j-n polish streams · D audit + lint sweep. Banked for post-delivery: divergence test artifact (Phase 3 Build C.23) and case study writeup (Phase 3 Build C.24).
 
 ---
 
@@ -447,6 +447,200 @@ These decisions were banked across the Stream 0 / 0.5 / 0.5b / Doc 1.2 resumptio
 **Implication for future:** When typography drift is discovered, the fix is per-element audit, not a sweep in the other direction (which just creates new drift).
 
 **Date:** 2026-05-27
+
+---
+
+## Phase 3 Build Decisions (banked 2026-05-28)
+
+These decisions were banked across Phase A/B/C/D execution — per-surface builds (Profile expansion / Reflect hybrid / Goals / Monthly Ritual 7-screen / WindfallFlow / Chat verdict cards / Onboarding walkthrough) plus the alignment / prose-path / Reflect-AI streams in between. Numbering is scoped to this section to avoid collision with the foundation-decision entries above (which use the same letters for unrelated topics — JSX-preview discipline vs feature decisions). When a Phase 3 build decision is cited elsewhere, qualify as "Phase 3 Build B.5" / "Phase 3 Build C.7" etc.
+
+Format here is intentionally lighter than the foundation entries above — one or two sentences per decision instead of the full Decision/Rationale/Implication/Date stanza. The reasoning is captured in line in the prose where it matters.
+
+---
+
+### Section B — Per-surface build (Profile / Reflect / Goals / Ritual)
+
+#### B.5 Reflect surface is hybrid (labeling + patterns)
+Deliberate extension beyond JSX preview lines 584-684, which specify only a labeling surface. Phase B2 v2 builds the labeling surface per JSX AND adds a patterns section below. Hybrid serves both fidelity and case-study value.
+
+#### B.6 Goals header departure from JSX
+JSX preview at lines 689-776 renders Goals page directly without a header. Build adds a 36/400 "Goals" header for consistency with Profile/Reflect surfaces (B1 established this header pattern). Deviation accepted.
+
+#### B.7 Goal status + milestones hardcoded per goal label
+Status pills (on-track / behind / at-risk) and milestone callouts are derived from goal label string in Phase B3, not from a status column. Goal labels are stable per Priya's seed; production V2 would derive from contribution history.
+
+#### B.7-ext Seed target dates supersede JSX preview hardcodes
+Emergency Dec 2027 (seed) vs Mar 2027 (JSX preview) — build renders seed values. JSX dates were design-time approximations; seed values derived from Priya's actual contribution capability against goal targets. Case-study framing: "values derived from realistic contribution math, not design mockup."
+
+#### B.8 Reflect uses ₹1,000 amount floor on unlabeled query
+Stream 0.5f added `.gt('amount', 1000)` to the unlabeled-transactions query. Filters micro-spend below ₹1,000 (Blinkit ₹240, UPI ₹50 noise). Silent filter, no UI signal.
+
+#### B.9 Reflect uses ₹1,000 floor + user dismiss affordance (no commitment_id filter)
+Stream 0.5g attempted `.is('commitment_id', null)` as structural filter; reverted in same session because it excluded variable-commitment-linked discretionary food (Mainland China, Toit linked to "Eating out" variable commitment). Final state: amount floor at ₹1,000 catches micro-spend; X-icon dismiss affordance with inline confirmation handles user-defined irrelevance. Case-study framing: honesty over cleverness.
+
+#### B.10 Reflect dismiss confirmation uses inline pattern
+Card content swaps to "Remove this from Reflect?" prompt with Remove/Cancel pill buttons. NOT modal sheet, NOT window.confirm(). Lighter UI, visually consistent. Reads as "the card is asking a question now" rather than introducing a separate UI layer.
+
+#### B.11 Phase C1 chained 7-screen ritual flow (not separate close-out + setup)
+Single continuous ritual combining 3-screen close-out (M-1) with 4-screen month-setup (M). Header counter renumbered "X OF 7" across all screens. Real users do the whole monthly ritual in one sitting; splitting creates friction.
+
+#### B.12 Phase C1 no standalone Welcome screen
+Welcome content absorbed into Complete (close-out) screen transition copy: "April closed. Now let's set up May →". Single transition moment, no separate welcome ceremony.
+
+#### B.13 Phase C1 Commitments confirmation [PRESENTATIONAL]
+Each commitment row shows current amount + "Same" pill. Tap fires DEMO_MODE_MESSAGE snackbar. Production Savio would detect month-over-month changes; MVP demo shows the scan pattern without supporting actual amount editing.
+
+#### B.14 DEMO_MODE_MESSAGE supersedes V2 framing
+All [PRESENTATIONAL] edit-action snackbars use DEMO_MODE_MESSAGE constant: "Demo mode — changes aren't saved for Priya." Reframes from "we cut features" to "this is intentional controlled state for portfolio viewing." Single source of truth in `src/lib/copy.ts`. Ritika's framing: "I considered every edit-disabled affordance as a chance to communicate intent, not absence."
+
+#### B.15 Reflect patterns use AI synthesis with rule-engine fallback
+Vertex AI call anchored to pre-aggregated counts (merchant, category, weekend/weekday, recent vs prior 30d). NOT raw reflection rows — constrains hallucination. Rule engine preserved at `src/lib/reflect-patterns.ts` as fallback. Cache 24h per user, invalidated on new reflection. Sparkles affordance signals AI source.
+
+#### B.16 AI generationConfig — responseMimeType + maxTokens + timeout
+`responseMimeType: 'application/json'`, `maxOutputTokens: 2048`, 30s timeout for cold Vertex isolates.
+
+#### B.17 Manual pattern refresh as honest escape hatch (extended)
+Stream 0.5j-fix solved the diagnosed race condition (refreshReflections invalidate-then-setState ordering). Stream 0.5j-fix2 added ↻ icon-button next to "Across your reflections" header as in-context manual refresh, with same silent rule-engine fallback. Auto-refresh is primary path; manual is the escape hatch. Case-study framing: "Auto-refresh is the ideal; manual refresh is the realistic escape hatch when timing edge cases surface." More honest than "we fixed the race condition perfectly."
+
+---
+
+### Section C — Phase C feature decisions (Windfall / Verdict / Onboarding)
+
+#### C.5-feat WindfallFlow uses hybrid persistence
+Lock-in writes JSONB allocations onto the existing `windfalls.allocations` column + flips `status='allocated'` + sets `allocated_at`. Does NOT mutate `goals.current_amount` or `monthly_rituals.safe_to_spend_locked`. Auditable allocations demonstrate persistence to case-study reviewers; stable demo state prevents drift across reviewer sessions. Production Savio would propagate writes downstream.
+
+#### C.6-feat WindfallFlow bucket suggestions computed from real financial state
+Emergency gap from Goals table, Phone gap from Goals, loan principal from seed (or dropped if absent — pre-flight discovered no loan principal in Priya seed; bucket dropped gracefully, 3 buckets render). Free spend as residual. JSX preview's hardcoded ₹20K/₹15K/₹10K/₹5K split was design-time approximation; the build computes from Priya's actual ₹6,200 windfall and real goal gaps. Demonstrates Savio's intelligence as data-driven, not template-driven.
+
+#### C.7-feat WindfallFlow slider invariant via "clamp the dragged value"
+Stream 0.5k math fix. Non-free buckets clamp to `TOTAL − sum(other-non-free)`; Free is purely derivative (drag no-op, snaps to residual). Replaces JSX preview's naive clamp-Free-to-0 which let dragged buckets overshoot total (₹52,700 sum on ₹50,000 windfall). Random-fuzz verified.
+
+#### C.8-feat WindfallFlow includes Reset to suggested affordance
+Subtle text-link below SEBI disclaimer with RotateCcw icon. Returns all sliders to initially-computed (data-driven) values. Initial state captured in ref on first mount. Departure from JSX preview which had no reset path.
+
+#### C.9-feat Chat verdict cards return structured JSON from AI with prose fallback
+Pattern 1 only for Phase C3; Pattern 2 (clarifying questions) deferred. Verdict cards include GREEN/YELLOW/RED color signal, 2-4 tradeoffs, concrete best-next-step. AI determines verdict-eligibility via prompt instruction. Frontend routes based on response shape (not query type). Save decision wires to `saved_decisions.decision_data` JSONB. Fallback chain: malformed JSON → prose bubble silently.
+
+#### C.10-feat AI unconditional JSON contract via responseMimeType
+chat-respond returns `{kind, message?, structured?}` on every call. `responseMimeType: 'application/json'` forces JSON. Defensive `"message":"…"` regex extractor handles truncated JSON; final fallback uses raw text. User never sees an error.
+
+#### C.11-feat Buffer floor + impulse wait + daily SPS floor as derived constants
+Phase C3 grounding context injects ₹1,00,000 buffer floor, 48-hour wait above ₹2,000, ₹300 daily SPS floor. Hardcoded in `buildGroundingContext` until columns exist. V2 work: expose as editable profile settings.
+
+#### C.12-feat SaveDecisionButton RLS fix (user.id → profile.id)
+Pre-existing bug discovered during Phase C3 build. Insert was using `user.id` (auth.users.id) instead of `profile.id`. Saves were failing RLS silently. Broken since Stream 0.5d/0.5e but never click-save-then-verify-DB-row tested. Phase C3 made it actively reachable. Fixed proactively in C3 scope.
+
+#### C.13-feat scope_filter.ts timing-regex fix
+Pre-existing bug discovered during Phase C3 build. Every "Should I buy" query was tripping SEBI deflection filter and getting routed away from verdict path. The `(?:…)?` made the trailing timing context optional, so "Should I buy a ₹50k laptop?" got deflected when it should have been a RED verdict. Fix: trailing context mandatory.
+
+#### C.14-feat Chat verdict cards use alignSelf/maxWidth wrapper pattern
+Stream 0.5l fix. Verdict card initially rendered without `alignSelf` wrapper, causing weak alignment that visually conflicted with user-message bubbles. Wrapper pattern: `<div style={{ alignSelf: 'flex-start', maxWidth: '92%' }}>` — matches prose bubble alignment behavior. Asymmetric `'4px 22px 22px 22px'` border-radius for the sharp top-left chat-bubble flag.
+
+#### C.15-feat Prose chat responses mirror verdict card visual treatment except verdict-specific elements
+Stream 0.5m fix. Same outer wrapper, same Card primitive with asymmetric border-radius, same speaker-badge-inside-Card placement, same timestamp-outside-Card pattern. Differences: prose drops the Verified pill, Tradeoffs callout, Best Next Step callout, and Save this decision link. The Verified pill is verdict-only — rendering it on prose diluted its meaning as a "structured math you can verify" signal.
+
+#### C.16-feat Prose responses use "Where you stand / What it means / What you can do" labels
+Stream 0.5m prompt rename. Replaced "Observation / Stake / Partnership Offer" (which read as research-paper-meets-SaaS-pitch). New labels are human and action-oriented. The labeled structure itself is preserved as a deliberate UX choice — teaches a three-step framework (current state → interpretation → action). Prompt explicitly forbids the old labels and seven other common LLM defaults (Summary, Key Insights, Recommendation, Analysis, Conclusion, etc.) to prevent drift back. Case-study framing: "Vanilla LLMs return one blob; Savio structures every prose response into three steps."
+
+#### C.17-feat Save Decision link is verdict-only
+Stream 0.5m additional cleanup. Pre-0.5m the link rendered on prose responses where `is_verdict` was true (regex fallback on user query). Verdict-eligible queries that fall back to prose lack the structured math a save would capture. Save link lives in VerdictCard exclusively now.
+
+#### C.18-feat Onboarding walkthrough ships as Option D
+Phase C4. Full 9-step flow + Welcome + Interstitial = 11 surfaces. All inputs captured in React useState only; zero DB writes. localStorage avatar persists ProfilePill icon (Compass / Sailboat / Hammer) but chat behavior stays Strategist for Priya regardless. Three [DOCUMENTED-FAKE] surfaces labeled honestly inside their screens (Statement V2 / Bank V2 / SMS V2).
+
+#### C.18a-feat Single-route onboarding deviation from spec
+Spec proposed `/onboarding/welcome`, `/onboarding/disclaimer`, etc. as separate routes. Build went with single OnboardingPage.tsx containing useState step branching, matching JSX source 1:1. Rationale: matches canonical JSX, avoids deep-link-to-mid-onboarding edge cases, keeps state simple.
+
+#### C.19-feat Step 8 Ready synthesis AI-elevated with deterministic fallback
+Phase C4. Edge Function `onboarding-synthesize` reuses shared Vertex client. 8s timeout. Hallucination guard rejects any unverified rupee value (prompt forbids rupee values entirely — synthesis is qualitative). Fallback template at `src/lib/onboarding-synthesis-fallback.ts`. ✨ icon signals AI source; hidden when fallback. Third AI surface (after chat C3 verdicts and Reflect 0.5j patterns).
+
+#### C.20-feat Framing 3 dual-honesty signal is a designed product surface
+Phase C4. Welcome button subtitle ("Walk through onboarding — demo continues as Priya, your inputs aren't saved") AND interstitial Step 9 (explicit handoff prose + "Continue as Priya" CTA). Together, no reviewer can be surprised at the moment of handoff. The interstitial is itself a portfolio moment.
+
+#### C.21-feat thinkingConfig.thinkingBudget: 0 required for short-synthesis Gemini tasks
+Discovered during Phase C4. Default thinking budget on `gemini-2.5-flash` consumed the entire `maxOutputTokens: 600` budget, returning truncated 4-6 word responses. Setting `thinkingBudget: 0` routes tokens to output. Banked for future Edge Function authors — if your Vertex task produces short responses unexpectedly, check thinking config first.
+
+#### C.22-feat Profile identity hero reads localStorage for avatar AND life-stage with label match
+Streams 0.5n + 0.5n+. Phase B1 Profile identity hero was built before the C4 localStorage avatar pattern existed, so it rendered hardcoded Compass + "The Strategist" + DB-derived life-stage regardless of onboarding choice. 0.5n inlined the localStorage read pattern from ProfilePill (AVATAR_ICONS / AVATAR_LABELS maps + `isAvatarKey` guard + fallback `localStorage → DB → 'strategist'`). 0.5n+ extended to the second pill: `LIFE_STAGE_LABELS` map with strings matching onboarding JSX option labels verbatim; `formatLifeStage` title-case helper retired. Presentation-layer only — both `profile.avatar` and `profile.life_stage` in DB stay canonical for chat grounding. The C.18/C.20 "Your choice carries through visually" promise now spans both pills end-to-end.
+
+#### C.23-feat Divergence test artifact (BANKED, not built yet)
+Markdown artifact at `docs/divergence-tests.md` + generator script at `scripts/run-divergence-tests.mjs`. Calls both Savio's chat Edge Function and a vanilla Vertex/Gemini endpoint, captures outputs, formats side-by-side. Query mix: 2-3 verdict-eligible + 2-3 prose + one cumulative-context anchor sequence (Turn 1: "Can I afford a ₹5,000 watch?" GREEN → Turn 2: "what about 8k watch?" remembers context → Turn 3: "on top of this 8k watch I also want a ₹1L Apple Watch" → cumulative load). PLUS prose-structure comparison (Savio's three labels vs vanilla LLM blob). Reviewer Console "View divergence tests" row wires to this once it exists. **Banked decision, not built in Phase 3.**
+
+#### C.24-feat Case study writeup is post-delivery deliverable (BANKED, not built yet)
+Portfolio document covering Phase 3 architecture decisions, build narrative, screenshots. Separate writing/curation work. Reviewer Console "Read case study" row stays as DEMO_MODE_MESSAGE until artifact exists. **Banked decision, not built in Phase 3.**
+
+---
+
+### Section D — Phase D housekeeping decisions
+
+#### D.4 Save button pill outline departure from JSX
+Stream 0.5e small polish. Faint pill outline (5px×12px, 0.5px border at 8% opacity, pure pill border-radius). T.t → T.s color shift. Departure from JSX preview which had no outline. Case-study framing: small but visible polish — the button now reads as a deliberate small action button, not unstyled text.
+
+#### D.5 reset_april_ritual goal rollback — investigated, no bug
+Phase D pre-flight. Spec proposed a Migration 0017 to fix `reset_april_ritual` not rolling back `goals.current_amount`. Empirical verification showed Migration 0011 (Doc 1.2 split rollover) ALREADY iterates `rollover_allocations`, decrements destination goals via `GREATEST(0, current_amount - amount)`, deletes allocations, and resets the ritual row — all in one transaction. End-to-end test: Phone fund ₹8,000 → run gate3 → ₹10,953.85 → call `reset_april_ritual` → Phone fund back to ₹8,000 exactly. **No fix needed.** Documenting here because the "bug" was cited 7 times across Phase C reports — a false-alarm pattern. Manual restores during build were unnecessary; running the RPC would have sufficed. Lesson for future build reports: verify symptom before banking as a known issue.
+
+#### D.6 Reviewer Console resets clear localStorage avatar + life-stage
+Phase D fix. Each of the three reset handlers (reset April ritual / clear chat history / restore reflection labels) now also calls `localStorage.removeItem('savio_demo_avatar')` and `localStorage.removeItem('savio_demo_life_stage')`. Ensures ProfilePill and Profile identity hero return to defaults (Compass + Supporting Dependents) after any reset. Addresses the "noticed but not fixed" item from Phase C4 verification.
+
+#### D.7 Legacy completed_at backfill on Jan/Feb/Mar 2026 rituals
+Phase D fix. Seed-state completed rituals had `completed_at = NULL` because the seed never populated the column. Migration 0017 backfills with synthetic timestamps at `(ritual_month::date + interval '7 days')` — plausible mid-month ritual completion. New ritual completions (April onward) populate via `complete_monthly_ritual` / `complete_monthly_setup` RPCs as designed.
+
+#### D.8 complete_monthly_setup enforces close-out sequence
+Phase D hardening. Migration 0017 adds a precondition: setup for month M requires the M-1 ritual to be in `'completed'` status. Phase C1 frontend chains them correctly so this isn't a live bug, but a bad-faith client could bypass — precondition closes the gap.
+
+#### D.9 PM_DECISIONS structured per-phase, not flat-numbered
+Phase D. Adding ~30 amendments under existing Section B/C/D would collide with foundation-decision entries already at those numbers (e.g., existing C.1 = "JSX is quieter than instinct" vs Phase D spec's "C.1 WindfallFlow hybrid persistence"). Resolution: append a new top-level section `## Phase 3 Build Decisions (banked 2026-05-28)` with its own A-E subsections. Numbering inside the new section is scoped to it. Citations elsewhere should qualify as "Phase 3 Build C.7" / "Foundation C.1" to disambiguate.
+
+#### D.10 ProfilePill `_avatar` prop removed
+Phase D cleanup. Prop was unused after C4's localStorage-read shift. Two call sites updated (HomePage line 207, ChatPage line 133). Single source of truth: the `useEffect` localStorage read inside ProfilePill. No backward-compat surface remains.
+
+#### D.11 Test script try/finally cleanup hygiene
+Phase D fix. `scripts/phase05j-fix-race.mjs` inserts a real reflection mid-test. If the test throws mid-flight, the leftover persists (caught it twice during Phase C verification). Wrapped state-mutating sections in try/finally that restores canonical state on exit. Other phase scripts already had explicit cleanup paths at the bottom — verified via audit.
+
+#### D.12 apply-migrations.js no-op warning suppressed
+Phase D fix. The warning "v_demo_today substitution did not match" fires whenever `sql.replace(...)` returns an unchanged string. This happens both when the regex truly doesn't match AND when the replacement value equals the original — the common case on May 1 (seed already says `'2026-05-01'`, demoToday computes to `'2026-05-01'`). Fix: gate the warning on `!regex.test(before)` instead of `sql === before`. Cosmetic, no behavior change.
+
+#### D.13 Lint baseline cleared
+Phase D sweep. Baseline was 69 errors + 4 warnings = 73 problems (not the 44 cited in the spec — accumulated during Phase 3 build). Approach: ESLint config tweak to scope `no-restricted-syntax` (the `new Date()` ban routing to `src/lib/dates.ts`) to `src/**` only — Edge Functions are Deno runtime and can't import from `src/`. Plus manual address of unused-vars and `any`-types where straightforward. No refactors, no rule suppressions. Future verification gates use "zero new errors" as the bar.
+
+#### D.14 CLAUDE.md updated with current state pointers
+Phase D housekeeping. Updated project-documents section to reference PM_DECISIONS.md authoritatively. Added current-state pointer block calling out `phase-3-complete` tag, Priya demo state, and next steps. Future Claude Code sessions reading CLAUDE.md see the build state immediately.
+
+---
+
+### Section E — Phase 3 Disclosures + V2 Carry-overs
+
+These are NOT decisions to litigate — they are documented known states of the Phase 3 build that V2 work would address. Listed for case-study honesty, reviewer transparency, and future maintainers.
+
+#### E.3 Hallucination guard scope limited to verdict_line
+Chat C3 verdict cards: guard runs against `verdict_line` only. `body`, `tradeoffs`, `best_next_step` are NOT separately verified. Grounded context (real Priya state) makes hallucination less likely, but the guard doesn't catch all of it. V2 hardening: extend guard to all four fields.
+
+#### E.4 Verdict query "right now" trips timing filter
+Acceptable per scope_filter charter. "Right now" matches timing-deflection regex and routes to SEBI handoff for some borderline cases. Not a bug — the filter is intentionally cautious. V2: smarter timing intent classifier.
+
+#### E.5 Cold-call latency on verdicts: 6-15s
+Vertex JWT mint pattern is slow on cold isolates. Same on onboarding synthesis (5-12s cold). V2: typing indicator copy + preload-on-input-focus.
+
+#### E.6 Rapid-labeling residual race on Reflect patterns
+Stream 0.5j-fix solved the diagnosed case; 2-3 labels in quick succession may still fire 2-3 Vertex calls instead of 1. Eventually consistent (last-write-wins). Manual ↻ refresh is the user-facing escape hatch. V2: debounce on labels or skip-if-in-flight.
+
+#### E.7 forceResynthesizePatterns no spinner beyond "Running…" text
+Reviewer Console action. Acceptable for reviewer-tools surface. V2 polish.
+
+#### E.8 Ritual screen page title 30px is extrapolation
+JSX preview canonical type scale is home + chat only. Ritual screen titles at 30px applied uniformly per Stream 0 type scale. V2: explicit ritual-screen type scale OR accept 30px as the locked spec going forward.
+
+#### E.9 Onboarding doesn't auth-gate `/`
+Logged-in user navigating to `/` sees Welcome again (skip button still works to re-login). V2: session check that auto-routes to `/home` if session present.
+
+#### E.10 Edge Function `no-restricted-syntax` exempt via config
+The `new Date()` ban in `src/**` doesn't apply to Edge Functions (Deno can't import from `src/lib/dates.ts`). ESLint config now scopes the rule to `src/**`. Edge Functions still use `new Date()` freely where needed.
+
+#### E.11 WindfallAllocate sub-copy already dynamic
+Pre-flight discovery — Stream 0.5k already made the sub-copy say `"the {buckets.length} buckets keep things..."`. Phase D spec listed this as a must-fix; it was already fixed. No action needed.
+
+#### E.12 Cumulative test-script seed pollution pattern
+April reflection leftovers surfaced 3 times across Phase B/C verification. Phase D added try/finally to the main culprit (`phase05j-fix-race.mjs`). V2: add global "reset reflections to canonical" sanity check before each verification batch.
 
 ---
 
