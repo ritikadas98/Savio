@@ -350,12 +350,16 @@ export function ReflectPage() {
               type="button"
               onClick={handleManualRefresh}
               disabled={patterns === null}
-              aria-label="Generate reflection"
+              aria-label="Generate insight"
               title="Re-synthesize patterns from your current labels"
               style={{
                 marginLeft: 'auto',
-                background: '#DEF2CB',
-                color: '#3B6D11',
+                // 0.5p mid-stream update: locked color is sage #B2EF82 with
+                // dark green #173404 text (was the lighter #DEF2CB pair).
+                // Brighter sage reads as reward against the green canvas;
+                // dark-on-bright text holds AA contrast comfortably.
+                background: '#B2EF82',
+                color: '#173404',
                 border: 'none',
                 padding: '6px 12px',
                 borderRadius: 999,
@@ -371,7 +375,7 @@ export function ReflectPage() {
               }}
             >
               <Sparkles size={11} strokeWidth={2.2} />
-              {patterns === null ? 'Generating…' : 'Generate reflection'}
+              {patterns === null ? 'Generating…' : 'Generate insight'}
             </button>
           )}
         </div>
