@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { BottomNav } from '../components/layout/BottomNav';
 import { Card } from '../components/primitives';
@@ -321,12 +321,16 @@ export function ReflectPage() {
           }}
         />
 
-        {/* Patterns — Across your reflections. Stream 0.5j: Sparkles icon
-            appears only when patterns are AI-synthesized; never lies about
-            the source. Stream 0.5j-fix2: subtle ↻ refresh button on the
-            right; reuses forceResynthesizePatterns. Auto-refresh on label
-            (refreshReflections race-fix) is still the primary path — this
-            is the in-context escape hatch when timing feels stale. */}
+        {/* D.23 (Stream 0.5p piece #3) — patterns header.
+            Pre-0.5p: always-visible ↻ refresh icon (0.5j-fix2). Real-user
+            testing surfaced that it read as "something broke, refresh it"
+            — repair framing rather than reward. Reframed: when all
+            reflections are labeled (no unlabeled remaining), surface a
+            "Generate reflection" CTA that frames the synthesis as earned.
+            When unlabeled items remain, the affordance is hidden —
+            labeling is the user's actual job. After tap, button stays
+            enabled (option c) so users can regenerate if they want.
+            Sparkles icon retained — signals AI source. */}
         <div
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -341,28 +345,35 @@ export function ReflectPage() {
               <Sparkles size={14} strokeWidth={2} />
             </span>
           )}
-          <button
-            type="button"
-            onClick={handleManualRefresh}
-            disabled={patterns === null}
-            aria-label="Refresh patterns"
-            title="Refresh patterns from your latest reflections"
-            style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              padding: 4,
-              cursor: patterns === null ? 'not-allowed' : 'pointer',
-              opacity: patterns === null ? 0.4 : 0.6,
-              color: '#888780',
-              display: 'flex',
-              alignItems: 'center',
-              fontFamily: 'inherit',
-              transition: 'opacity 150ms ease',
-            }}
-          >
-            <RotateCcw size={14} strokeWidth={2} />
-          </button>
+          {!hasUnlabeled && (
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              disabled={patterns === null}
+              aria-label="Generate reflection"
+              title="Re-synthesize patterns from your current labels"
+              style={{
+                marginLeft: 'auto',
+                background: '#DEF2CB',
+                color: '#3B6D11',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: 999,
+                cursor: patterns === null ? 'not-allowed' : 'pointer',
+                opacity: patterns === null ? 0.55 : 1,
+                fontFamily: 'inherit',
+                fontSize: 11.5,
+                fontWeight: 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              <Sparkles size={11} strokeWidth={2.2} />
+              {patterns === null ? 'Generating…' : 'Generate reflection'}
+            </button>
+          )}
         </div>
 
         {patterns === null ? (
