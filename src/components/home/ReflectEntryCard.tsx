@@ -40,7 +40,7 @@ export function ReflectEntryCard({ unlabeledCount }: Props) {
         </div>
         <div className="flex-1 min-w-0">
           <div style={{ fontSize: 14.5, color: tokens.p, fontWeight: 500, lineHeight: 1.3 }}>
-            Label your recent spending
+            Reflect on your spending
           </div>
           <div style={{ fontSize: 12, color: tokens.s, marginTop: 2, lineHeight: 1.4 }}>
             {unlabeledCount} {unlabeledCount === 1 ? 'transaction' : 'transactions'} waiting for reflection

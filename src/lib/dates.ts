@@ -173,3 +173,32 @@ export function formatRelativeDate(input: Date | string | number): string {
   if (diffDays < 0) return 'Upcoming';
   return new Intl.DateTimeFormat('en-IN', { month: 'short', day: 'numeric' }).format(d);
 }
+
+// D.29 (Stream 0.5q piece #3) — wall-clock-relative formatter for chat
+// message timestamps. Chat is real-time UX: messages happen now and the
+// timestamp should reflect that. formatRelativeDate() anchors to DEMO_TODAY
+// (pinned to 1st of month), so chat messages sent on any other day fell
+// through to the diffDays<0 branch and rendered "Upcoming". That's the bug
+// real users surfaced as "what is Savio · Upcoming at the bottom of chat".
+// This helper uses wall-clock time so chat behaves like a chat. The
+// `new Date()` call lives here in dates.ts where the ESLint exemption
+// already applies — callers stay clean.
+export function formatMessageTime(input: Date | string | number): string {
+  const d = input instanceof Date ? input : new Date(input);
+  if (!Number.isFinite(d.getTime())) return '';
+  const nowMs = new Date().getTime();
+  const diffMs = nowMs - d.getTime();
+  if (diffMs < 0) return 'Just now';                 // future-stamped (clock skew)
+  if (diffMs < 60_000) return 'Just now';            // <1 min
+  if (diffMs < 3_600_000) {                          // <1 hr
+    const mins = Math.floor(diffMs / 60_000);
+    return mins === 1 ? '1 min ago' : `${mins} min ago`;
+  }
+  if (diffMs < 86_400_000) {                         // <1 day
+    const hrs = Math.floor(diffMs / 3_600_000);
+    return hrs === 1 ? '1 hr ago' : `${hrs} hr ago`;
+  }
+  // older than a day — clock time formatted in IST so "yesterday at 4pm"
+  // reads naturally without a separate date line
+  return new Intl.DateTimeFormat('en-IN', { hour: 'numeric', minute: '2-digit' }).format(d);
+}

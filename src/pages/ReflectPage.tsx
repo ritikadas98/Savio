@@ -34,6 +34,20 @@ const UNLABELED_VISIBLE_LIMIT = 8;
 // commitment which is recurring, not a decision moment.
 const UNLABELED_AMOUNT_FLOOR = 1000;
 
+// D.32 (Stream 0.5q piece #6) — Generate Reflections loading state.
+// Phrases cycle while AI synthesizes. Each visible ~1.8s with a CSS
+// fade-in keyframe rerunning per phrase via React's key prop. The copy
+// resists generic spinner UX — narrates what the AI is doing in human
+// language, the same discipline as C.16 (three-step prose labels) and
+// C.26 (verdict action language).
+const LOADING_PHRASES = [
+  'Pondering your reflections…',
+  'Thinking through your patterns…',
+  'Synthesizing…',
+  'Almost done…',
+];
+const LOADING_PHRASE_INTERVAL_MS = 1800;
+
 // Local view-state extension on the fetched transaction row. Tracks the
 // optimistic label so the row can render labeled-pill UI before the DB write
 // confirms.
@@ -85,12 +99,21 @@ export function ReflectPage() {
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
   const dismissSnack = useCallback(() => setSnackMessage(null), []);
 
-  // Stream 0.5j — AI-synthesized patterns + rule-engine fallback. `patterns`
-  // is null while loading (so we don't flash the rule-engine output before
-  // the AI call resolves on first mount). `patternsSource` drives the ✨
-  // sparkles affordance — only shown when the surface is AI-derived.
+  // Stream 0.5j — AI-synthesized patterns + rule-engine fallback. After
+  // D.32 (Stream 0.5q piece #6), patterns are no longer auto-synthesized
+  // on mount — `hasGeneratedThisSession` gates the entire section render
+  // and `handleGenerate` (sticky button tap) is the only trigger. The
+  // patternsSource (`ai` vs `rule_engine`) signal that drove the inline
+  // Sparkles affordance was dropped in 0.5q: the sticky button now owns
+  // the AI-synthesis surface.
   const [patterns, setPatterns] = useState<Pattern[] | null>(null);
-  const [patternsSource, setPatternsSource] = useState<'ai' | 'rule_engine' | null>(null);
+
+  // D.32 — per-session "user has tapped Generate Reflections at least once"
+  // flag. Patterns + trend section only render when true. Auto-reset (D.15)
+  // clears it naturally on the next session via component unmount.
+  const [hasGeneratedThisSession, setHasGeneratedThisSession] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [loadingPhraseIndex, setLoadingPhraseIndex] = useState(0);
 
   // Stream 0.5g-C: session-only dismissed-tx state. Reset on component unmount
   // (navigation away and back). No localStorage — production Savio would
@@ -130,49 +153,31 @@ export function ReflectPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Stream 0.5j — synthesize patterns whenever the reflection set changes.
-  // Path: try Edge Function (cache-aware), fall back to local rule engine
-  // on any failure. Setting patterns + source together avoids a flash of
-  // mismatched sparkles state.
+  // D.32 — phrase-rotation effect, runs only while AI synthesis is in
+  // flight. Cycles through LOADING_PHRASES on a fixed interval; React's
+  // key={loadingPhraseIndex} on the rendered text restarts the CSS fade-in
+  // animation per phrase. Index loops back to 0 if AI takes longer than
+  // (phrases × interval), so the user always sees motion. Phrase index
+  // resets to 0 inside handleGenerate (not here) to avoid synchronous
+  // setState in this effect.
   useEffect(() => {
-    if (!profileId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('synthesize-patterns', { body: {} });
-        if (cancelled) return;
-        if (error || !data || data.error || !Array.isArray(data.patterns)) {
-          throw new Error(error?.message ?? data?.error ?? 'invalid response');
-        }
-        // Empty-array result from the function (no reflections yet) — defer
-        // to the rule engine's empty-state copy so the user sees a useful
-        // hint instead of nothing.
-        if (data.patterns.length === 0) {
-          const rule = derivePatterns(reflections);
-          setPatterns(rule);
-          setPatternsSource('rule_engine');
-          return;
-        }
-        setPatterns(data.patterns);
-        setPatternsSource(data.source === 'ai' ? 'ai' : 'rule_engine');
-      } catch (err) {
-        console.warn('[ReflectPage] AI patterns failed, falling back to rule engine', err);
-        if (cancelled) return;
-        const rule = derivePatterns(reflections);
-        setPatterns(rule);
-        setPatternsSource('rule_engine');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [profileId, reflections]);
+    if (!generating) return;
+    const id = window.setInterval(() => {
+      setLoadingPhraseIndex(i => (i + 1) % LOADING_PHRASES.length);
+    }, LOADING_PHRASE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [generating]);
 
-  // Stream 0.5j-fix2 — manual refresh affordance next to "Across your
-  // reflections". Reuses forceResynthesizePatterns; bypasses the 24-hour
-  // cache via the Edge Function's force_refresh path. Single tap, no
-  // confirmation — refresh is neither destructive nor expensive enough.
-  // Disabled while loading via `patterns === null` semantic.
-  const handleManualRefresh = useCallback(async () => {
-    if (patterns === null) return;  // already mid-flight
+  // D.32 — Generate Reflections handler. Sticky bottom button's tap target.
+  // Sequence: enter loading state → invoke Edge Function (cache-bypassing
+  // via forceResynthesizePatterns from 0.5j-fix2 era) → on success, set
+  // patterns + flip hasGeneratedThisSession so the trend + patterns section
+  // becomes visible. Rule-engine fallback preserves a useful result if the
+  // Edge Function fails or returns empty.
+  const handleGenerate = useCallback(async () => {
+    if (generating) return;
+    setLoadingPhraseIndex(0);
+    setGenerating(true);
     setPatterns(null);
     try {
       const result = await forceResynthesizePatterns();
@@ -180,18 +185,20 @@ export function ReflectPage() {
       if (fresh.length === 0) {
         const rule = derivePatterns(reflections);
         setPatterns(rule);
-        setPatternsSource('rule_engine');
-        return;
+        } else {
+        setPatterns(fresh);
+        setPatternsSource(result.source ?? 'ai');
       }
-      setPatterns(fresh);
-      setPatternsSource(result.source ?? 'ai');
+      setHasGeneratedThisSession(true);
     } catch (err) {
-      console.warn('[ReflectPage] manual refresh failed, falling back to rule engine', err);
+      console.warn('[ReflectPage] generate failed, falling back to rule engine', err);
       const rule = derivePatterns(reflections);
       setPatterns(rule);
-      setPatternsSource('rule_engine');
+      setHasGeneratedThisSession(true);
+    } finally {
+      setGenerating(false);
     }
-  }, [patterns, reflections]);
+  }, [generating, reflections]);
 
   const refreshReflections = useCallback(async () => {
     if (!profileId) return;
@@ -243,7 +250,14 @@ export function ReflectPage() {
   }, [profileId, refreshReflections]);
 
   const visibleTxs = viewTxs.filter(t => !dismissedIds.has(t.id));
-  const hasUnlabeled = visibleTxs.length > 0;
+  // D.32 fix — previously `hasUnlabeled = visibleTxs.length > 0` gated
+  // the section header + Generate insight button. That was wrong: it
+  // stayed true after all items were labeled (labeled rows remain in the
+  // view list with their labeled-pill UI), so the button never appeared.
+  // Real semantic: "any unlabeled item still pending action."
+  const hasTransactions = visibleTxs.length > 0;
+  const hasAnyUnlabeled = visibleTxs.some(t => t.label === null);
+  const allLabeled = hasTransactions && !hasAnyUnlabeled;
 
   // B.18 — per-merchant trend computation. Derived from reflections via
   // Path B (occurred_at bucketing). Memoized so React-Strict double-mounts
@@ -267,8 +281,8 @@ export function ReflectPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-6">
-        {/* Labeling intro — only when there's something to label */}
-        {!loading && hasUnlabeled && (
+        {/* Labeling intro — only when there's still something unlabeled */}
+        {!loading && hasAnyUnlabeled && (
           <p style={{ fontSize: 14, color: '#5F5E5A', lineHeight: 1.5, padding: '4px 6px 14px', margin: 0 }}>
             Tap how each felt — labels help Savio understand your patterns over time.
           </p>
@@ -279,7 +293,7 @@ export function ReflectPage() {
           <div className="flex justify-center" style={{ padding: '24px 0' }}>
             <div className="w-6 h-6 border-2 border-[#1A1A1A] border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : hasUnlabeled ? (
+        ) : hasTransactions ? (
           visibleTxs.map(tx => (
             <UnlabeledTxCard
               key={tx.id}
@@ -305,8 +319,8 @@ export function ReflectPage() {
           </Card>
         )}
 
-        {/* Labeling footer — only when labeling list rendered */}
-        {!loading && hasUnlabeled && (
+        {/* Labeling footer — only when there's still unlabeled work to do */}
+        {!loading && hasAnyUnlabeled && (
           <div style={{
             fontSize: 12,
             color: '#888780',
@@ -318,24 +332,23 @@ export function ReflectPage() {
           </div>
         )}
 
-        {/* Divider between halves */}
-        <div
-          style={{
-            borderTop: '0.5px solid rgba(0,0,0,0.07)',
-            margin: '28px -6px 20px',
-            opacity: 0.6,
-          }}
-        />
+        {/* D.32 — patterns / trend section, gated on hasGeneratedThisSession.
+            User must tap the sticky Generate Reflections button at least
+            once per session before this surface appears. Auto-reset (D.15)
+            clears the flag naturally on the next session. */}
+        {hasGeneratedThisSession && (
+          <>
+            <div
+              style={{
+                borderTop: '0.5px solid rgba(0,0,0,0.07)',
+                margin: '28px -6px 20px',
+                opacity: 0.6,
+              }}
+            />
 
-        {/* B.18 (Stream 0.5p piece #7) — patterns section header.
-            Locked design: title + subtitle anchor the metric and window
-            explicitly. ✨ icon removed from the header (it now lives on
-            the Generate insight button) — section is structured data,
-            not AI synthesis. State B only — patterns surface only when
-            all labeled. */}
-        {!hasUnlabeled && (
-          <div style={{ padding: '0 6px 8px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            {/* B.18 — per-merchant trend section header (kept; sticky
+                button now carries the AI-synthesis affordance). */}
+            <div style={{ padding: '0 6px 8px' }}>
               <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 500, lineHeight: 1.3 }}>
                 Regret rate change by merchant
               </div>
@@ -343,89 +356,154 @@ export function ReflectPage() {
                 Recent purchases vs prior 3 months
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleManualRefresh}
-              disabled={patterns === null}
-              aria-label="Generate insight"
-              title="Re-synthesize patterns from your current labels"
-              style={{
-                flexShrink: 0,
-                background: '#B2EF82',
-                color: '#173404',
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: 999,
-                cursor: patterns === null ? 'not-allowed' : 'pointer',
-                opacity: patterns === null ? 0.55 : 1,
-                fontFamily: 'inherit',
-                fontSize: 11.5,
-                fontWeight: 500,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                transition: 'opacity 150ms ease',
-              }}
-            >
-              <Sparkles size={11} strokeWidth={2.2} />
-              {patterns === null ? 'Generating…' : 'Generate insight'}
-            </button>
-          </div>
-        )}
 
-        {/* B.18 — per-merchant trend cards (Path B: occurred_at bucketing).
-            Sorted by reflection_count DESC. Each card: name + count +
-            delta as headline + stripe + chevron. Tap-to-expand inline
-            for current rate / prior rate / change / recent reflections. */}
-        {!hasUnlabeled && merchantTrends.length > 0 && (
-          <div style={{ padding: '0 0 12px' }}>
-            {merchantTrends.map(t => (
-              <MerchantTrendCard key={t.merchant} trend={t} />
-            ))}
-          </div>
-        )}
-
-        {/* Empty trend state — for completeness; canonical Priya always
-            has Myntra etc. so this branch only fires if the seed somehow
-            has zero reflections. */}
-        {!hasUnlabeled && merchantTrends.length === 0 && (
-          <Card style={{ padding: 18, textAlign: 'center' }}>
-            <div style={{ fontSize: 12, color: '#5A6B5F', fontStyle: 'italic' }}>
-              No merchant patterns yet. Label a few more transactions to start seeing trends.
-            </div>
-          </Card>
-        )}
-
-        {patterns === null ? (
-          <Card style={{ padding: '16px 18px' }}>
-            <div className="flex items-center gap-3" style={{ color: '#888780', fontSize: 13 }}>
-              <div className="w-4 h-4 border-2 border-[#888780] border-t-transparent rounded-full animate-spin" />
-              Finding patterns…
-            </div>
-          </Card>
-        ) : (
-          <Card style={{ padding: '16px 18px' }}>
-            {patterns.map((p, i) => (
-              <div
-                key={i}
-                style={{
-                  paddingBottom: i < patterns.length - 1 ? 14 : 0,
-                  marginBottom: i < patterns.length - 1 ? 14 : 0,
-                  borderBottom: i < patterns.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
-                }}
-              >
-                <div style={{ fontSize: 13.5, color: '#1A1A1A', lineHeight: 1.45 }}>
-                  <strong style={{ fontWeight: 500, color: '#0C447C' }}>{p.label}</strong>{' '}
-                  {p.body}
-                </div>
+            {merchantTrends.length > 0 ? (
+              <div style={{ padding: '0 0 12px' }}>
+                {merchantTrends.map(t => (
+                  <MerchantTrendCard key={t.merchant} trend={t} />
+                ))}
               </div>
-            ))}
-          </Card>
+            ) : (
+              <Card style={{ padding: 18, textAlign: 'center', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: '#5A6B5F', fontStyle: 'italic' }}>
+                  No merchant patterns yet. Label a few more transactions to start seeing trends.
+                </div>
+              </Card>
+            )}
+
+            {patterns && patterns.length > 0 && (
+              <Card style={{ padding: '16px 18px' }}>
+                {patterns.map((p, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      paddingBottom: i < patterns.length - 1 ? 14 : 0,
+                      marginBottom: i < patterns.length - 1 ? 14 : 0,
+                      borderBottom: i < patterns.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                    }}
+                  >
+                    <div style={{ fontSize: 13.5, color: '#1A1A1A', lineHeight: 1.45 }}>
+                      <strong style={{ fontWeight: 500, color: '#0C447C' }}>{p.label}</strong>{' '}
+                      {p.body}
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            )}
+          </>
         )}
       </div>
 
+      {/* D.32 — sticky Generate Reflections button. Sits above BottomNav
+          via the flex-shrink-0 order in the parent column. Three states:
+          DISABLED (any unlabeled), ENABLED (allLabeled), LOADING (in
+          synthesis). Loading state replaces the label with rotating
+          phrases keyed by loadingPhraseIndex so each phrase re-runs the
+          CSS fade-in animation. */}
+      <GenerateReflectionsButton
+        state={generating ? 'loading' : allLabeled ? 'enabled' : 'disabled'}
+        phraseIndex={loadingPhraseIndex}
+        onTap={handleGenerate}
+      />
+
       <Snackbar message={snackMessage} onDismiss={dismissSnack} />
       <BottomNav />
+    </div>
+  );
+}
+
+// D.32 — sticky bottom button component. State machine:
+//   disabled — light gray, no tap (user still has unlabeled items)
+//   enabled  — sage green (#B2EF82 per B.18 lock), Sparkles + label, tappable
+//   loading  — sage green, rotating LOADING_PHRASES with fade animation
+type ButtonState = 'disabled' | 'enabled' | 'loading';
+
+function GenerateReflectionsButton({
+  state,
+  phraseIndex,
+  onTap,
+}: {
+  state: ButtonState;
+  phraseIndex: number;
+  onTap: () => void;
+}) {
+  const isLoading = state === 'loading';
+  const isEnabled = state === 'enabled';
+  const isDisabled = state === 'disabled';
+
+  const bg = isDisabled ? '#F1EFE8' : '#B2EF82';
+  const fg = isDisabled ? '#888880' : '#173404';
+  const cursor = isLoading ? 'wait' : isEnabled ? 'pointer' : 'not-allowed';
+
+  return (
+    <div
+      className="flex-shrink-0"
+      style={{
+        padding: '10px 16px 6px',
+        backgroundColor: '#E4ECE6',
+      }}
+    >
+      <button
+        type="button"
+        onClick={isEnabled ? onTap : undefined}
+        disabled={!isEnabled}
+        aria-label="Generate Reflections"
+        style={{
+          width: '100%',
+          background: bg,
+          color: fg,
+          border: 'none',
+          padding: '14px 18px',
+          borderRadius: 999,
+          cursor,
+          fontFamily: 'inherit',
+          fontSize: 14.5,
+          fontWeight: 500,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          transition: 'background-color 200ms ease, color 200ms ease',
+          minHeight: 48,
+        }}
+      >
+        <Sparkles size={15} strokeWidth={2.2} />
+        {isLoading ? (
+          <span
+            key={phraseIndex}
+            style={{
+              animation: 'savio-fade-in-out 1.8s ease-in-out',
+              display: 'inline-block',
+            }}
+          >
+            {LOADING_PHRASES[phraseIndex]}
+          </span>
+        ) : (
+          <span>Generate Reflections</span>
+        )}
+      </button>
+      {isDisabled && (
+        <div
+          style={{
+            fontSize: 11,
+            color: '#888780',
+            textAlign: 'center',
+            marginTop: 6,
+            lineHeight: 1.3,
+          }}
+        >
+          Label all spending first
+        </div>
+      )}
+      {/* keyframes inlined here so the component is self-contained */}
+      <style>{`
+        @keyframes savio-fade-in-out {
+          0%   { opacity: 0; }
+          20%  { opacity: 1; }
+          80%  { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }

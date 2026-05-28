@@ -62,6 +62,20 @@ type ProfileRow = {
   disclaimer_acknowledged_at: string | null;
 };
 
+// D.31 (Stream 0.5q piece #2) — Profile "Your commitments" section.
+// Fixed-only filter (kind = 'fixed') excludes the 3 variable budgets
+// (Groceries / Eating out / Transport) which appear in close-out screen 1
+// and the ritual flow, not here. Read-only for Monday delivery — edit
+// affordances are V2 Tier 1. Order: amount DESC so largest obligations
+// surface first (Rent ₹22K → ... → Spotify ₹119).
+type FixedCommitment = {
+  id: string;
+  label: string;
+  amount: number;
+  frequency: string | null;
+  category: string | null;
+};
+
 // Stream 0.5n+ — formatLifeStage helper retired in favor of LIFE_STAGE_LABELS
 // lookup (same pattern as AVATAR_LABELS), so the displayed copy matches the
 // onboarding Step 6 options exactly. The old title-case helper produced
@@ -148,6 +162,7 @@ function ProfileFieldRow({ label, value, onClick, isLast }: ProfileFieldRowProps
 export function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [commitments, setCommitments] = useState<FixedCommitment[]>([]);
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
 
   // Stream 0.5n — localStorage avatar hint, read once on mount (matches
@@ -175,15 +190,39 @@ export function ProfilePage() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
+      const { data: profileRow } = await supabase
         .from('profiles')
-        .select('full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at')
+        .select('id, full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at')
         .eq('auth_user_id', user.id)
         .single();
-      if (!cancelled && data) setProfile(data as ProfileRow);
+      if (cancelled || !profileRow) return;
+      setProfile(profileRow as ProfileRow);
+
+      // D.31 — pull fixed commitments for the "Your commitments" section.
+      // Variable rows (Groceries / Eating out / Transport) intentionally
+      // excluded; they're surfaced in the close-out screen + ritual flow.
+      const { data: cmtRows } = await supabase
+        .from('commitments')
+        .select('id, label, amount, frequency, category')
+        .eq('user_id', (profileRow as { id: string }).id)
+        .eq('kind', 'fixed')
+        .order('amount', { ascending: false });
+      if (!cancelled && cmtRows) {
+        setCommitments(
+          cmtRows.map(r => ({
+            id: r.id as string,
+            label: r.label as string,
+            amount: Number(r.amount),
+            frequency: (r.frequency as string | null) ?? null,
+            category: (r.category as string | null) ?? null,
+          })),
+        );
+      }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const commitmentTotal = commitments.reduce((sum, c) => sum + c.amount, 0);
 
   const income = profile?.monthly_income_net ?? 68500;
   const anchorDay = profile?.anchor_day_of_month ?? 1;
@@ -271,6 +310,59 @@ export function ProfilePage() {
             isLast
           />
         </Card>
+
+        {/* D.31 (Stream 0.5q piece #2) — Your commitments. Fixed-only,
+            read-only. Variable categories (Groceries / Eating out /
+            Transport) shown in close-out screen 1 and ritual flow, not
+            here. No edit affordance yet — V2 work. */}
+        {commitments.length > 0 && (
+          <>
+            <ProfileSectionHeader title="Your commitments" />
+            <Card className="!p-0">
+              {commitments.map(c => (
+                <div
+                  key={c.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    width: '100%',
+                    padding: '12px 16px',
+                    borderBottom: '0.5px solid rgba(0,0,0,0.07)',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.3 }}>
+                      {c.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888780', marginTop: 2, lineHeight: 1.3 }}>
+                      {[c.category, c.frequency].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                    {formatRupeesIndian(c.amount)}
+                  </div>
+                </div>
+              ))}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'rgba(0,0,0,0.02)',
+                }}
+              >
+                <span style={{ flex: 1, fontSize: 13, color: '#5F5E5A', fontWeight: 500 }}>
+                  Monthly total
+                </span>
+                <span style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                  {formatRupeesIndian(commitmentTotal)}
+                </span>
+              </div>
+            </Card>
+          </>
+        )}
 
         {/* Your rules — buffer_floor + impulse_threshold not yet in schema;
             hardcoded for MVP demo. V2 adds columns + edit flow. */}

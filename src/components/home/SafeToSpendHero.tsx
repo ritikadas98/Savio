@@ -31,7 +31,10 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
   const markerPosition = Math.min(Math.max(dailyAmount / ceiling, 0), 1) * 100;
 
   const formatINR = (n: number) => n.toLocaleString('en-IN');
-  const ceilingLabel = ceiling >= 1000 ? `₹${Math.round(ceiling / 1000)}K` : `₹${formatINR(ceiling)}`;
+  // D.30 (Stream 0.5q piece #4) — ceiling drives marker position only;
+  // the raw rupee label ("₹1K" for Priya) read as meaningless to
+  // real-user testers. Right endpoint now reads "Day's cap" — the
+  // label answers what the bar is showing without surfacing the value.
 
   return (
     <Card variant="hero" className="flex flex-col mb-3">
@@ -96,7 +99,7 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
         <span>
           {diffDays > 0 ? `${diffDays} days until salary on the 1st` : 'Payday!'}
         </span>
-        <span>{ceilingLabel}</span>
+        <span>Day&rsquo;s cap</span>
       </div>
 
       {/* Doc 1.16 Stream D footer — copy preserved. */}
