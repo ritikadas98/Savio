@@ -173,12 +173,9 @@ export function HomePage() {
   const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections, carryForwardFromLastMonth, paidThisWeek, totalThisWeek } = data;
 
   // Safe to spend (includes rollover carry-forward from last month, if any)
-  let safeToSpend = 0;
-  if (currentRitual && currentRitual.safe_to_spend_locked) {
-    safeToSpend = Number(currentRitual.safe_to_spend_locked) + Number(carryForwardFromLastMonth || 0);
-  } else {
-    safeToSpend = calculateSafeToSpend(profile?.monthly_income_net || 0, commitments, goals, Number(carryForwardFromLastMonth || 0));
-  }
+  const safeToSpend = (currentRitual && currentRitual.safe_to_spend_locked)
+    ? Number(currentRitual.safe_to_spend_locked) + Number(carryForwardFromLastMonth || 0)
+    : calculateSafeToSpend(profile?.monthly_income_net || 0, commitments, goals, Number(carryForwardFromLastMonth || 0));
 
   const anchorDay = profile?.anchor_day_of_month || 1;
   const nextAnchorDate = getNextAnchorDate(anchorDay);
@@ -204,7 +201,7 @@ export function HomePage() {
                 <span className="mr-1">👋</span>
                 Welcome in, {firstName}
               </div>
-              <ProfilePill avatar={profile?.avatar} />
+              <ProfilePill />
             </div>
             <h1
               className="mt-1"

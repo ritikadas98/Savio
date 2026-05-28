@@ -11,7 +11,11 @@ import { Compass, Sailboat, Hammer, type LucideIcon } from 'lucide-react';
 // onboarding flow on Continue from Step 5). Falls back to Strategist /
 // Compass when absent — that's also the skip-path default. Chat behavior
 // stays Strategist for Priya regardless of the icon shown here per
-// PM_DECISIONS.C.18 (visual completeness, behavioral V2).
+// PM_DECISIONS Phase 3 Build C.18 (visual completeness, behavioral V2).
+//
+// Phase D D.10 — removed the unused `avatar` prop. localStorage is the
+// canonical source now; the prop was a backward-compat placeholder kept
+// during C4. Two call sites (HomePage, ChatPage) updated to match.
 
 const AVATAR_ICONS: Record<string, LucideIcon> = {
   strategist: Compass,
@@ -19,7 +23,7 @@ const AVATAR_ICONS: Record<string, LucideIcon> = {
   builder: Hammer,
 };
 
-export function ProfilePill({ avatar: _avatar }: { avatar?: string | null }) {
+export function ProfilePill() {
   const navigate = useNavigate();
   const [icon, setIcon] = useState<LucideIcon>(Compass);
 
