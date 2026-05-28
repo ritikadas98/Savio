@@ -315,12 +315,29 @@ BEGIN
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
 
   -- April unlabeled high-impact transactions (NOT in reflections).
-  -- These are what the ritual close-out's "Looking back" prompts surface.
+  -- These are what the ritual close-out's "Looking back" prompts surface
+  -- AND what the Reflect tab shows as labeling candidates.
   -- Doc 1.1: one ₹4,000+ and one ₹1,500+, both commitment_id NULL (discretionary).
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
   VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '13 days')::timestamptz, 4800, 'debit', 'Myntra',  'Shopping', true);
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
   VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '9 days')::timestamptz,  1950, 'debit', 'Amazon', 'Shopping', true);
+
+  -- D.44 (Stream 0.5s addendum, 2026-05-29) — third April unlabeled
+  -- discretionary purchase. Real-user testing flagged that the Reflect
+  -- tab's top-8 labeling list was dominated by leaky commitments (SIPs,
+  -- EMI, utilities, insurance) that users dismiss with the X-icon rather
+  -- than reflecting on. Bblunt Salon ₹2,800 on April 9 ranks above both
+  -- April 7 SIP transactions in the date-DESC order; the second SIP
+  -- (₹5,000 Zerodha Coin) bumps off the visible top-8 slice. The SIP
+  -- transaction stays in DB for commitment-month math (CommitmentsCard +
+  -- ritual close-out unchanged). Result: one more reflectable item,
+  -- one fewer leaky item, no commitment data lost.
+  -- commitment_id NULL (truly discretionary), is_significant=true
+  -- (deliberate high-impact spend), new merchant + new "Personal Care"
+  -- category for chart-data variety.
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '22 days')::timestamptz, 2800, 'debit', 'Bblunt Salon', 'Hair cut + treatment', 'Personal Care', true);
 
   -- Update merchant stats explicitly for demo certainty.
   -- Numbers reflect the labeled corpus above (NOT all merchant txns — just labeled).
