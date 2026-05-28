@@ -80,3 +80,80 @@ export function hallucinationGuard(response: string, context: string, userMessag
     finalResponse: "Let me check that more carefully — I noticed some inconsistencies in the numbers. Please verify against your dashboard.",
   };
 }
+
+// Phase 3 Build D.18 — Stream 0.5o piece 2.
+//
+// Before D.18: chat-respond invoked hallucinationGuard() with just
+// `verdict_line`. body / tradeoffs / best_next_step were emitted to the
+// user without their numbers ever being checked against the grounding
+// context. The C3 verdict surface was load-bearing, but the guard wasn't
+// covering most of what it shipped.
+//
+// After D.18: this wrapper runs the same single-string guard against
+// every text-bearing field in the structured verdict, in turn. If any
+// field has an unverified rupee/percentage, the whole response falls
+// back to the prose-error message — same discipline as the single-field
+// path, just with broader coverage. Corrections tag the field name so
+// the ai_metadata.corrections trail is debuggable.
+
+export interface StructuredFieldsForGuard {
+  verdict_line: string;
+  body: string;
+  tradeoffs: string[];
+  best_next_step: string;
+}
+
+export interface StructuredGuardResult {
+  verified: boolean;
+  fallback_used: boolean;
+  // Field-tagged so the ai_metadata audit trail tells you WHERE the
+  // unverified number lived, not just that one existed.
+  corrections: Array<{ field: string; unverified: number }> | null;
+  // Drop-in compatibility with the single-string guard's caller. When
+  // any field fails, we surface the same fallback prose the original
+  // guard uses, so the caller can swap `finalResponse` in unconditionally.
+  finalResponse: string;
+}
+
+export function hallucinationGuardStructured(
+  structured: StructuredFieldsForGuard,
+  context: string,
+  userMessage = '',
+): StructuredGuardResult {
+  const allCorrections: Array<{ field: string; unverified: number }> = [];
+
+  const checkField = (fieldName: string, text: string) => {
+    const r = hallucinationGuard(text, context, userMessage);
+    if (!r.verified && r.corrections) {
+      for (const c of r.corrections) {
+        // single-string guard formats corrections as `unverified: <n>`
+        const m = c.match(/unverified:\s*([\d.]+)/);
+        const n = m ? parseFloat(m[1]) : NaN;
+        if (Number.isFinite(n)) allCorrections.push({ field: fieldName, unverified: n });
+      }
+    }
+  };
+
+  checkField('verdict_line', structured.verdict_line);
+  checkField('body', structured.body);
+  checkField('best_next_step', structured.best_next_step);
+  for (let i = 0; i < structured.tradeoffs.length; i++) {
+    checkField(`tradeoffs[${i}]`, structured.tradeoffs[i]);
+  }
+
+  if (allCorrections.length === 0) {
+    return {
+      verified: true,
+      fallback_used: false,
+      corrections: null,
+      finalResponse: structured.verdict_line,
+    };
+  }
+
+  return {
+    verified: false,
+    fallback_used: true,
+    corrections: allCorrections,
+    finalResponse: "Let me check that more carefully — I noticed some inconsistencies in the numbers. Please verify against your dashboard.",
+  };
+}

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildSystemPrompt } from './prompt_builder.ts';
-import { hallucinationGuard } from './hallucination_guard.ts';
+import { hallucinationGuard, hallucinationGuardStructured } from './hallucination_guard.ts';
 import { checkScopeFilter, buildScopeDeflection } from './scope_filter.ts';
 import { generateContent } from '../_shared/gemini.ts';
 
@@ -169,10 +169,27 @@ serve(async (req) => {
       }
     }
 
-    // Guard & Filter — operate on the assistantMessage text (verdict_line
-    // when structured, the prose body otherwise).
-    const guardResult = hallucinationGuard(assistantMessage, systemPrompt, message);
-    assistantMessage = guardResult.finalResponse;
+    // Guard & Filter — D.18 dispatch:
+    //   - structured response: run the guard across verdict_line, body,
+    //     tradeoffs[i], best_next_step so every text-bearing field gets
+    //     its numbers checked (previously only verdict_line was guarded)
+    //   - prose response: existing single-string guard on assistantMessage
+    // Both paths return the same shape so the rest of the code stays
+    // identical. On structured-guard fallback, drop the structured payload
+    // so the user sees the prose error message rather than a verdict card
+    // built on numbers we just rejected.
+    let guardResult: { verified: boolean; fallback_used: boolean; corrections: any; finalResponse: string };
+    if (structured) {
+      const sg = hallucinationGuardStructured(structured, systemPrompt, message);
+      guardResult = sg;
+      if (sg.fallback_used) {
+        assistantMessage = sg.finalResponse;
+        structured = null;
+      }
+    } else {
+      guardResult = hallucinationGuard(assistantMessage, systemPrompt, message);
+      assistantMessage = guardResult.finalResponse;
+    }
 
     // Scope filter checks ONLY the user message — an in-scope answer that
     // mentions a flagged term in passing should not deflect itself. When it
