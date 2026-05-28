@@ -10,6 +10,7 @@ import { formatGoalDueDate } from '../lib/dates';
 import { getStatusFor } from '../lib/goal-status';
 import { getMilestoneFor } from '../lib/goal-milestones';
 import { DEMO_MODE_MESSAGE } from '../lib/copy';
+import { SavedDecisionsSection, type SavedDecisionRow } from '../components/goals/SavedDecisionsSection';
 
 // Phase B3: Goals surface per JSX preview lines 689-776.
 //
@@ -39,6 +40,9 @@ type GoalRow = {
 export function GoalsPage() {
   const navigate = useNavigate();
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  // C.27 (Stream 0.5p #6) — most-recent 3 saved decisions, surfaced
+  // below the goal cards.
+  const [savedDecisions, setSavedDecisions] = useState<SavedDecisionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
   const dismissSnack = useCallback(() => setSnackMessage(null), []);
@@ -55,15 +59,22 @@ export function GoalsPage() {
         .single();
       if (!profile) { setLoading(false); return; }
 
-      const { data } = await supabase
-        .from('goals')
-        .select('id, label, target_amount, current_amount, monthly_contribution, target_date, status, priority')
-        .eq('user_id', profile.id)
-        .eq('status', 'active')
-        .order('priority', { ascending: true });
+      const [{ data: goalsData }, { data: savedData }] = await Promise.all([
+        supabase.from('goals')
+          .select('id, label, target_amount, current_amount, monthly_contribution, target_date, status, priority')
+          .eq('user_id', profile.id)
+          .eq('status', 'active')
+          .order('priority', { ascending: true }),
+        supabase.from('saved_decisions')
+          .select('id, decision_text, verdict, decision_data, decided_at')
+          .eq('user_id', profile.id)
+          .order('decided_at', { ascending: false })
+          .limit(3),
+      ]);
 
       if (cancelled) return;
-      setGoals((data ?? []) as GoalRow[]);
+      setGoals((goalsData ?? []) as GoalRow[]);
+      setSavedDecisions((savedData ?? []) as SavedDecisionRow[]);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -133,6 +144,13 @@ export function GoalsPage() {
             Add a goal
           </button>
         </div>
+
+        {/* C.27 (Stream 0.5p #6) — Saved Decisions section below the
+            goals + add-a-goal block. Empty state copy frames the loop
+            intent ("When you save a chat verdict, it appears here for
+            you to revisit"). Most-recent 3; expand to re-render the
+            original verdict via VerdictCard readOnly. */}
+        {!loading && <SavedDecisionsSection decisions={savedDecisions} />}
       </div>
 
       <Snackbar message={snackMessage} onDismiss={dismissSnack} />

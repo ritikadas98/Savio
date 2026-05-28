@@ -29,9 +29,14 @@ interface Props {
   structured: StructuredVerdict;
   messageId: string;
   createdAt?: string | null;
+  // C.27 (Stream 0.5p #6) — when true, hide the SaveDecisionButton at the
+  // bottom of the card. Used when re-rendering a saved decision inside the
+  // Goals tab's Saved Decisions section — the verdict is already saved, so
+  // offering "Save this decision" again would be misleading.
+  readOnly?: boolean;
 }
 
-export function VerdictCard({ structured, messageId, createdAt }: Props) {
+export function VerdictCard({ structured, messageId, createdAt, readOnly = false }: Props) {
   const pillVariant = VERDICT_PILL[structured.verdict_color];
   const timeLabel = createdAt ? formatRelativeDate(createdAt) : 'just now';
 
@@ -142,14 +147,18 @@ export function VerdictCard({ structured, messageId, createdAt }: Props) {
           </div>
         </div>
 
-        {/* Save link inside Card per JSX preview line 468 */}
-        <SaveDecisionButton
-          decisionText={structured.verdict_line}
-          verdict={structured.verdict_color}
-          amount={null}
-          messageId={messageId}
-          structured={structured}
-        />
+        {/* Save link inside Card per JSX preview line 468. Hidden in
+            readOnly mode (C.27) — when re-rendering an already-saved
+            decision in Goals tab, offering "Save" again would mislead. */}
+        {!readOnly && (
+          <SaveDecisionButton
+            decisionText={structured.verdict_line}
+            verdict={structured.verdict_color}
+            amount={null}
+            messageId={messageId}
+            structured={structured}
+          />
+        )}
       </Card>
 
       {/* Timestamp outside Card per JSX preview line 472-474 */}
