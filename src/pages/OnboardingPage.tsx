@@ -9,7 +9,6 @@ import {
 import { supabase } from '../lib/supabase';
 import { loginAsPriya } from '../lib/auth';
 import { fallbackSynthesis } from '../lib/onboarding-synthesis-fallback';
-import { ordinalSuffix } from '../lib/formatters';
 
 // Phase C4 — single-route onboarding (deviation from spec §3.1 banked as
 // C.18a). Mirrors docs/savio_onboarding.jsx structure: one component, one

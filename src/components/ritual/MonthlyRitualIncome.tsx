@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Card } from '../primitives';
 import { Snackbar } from '../profile/Snackbar';
 import { formatRupeesIndian, formatDateLong } from '../../lib/formatters';
-import { formatMonthName, getNextMonthName } from '../../lib/dates';
+import { getNextMonthName } from '../../lib/dates';
 import { DEMO_MODE_MESSAGE } from '../../lib/copy';
 import { RitualHeader, RitualTitle, RitualPrimaryButton, ArrowRight } from './RitualPrimitives';
 
