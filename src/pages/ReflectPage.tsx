@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,8 @@ import { Snackbar } from '../components/profile/Snackbar';
 import { UnlabeledTxCard, type UnlabeledTxLike } from '../components/reflect/UnlabeledTxCard';
 import { getMerchantIcon } from '../lib/merchant-icons';
 import { daysAgo, today } from '../lib/dates';
-import { fetchAllReflections, derivePatterns, type Pattern, type ReflectionWithTx } from '../lib/reflect-patterns';
+import { fetchAllReflections, derivePatterns, computeMerchantTrends, type Pattern, type ReflectionWithTx } from '../lib/reflect-patterns';
+import { MerchantTrendCard } from '../components/reflect/MerchantTrendCard';
 import { forceResynthesizePatterns } from '../lib/reviewer-actions';
 import type { ReflectionLabel } from '../lib/mood';
 
@@ -244,6 +245,11 @@ export function ReflectPage() {
   const visibleTxs = viewTxs.filter(t => !dismissedIds.has(t.id));
   const hasUnlabeled = visibleTxs.length > 0;
 
+  // B.18 — per-merchant trend computation. Derived from reflections via
+  // Path B (occurred_at bucketing). Memoized so React-Strict double-mounts
+  // don't re-bucket on every render.
+  const merchantTrends = useMemo(() => computeMerchantTrends(reflections), [reflections]);
+
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
       <header className="flex-shrink-0 px-5 pt-4 pb-2 flex items-center gap-3">
@@ -321,31 +327,22 @@ export function ReflectPage() {
           }}
         />
 
-        {/* D.23 (Stream 0.5p piece #3) — patterns header.
-            Pre-0.5p: always-visible ↻ refresh icon (0.5j-fix2). Real-user
-            testing surfaced that it read as "something broke, refresh it"
-            — repair framing rather than reward. Reframed: when all
-            reflections are labeled (no unlabeled remaining), surface a
-            "Generate reflection" CTA that frames the synthesis as earned.
-            When unlabeled items remain, the affordance is hidden —
-            labeling is the user's actual job. After tap, button stays
-            enabled (option c) so users can regenerate if they want.
-            Sparkles icon retained — signals AI source. */}
-        <div
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '0 6px 12px',
-          }}
-        >
-          <span style={{ fontSize: 13, color: '#5F5E5A', fontWeight: 500 }}>
-            Across your reflections
-          </span>
-          {patternsSource === 'ai' && (
-            <span title="Patterns synthesized by Savio's AI." style={{ display: 'inline-flex', color: '#5F5E5A' }}>
-              <Sparkles size={14} strokeWidth={2} />
-            </span>
-          )}
-          {!hasUnlabeled && (
+        {/* B.18 (Stream 0.5p piece #7) — patterns section header.
+            Locked design: title + subtitle anchor the metric and window
+            explicitly. ✨ icon removed from the header (it now lives on
+            the Generate insight button) — section is structured data,
+            not AI synthesis. State B only — patterns surface only when
+            all labeled. */}
+        {!hasUnlabeled && (
+          <div style={{ padding: '0 6px 8px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 500, lineHeight: 1.3 }}>
+                Regret rate change by merchant
+              </div>
+              <div style={{ fontSize: 10, color: '#5A6B5F', marginTop: 1, lineHeight: 1.3 }}>
+                Recent purchases vs prior 3 months
+              </div>
+            </div>
             <button
               type="button"
               onClick={handleManualRefresh}
@@ -353,11 +350,7 @@ export function ReflectPage() {
               aria-label="Generate insight"
               title="Re-synthesize patterns from your current labels"
               style={{
-                marginLeft: 'auto',
-                // 0.5p mid-stream update: locked color is sage #B2EF82 with
-                // dark green #173404 text (was the lighter #DEF2CB pair).
-                // Brighter sage reads as reward against the green canvas;
-                // dark-on-bright text holds AA contrast comfortably.
+                flexShrink: 0,
                 background: '#B2EF82',
                 color: '#173404',
                 border: 'none',
@@ -377,8 +370,31 @@ export function ReflectPage() {
               <Sparkles size={11} strokeWidth={2.2} />
               {patterns === null ? 'Generating…' : 'Generate insight'}
             </button>
-          )}
-        </div>
+          </div>
+        )}
+
+        {/* B.18 — per-merchant trend cards (Path B: occurred_at bucketing).
+            Sorted by reflection_count DESC. Each card: name + count +
+            delta as headline + stripe + chevron. Tap-to-expand inline
+            for current rate / prior rate / change / recent reflections. */}
+        {!hasUnlabeled && merchantTrends.length > 0 && (
+          <div style={{ padding: '0 0 12px' }}>
+            {merchantTrends.map(t => (
+              <MerchantTrendCard key={t.merchant} trend={t} />
+            ))}
+          </div>
+        )}
+
+        {/* Empty trend state — for completeness; canonical Priya always
+            has Myntra etc. so this branch only fires if the seed somehow
+            has zero reflections. */}
+        {!hasUnlabeled && merchantTrends.length === 0 && (
+          <Card style={{ padding: 18, textAlign: 'center' }}>
+            <div style={{ fontSize: 12, color: '#5A6B5F', fontStyle: 'italic' }}>
+              No merchant patterns yet. Label a few more transactions to start seeing trends.
+            </div>
+          </Card>
+        )}
 
         {patterns === null ? (
           <Card style={{ padding: '16px 18px' }}>

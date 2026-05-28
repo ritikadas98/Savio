@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { formatRupeesIndian } from './formatters';
+import { today } from './dates';
 import type { ReflectionLabel } from './mood';
 
 // Phase B2: pattern derivation across all of a user's reflections. Returns
@@ -147,3 +148,161 @@ export function derivePatterns(reflections: ReflectionWithTx[]): Pattern[] {
 
   return patterns.slice(0, 3);
 }
+
+// =====================================================================
+// B.18 (Stream 0.5p piece #7 — Path B) — per-merchant trend visualization
+// =====================================================================
+//
+// Path B locked: bucket by transactions.occurred_at (purchase date), NOT
+// reflections.reflected_at (label date). Pre-flight surfaced that seed
+// reflections all carry the apply-migrations timestamp, which would
+// produce hollow demo state with labeled_at bucketing. occurred_at
+// answers the more product-relevant question ("how is your regret rate
+// at this merchant changing over time") AND survives real-world
+// labeling-behavior variance (users don't reliably label N days after
+// purchase). PM_DECISIONS B.18 captures this.
+//
+// Window: "last 30 days from DEMO_TODAY" for the current period vs
+// "30-120 days ago" for the prior 3-month average. Best match to the
+// section subtitle "Recent purchases vs prior 3 months".
+//
+// Stripe color rules (in precedence order):
+//   1. current regret rate >= 70%               → RED
+//   2. delta > 0 (worsening) AND current >= 40% → RED
+//   3. delta < 0 (improving)                    → SAGE
+//   4. first-period (no comparable prior) OR
+//      delta == 0 at moderate level             → GRAY
+//
+// Delta color rules:
+//   - negative (improving)        → DARK GREEN
+//   - positive (worsening)        → DARK RED
+//   - zero (flat)                 → NEUTRAL GRAY
+//   - null (first-period, em-dash) → LIGHT GRAY
+
+export type MerchantTrend = {
+  merchant: string;
+  reflectionCount: number;             // total reflections at this merchant
+  currentCount: number;                // reflections with occurred_at in last 30d
+  priorCount: number;                  // reflections with occurred_at in 30-120d ago
+  currentRegretRate: number | null;    // 0-100, null when currentCount === 0
+  priorRegretRate: number | null;      // 0-100, null when priorCount < 2 (insufficient prior data)
+  delta: number | null;                // percentage-point change, null when either rate is null
+  stripeColor: string;                 // hex
+  deltaColor: string;                  // hex
+  deltaLabel: string;                  // formatted: "-17%" / "0%" / "+8%" / "—"
+  recentReflections: {                 // most recent N (descending) for tap-to-expand
+    amount: number;
+    occurred_at: string;
+    label: ReflectionLabel;
+  }[];
+};
+
+const STRIPE_RED   = '#A32D2D';
+const STRIPE_SAGE  = '#3B6D11';
+const STRIPE_GRAY  = '#D3D1C7';
+
+const DELTA_GREEN  = '#173404';
+const DELTA_RED    = '#501313';
+const DELTA_NEUTRAL = '#5F5E5A';
+const DELTA_LIGHT  = '#888880';
+
+const MS_DAY = 86_400_000;
+const CURRENT_WINDOW_DAYS = 30;
+const PRIOR_WINDOW_DAYS = 90;
+const MIN_PRIOR_FOR_COMPARISON = 2;
+
+function regretRate(reflections: { label: ReflectionLabel }[]): number | null {
+  if (reflections.length === 0) return null;
+  const regrets = reflections.filter(r => r.label === 'regret').length;
+  return Math.round((regrets / reflections.length) * 100);
+}
+
+function pickStripeColor(currentRate: number | null, delta: number | null): string {
+  // Rule 1: persistent high regret stays red regardless of trend
+  if (currentRate != null && currentRate >= 70) return STRIPE_RED;
+  // Rule 2: worsening at moderate+ level
+  if (delta != null && delta > 0 && currentRate != null && currentRate >= 40) return STRIPE_RED;
+  // Rule 3: improving
+  if (delta != null && delta < 0) return STRIPE_SAGE;
+  // Rule 4: everything else (flat, first-period, or moderate level)
+  return STRIPE_GRAY;
+}
+
+function pickDeltaColor(delta: number | null): string {
+  if (delta == null) return DELTA_LIGHT;
+  if (delta < 0) return DELTA_GREEN;
+  if (delta > 0) return DELTA_RED;
+  return DELTA_NEUTRAL;
+}
+
+function formatDelta(delta: number | null): string {
+  if (delta == null) return '—';
+  if (delta === 0) return '0%';
+  return delta > 0 ? `+${delta}%` : `${delta}%`;
+}
+
+export function computeMerchantTrends(reflections: ReflectionWithTx[]): MerchantTrend[] {
+  const valid = reflections.filter(r => r.transactions != null && r.transactions.merchant);
+  const now = today().getTime();
+  const currentStart = now - CURRENT_WINDOW_DAYS * MS_DAY;
+  const priorStart   = now - (CURRENT_WINDOW_DAYS + PRIOR_WINDOW_DAYS) * MS_DAY;
+  const priorEnd     = currentStart;
+
+  const byMerchant: Record<string, ReflectionWithTx[]> = {};
+  for (const r of valid) {
+    const m = r.transactions!.merchant!;
+    (byMerchant[m] ||= []).push(r);
+  }
+
+  const trends: MerchantTrend[] = [];
+  for (const [merchant, refs] of Object.entries(byMerchant)) {
+    const currentRefs = refs.filter(r => {
+      const t = new Date(r.transactions!.occurred_at).getTime();
+      return t >= currentStart && t < now;
+    });
+    const priorRefs = refs.filter(r => {
+      const t = new Date(r.transactions!.occurred_at).getTime();
+      return t >= priorStart && t < priorEnd;
+    });
+
+    const currentRegretRate = regretRate(currentRefs);
+    const priorRegretRate = priorRefs.length >= MIN_PRIOR_FOR_COMPARISON
+      ? regretRate(priorRefs)
+      : null;
+    const delta = (currentRegretRate != null && priorRegretRate != null)
+      ? Math.round(currentRegretRate - priorRegretRate)
+      : null;
+
+    const stripeColor = pickStripeColor(currentRegretRate, delta);
+    const deltaColor = pickDeltaColor(delta);
+    const deltaLabel = formatDelta(delta);
+
+    const recentReflections = refs
+      .slice()
+      .sort((a, b) => new Date(b.transactions!.occurred_at).getTime() - new Date(a.transactions!.occurred_at).getTime())
+      .slice(0, 5)
+      .map(r => ({
+        amount: Number(r.transactions!.amount),
+        occurred_at: r.transactions!.occurred_at,
+        label: r.label,
+      }));
+
+    trends.push({
+      merchant,
+      reflectionCount: refs.length,
+      currentCount: currentRefs.length,
+      priorCount: priorRefs.length,
+      currentRegretRate,
+      priorRegretRate,
+      delta,
+      stripeColor,
+      deltaColor,
+      deltaLabel,
+      recentReflections,
+    });
+  }
+
+  // Card ordering: most data first
+  return trends.sort((a, b) => b.reflectionCount - a.reflectionCount);
+}
+
