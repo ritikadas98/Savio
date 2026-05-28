@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { calculateSafeToSpend } from '../lib/safeToSpend';
 import { generateGuidance } from '../lib/guidance';
-import { getNextAnchorDate, getPreviousMonthFirstDate, getThisWeekRange } from '../lib/dates';
+import { getNextAnchorDate, getPreviousMonthFirstDate, getThisWeekRange, daysAgo, today } from '../lib/dates';
 import { BottomNav } from '../components/layout/BottomNav';
 import { SafeToSpendHero } from '../components/home/SafeToSpendHero';
 import { WindfallCard } from '../components/home/WindfallCard';
@@ -15,6 +15,7 @@ import { CategorizationBanner } from '../components/home/CategorizationBanner';
 import { UpcomingBillsCard } from '../components/home/UpcomingBillsCard';
 import { computeUpcomingBills } from '../lib/upcoming-bills';
 import { PatternsCallout } from '../components/home/PatternsCallout';
+import { ReflectEntryCard } from '../components/home/ReflectEntryCard';
 import { ProfilePill } from '../components/layout/ProfilePill';
 
 export function HomePage() {
@@ -79,7 +80,14 @@ export function HomePage() {
           { data: currentRitual },
           { data: recentReflections },
           { data: carryForwardRows },
-          { data: weekPaidTxns }
+          { data: weekPaidTxns },
+          // D.24 (Stream 0.5p #2) — count of debit txns in the last 30d above
+          // ₹1,000 floor that have NO reflection. Mirrors ReflectPage's
+          // fetchUnlabeledRecent shape but returns only what's needed for the
+          // home-page entry card's count display. Two queries (txns + ref ids)
+          // — same idiom ReflectPage uses; subtraction client-side.
+          { data: unlabeledCandidates },
+          { data: reflectedTxnIds }
         ] = await Promise.all([
           supabase.from('goals').select('*').eq('user_id', profileId),
           supabase.from('commitments').select('*').eq('user_id', profileId),
@@ -99,7 +107,14 @@ export function HomePage() {
             .eq('user_id', profileId)
             .not('commitment_id', 'is', null)
             .gte('occurred_at', week.startDate.toISOString())
-            .lt('occurred_at', week.endDate.toISOString())
+            .lt('occurred_at', week.endDate.toISOString()),
+          supabase.from('transactions').select('id')
+            .eq('user_id', profileId)
+            .eq('direction', 'debit')
+            .gt('amount', 1000)
+            .gte('occurred_at', daysAgo(30).toISOString())
+            .lte('occurred_at', today().toISOString()),
+          supabase.from('reflections').select('transaction_id').eq('user_id', profileId),
         ]);
 
         const carryForwardFromLastMonth = (carryForwardRows ?? []).reduce(
@@ -123,6 +138,12 @@ export function HomePage() {
           .length;
         const totalThisWeek = dueThisWeekIds.size;
 
+        // D.24 — subtract already-labeled txns to get unlabeled count
+        const labeledSet = new Set((reflectedTxnIds ?? []).map((r: any) => r.transaction_id));
+        const unlabeledCount = (unlabeledCandidates ?? [])
+          .filter((t: any) => !labeledSet.has(t.id))
+          .length;
+
         if (!cancelled) {
           setData({
             profile,
@@ -135,6 +156,7 @@ export function HomePage() {
             carryForwardFromLastMonth,
             paidThisWeek: paidThisWeekCount,
             totalThisWeek,
+            unlabeledCount,
           });
           setLoading(false);
         }
@@ -170,7 +192,7 @@ export function HomePage() {
     );
   }
 
-  const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections, carryForwardFromLastMonth, paidThisWeek, totalThisWeek } = data;
+  const { profile, goals, commitments, recentTransactions, pendingWindfall, currentRitual, recentReflections, carryForwardFromLastMonth, paidThisWeek, totalThisWeek, unlabeledCount } = data;
 
   // Safe to spend (includes rollover carry-forward from last month, if any)
   const safeToSpend = (currentRitual && currentRitual.safe_to_spend_locked)
@@ -231,6 +253,10 @@ export function HomePage() {
           )}
 
           <SafeToSpendHero amount={safeToSpend} anchorDate={nextAnchorDate} />
+
+          {/* D.24 (Stream 0.5p #2) — Reflect entry sits between safe-to-spend
+              hero and CommitmentsCard. Hidden when nothing to label. */}
+          <ReflectEntryCard unlabeledCount={unlabeledCount ?? 0} />
 
           <CommitmentsCard paidThisWeek={paidThisWeek} totalThisWeek={totalThisWeek} />
 
