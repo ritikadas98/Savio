@@ -16,15 +16,34 @@ export type ReviewerActionResult = {
   [k: string]: unknown;
 };
 
+// Phase D D.6 — every Reviewer Console reset also clears the localStorage
+// avatar + life-stage hints set by the onboarding walkthrough. Without
+// this, a reviewer who walks through onboarding (picks Adventurer →
+// Working-no-dependents), then taps "Restore reflection labels" to replay
+// a labeling demo, would still see Sailboat + "Working, no dependents"
+// on the Profile identity hero — visually inconsistent with the canonical
+// Strategist + Supporting Dependents Priya state the reset restores.
+function clearOnboardingLocalState(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem('savio_demo_avatar');
+    localStorage.removeItem('savio_demo_life_stage');
+  } catch {
+    // private mode — no-op
+  }
+}
+
 export async function resetAprilRitual(): Promise<ReviewerActionResult> {
   const { data, error } = await supabase.rpc('reset_april_ritual');
   if (error) throw error;
+  clearOnboardingLocalState();
   return data as ReviewerActionResult;
 }
 
 export async function clearChatHistory(): Promise<ReviewerActionResult> {
   const { data, error } = await supabase.rpc('clear_chat_history');
   if (error) throw error;
+  clearOnboardingLocalState();
   return data as ReviewerActionResult;
 }
 
@@ -35,6 +54,7 @@ export async function resetReflectionsToSeed(): Promise<ReviewerActionResult> {
   // so we explicitly clear the cache here. Otherwise post-reset patterns
   // would be stale until the cache TTL expired.
   await supabase.rpc('invalidate_patterns_cache').catch(() => { /* non-fatal */ });
+  clearOnboardingLocalState();
   return data as ReviewerActionResult;
 }
 

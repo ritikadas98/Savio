@@ -61,38 +61,44 @@ const { data: inserted, error: insErr } = await sb.from('reflections')
 if (insErr) { console.error('Insert failed:', insErr.message); process.exit(1); }
 console.log(`  inserted reflection ${inserted.id} for txn ${candidate.id}`);
 
-console.log('\n=== Step 3: simulate NEW refreshReflections ordering (fix) ===');
-console.log('  3a. await invalidate_patterns_cache  (BEFORE setReflections)');
-await sb.rpc('invalidate_patterns_cache');
-const { data: cacheAfterInvalidate } = await sb.from('reflection_patterns_cache').select('*').eq('user_id', profile.id).maybeSingle();
-console.log(`      cache row: ${cacheAfterInvalidate ? 'EXISTS (bad)' : 'null (good)'}`);
-
-console.log('  3b. (fetch new reflections — skipped, not what we are testing)');
-console.log('  3c. (setReflections fires patterns effect — simulated by next invoke below)');
-
-console.log('\n=== Step 4: next synthesize call → expect cached=false ===');
-const r1 = await invoke({});
-console.log(`  status=${r1.status} source=${r1.data.source} cached=${r1.data.cached} latency_ms=${r1.data.latency_ms} wall=${r1.wall}ms`);
-
+// Phase D D.11 — wrap state-mutating section in try/finally so a thrown
+// assertion or network error doesn't leave the test reflection persisted.
+// Pre-D this script was the main source of stale April-dated reflection
+// leftovers caught during Phase B/C verification.
 let failed = 0;
-if (r1.data.cached !== false) {
-  console.log('  ✗ FAIL: expected cached=false (race fix not effective)');
-  failed += 1;
-} else {
-  console.log('  ✓ cached=false — race fix is effective');
-}
+try {
+  console.log('\n=== Step 3: simulate NEW refreshReflections ordering (fix) ===');
+  console.log('  3a. await invalidate_patterns_cache  (BEFORE setReflections)');
+  await sb.rpc('invalidate_patterns_cache');
+  const { data: cacheAfterInvalidate } = await sb.from('reflection_patterns_cache').select('*').eq('user_id', profile.id).maybeSingle();
+  console.log(`      cache row: ${cacheAfterInvalidate ? 'EXISTS (bad)' : 'null (good)'}`);
 
-if (!r1.data.patterns || r1.data.patterns.length === 0) {
-  console.log('  ✗ FAIL: expected non-empty patterns');
-  failed += 1;
-} else {
-  console.log(`  ✓ ${r1.data.patterns.length} fresh patterns derived from updated aggregates`);
-}
+  console.log('  3b. (fetch new reflections — skipped, not what we are testing)');
+  console.log('  3c. (setReflections fires patterns effect — simulated by next invoke below)');
 
-console.log('\n=== Cleanup: remove the test reflection + invalidate cache ===');
-await sb.from('reflections').delete().eq('id', inserted.id);
-await sb.rpc('invalidate_patterns_cache');
-console.log('  done.');
+  console.log('\n=== Step 4: next synthesize call → expect cached=false ===');
+  const r1 = await invoke({});
+  console.log(`  status=${r1.status} source=${r1.data.source} cached=${r1.data.cached} latency_ms=${r1.data.latency_ms} wall=${r1.wall}ms`);
+
+  if (r1.data.cached !== false) {
+    console.log('  ✗ FAIL: expected cached=false (race fix not effective)');
+    failed += 1;
+  } else {
+    console.log('  ✓ cached=false — race fix is effective');
+  }
+
+  if (!r1.data.patterns || r1.data.patterns.length === 0) {
+    console.log('  ✗ FAIL: expected non-empty patterns');
+    failed += 1;
+  } else {
+    console.log(`  ✓ ${r1.data.patterns.length} fresh patterns derived from updated aggregates`);
+  }
+} finally {
+  console.log('\n=== Cleanup: remove the test reflection + invalidate cache ===');
+  await sb.from('reflections').delete().eq('id', inserted.id);
+  await sb.rpc('invalidate_patterns_cache');
+  console.log('  done.');
+}
 
 console.log(`\n${failed === 0 ? '✓ ALL CHECKS PASSED' : `✗ ${failed} CHECK(S) FAILED`}`);
 process.exit(failed === 0 ? 0 : 1);
