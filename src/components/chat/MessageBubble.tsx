@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { VerdictCard } from './VerdictCard';
 import { Card } from '../primitives';
 import { tokens } from '../../lib/design-tokens';
-import { formatRelativeDate } from '../../lib/dates';
+import { formatMessageTime } from '../../lib/dates';
 import { isValidStructured } from '../../lib/chat-types';
 
 // Savio's brand mark — a rainbow-gradient circle (NOT a compass icon).
@@ -62,7 +62,7 @@ export function MessageBubble({ message }: { message: any }) {
   //   - NO Save link (Save is bound to structured verdicts only; verdict-
   //     eligible queries that fell back to prose lack the structured math
   //     a Save would capture)
-  const timeLabel = message.created_at ? formatRelativeDate(message.created_at) : 'just now';
+  const timeLabel = message.created_at ? formatMessageTime(message.created_at) : 'Just now';
 
   return (
     <div className="mb-5" style={{ alignSelf: 'flex-start', maxWidth: '92%' }}>
