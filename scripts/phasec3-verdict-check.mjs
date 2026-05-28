@@ -7,6 +7,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { snapshotChat } from './lib/chat-snapshot.mjs';
 dotenv.config({ path: '.env.local' });
 
 const sb = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
@@ -15,6 +16,8 @@ const { error: signErr } = await sb.auth.signInWithPassword({
 });
 if (signErr) { console.error('Sign-in failed:', signErr.message); process.exit(1); }
 const { data: { session } } = await sb.auth.getSession();
+const { data: priyaProfile } = await sb.from('profiles').select('id').single();
+const restoreChat = await snapshotChat(sb, priyaProfile.id);
 
 async function ask(message) {
   const t0 = Date.now();
@@ -61,52 +64,54 @@ const PROSE_QUERIES = [
   'How does Savio work?',
 ];
 
-// First, clear chat history so prior conversations don't bleed into the
-// model's context (history is sent on every call per chat-respond/index.ts:78-86).
-console.log('=== Pre: clear chat history ===');
-await sb.rpc('clear_chat_history');
-
 let failed = 0;
 const verdictResults = [];
 
-console.log('\n=== VERDICT-ELIGIBLE QUERIES (expect structured) ===');
-for (const q of VERDICT_QUERIES) {
-  await sb.rpc('clear_chat_history');  // isolate each turn
-  const { data, status, wall } = await ask(q);
-  if (status !== 200) { console.log(`  ✗ "${q}" — status ${status}`); failed += 1; continue; }
-  const s = data.ai_metadata?.structured;
-  const ok = isValidStructured(s);
-  const color = s?.verdict_color ?? '—';
-  console.log(`  ${ok ? '✓' : '✗'} [${color.padEnd(6)}] "${q}"  (${wall}ms)`);
-  if (ok) {
-    console.log(`        ${s.verdict_line}`);
-    console.log(`        tradeoffs: ${s.tradeoffs.length} items`);
-    console.log(`        best_next_step: ${s.best_next_step.slice(0, 80)}${s.best_next_step.length > 80 ? '…' : ''}`);
-    verdictResults.push({ q, color });
-  } else {
-    console.log(`        FAIL — structured: ${JSON.stringify(s).slice(0, 200)}`);
-    failed += 1;
-  }
-}
-
-console.log('\n=== NON-ELIGIBLE QUERIES (expect prose, structured=null) ===');
-for (const q of PROSE_QUERIES) {
+try {
+  // First, clear chat history so prior conversations don't bleed into the
+  // model's context (history is sent on every call per chat-respond/index.ts:78-86).
+  console.log('=== Pre: clear chat history ===');
   await sb.rpc('clear_chat_history');
-  const { data, status, wall } = await ask(q);
-  if (status !== 200) { console.log(`  ✗ "${q}" — status ${status}`); failed += 1; continue; }
-  const s = data.ai_metadata?.structured;
-  const proseOk = s === null;
-  const responseSnippet = (data.response || '').replace(/\s+/g, ' ').slice(0, 100);
-  console.log(`  ${proseOk ? '✓' : '✗'} "${q}"  (${wall}ms)`);
-  console.log(`        ${responseSnippet}…`);
-  if (!proseOk) {
-    console.log(`        FAIL — got structured: ${s?.verdict_color}`);
-    failed += 1;
-  }
-}
 
-console.log('\n=== Cleanup: clear chat history ===');
-await sb.rpc('clear_chat_history');
+  console.log('\n=== VERDICT-ELIGIBLE QUERIES (expect structured) ===');
+  for (const q of VERDICT_QUERIES) {
+    await sb.rpc('clear_chat_history');  // isolate each turn
+    const { data, status, wall } = await ask(q);
+    if (status !== 200) { console.log(`  ✗ "${q}" — status ${status}`); failed += 1; continue; }
+    const s = data.ai_metadata?.structured;
+    const ok = isValidStructured(s);
+    const color = s?.verdict_color ?? '—';
+    console.log(`  ${ok ? '✓' : '✗'} [${color.padEnd(6)}] "${q}"  (${wall}ms)`);
+    if (ok) {
+      console.log(`        ${s.verdict_line}`);
+      console.log(`        tradeoffs: ${s.tradeoffs.length} items`);
+      console.log(`        best_next_step: ${s.best_next_step.slice(0, 80)}${s.best_next_step.length > 80 ? '…' : ''}`);
+      verdictResults.push({ q, color });
+    } else {
+      console.log(`        FAIL — structured: ${JSON.stringify(s).slice(0, 200)}`);
+      failed += 1;
+    }
+  }
+
+  console.log('\n=== NON-ELIGIBLE QUERIES (expect prose, structured=null) ===');
+  for (const q of PROSE_QUERIES) {
+    await sb.rpc('clear_chat_history');
+    const { data, status, wall } = await ask(q);
+    if (status !== 200) { console.log(`  ✗ "${q}" — status ${status}`); failed += 1; continue; }
+    const s = data.ai_metadata?.structured;
+    const proseOk = s === null;
+    const responseSnippet = (data.response || '').replace(/\s+/g, ' ').slice(0, 100);
+    console.log(`  ${proseOk ? '✓' : '✗'} "${q}"  (${wall}ms)`);
+    console.log(`        ${responseSnippet}…`);
+    if (!proseOk) {
+      console.log(`        FAIL — got structured: ${s?.verdict_color}`);
+      failed += 1;
+    }
+  }
+} finally {
+  console.log('\n=== Cleanup: restore Priya\'s pre-test chat history ===');
+  await restoreChat();
+}
 
 console.log(`\n${failed === 0 ? '✓ ALL CHECKS PASSED' : `✗ ${failed} CHECK(S) FAILED`}`);
 process.exit(failed === 0 ? 0 : 1);
