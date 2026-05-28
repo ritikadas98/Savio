@@ -21,6 +21,24 @@ type Goal = {
   status: string;
 };
 
+// C.28 (Stream 0.5p piece #9) — label + sequencing context for the
+// allocation header. Label sourced from the windfall's linked
+// transaction.description (the seed has "Tax Refund" / "Diwali Bonus"
+// there); normalized to spec ("Tax refund" / "Diwali bonus") via
+// first-letter-only capitalization. Position + total come from the
+// live count of pending_allocation rows ordered detected_at DESC.
+interface WindfallContext {
+  label: string;
+  position: number;     // 1-indexed
+  totalPending: number;
+}
+
+function normalizeWindfallLabel(description: string | null | undefined): string {
+  const trimmed = (description ?? '').trim();
+  if (!trimmed) return 'Windfall';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
 export function WindfallAllocate() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -30,6 +48,8 @@ export function WindfallAllocate() {
   const [allocations, setAllocations] = useState<Record<string, number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // C.28 (Stream 0.5p #9) — label + sequencing for the allocation header
+  const [windfallCtx, setWindfallCtx] = useState<WindfallContext | null>(null);
   // Stream 0.5k — snapshot of the initially-computed allocation so the
   // "Reset to suggested" link can restore it after the user drags sliders.
   // Captured once on first compute; never overwritten by user edits.
@@ -44,9 +64,17 @@ export function WindfallAllocate() {
       const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single();
       if (!profile) { setError('Profile not found'); setLoading(false); return; }
 
-      const [{ data: wf }, { data: gs }] = await Promise.all([
-        supabase.from('windfalls').select('id, amount, status').eq('id', eventId).eq('user_id', profile.id).maybeSingle(),
+      // C.28 — fetch in parallel: the current windfall (with its
+      // transaction_id so we can look up the description), active goals,
+      // and the full list of pending windfalls for sequencing math.
+      const [
+        { data: wf },
+        { data: gs },
+        { data: pendingList },
+      ] = await Promise.all([
+        supabase.from('windfalls').select('id, amount, status, transaction_id').eq('id', eventId).eq('user_id', profile.id).maybeSingle(),
         supabase.from('goals').select('id, label, current_amount, target_amount, status').eq('user_id', profile.id).eq('status', 'active'),
+        supabase.from('windfalls').select('id, detected_at').eq('user_id', profile.id).eq('status', 'pending_allocation').order('detected_at', { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -58,6 +86,33 @@ export function WindfallAllocate() {
       }
       setWindfall(wf as Windfall);
       setGoals(gs ?? []);
+
+      // C.28 — derive label + sequencing. Label from linked transaction's
+      // description (Diwali Bonus → "Diwali bonus", Tax Refund → "Tax
+      // refund" via normalizeWindfallLabel's first-letter-only cap).
+      // Position is 1-indexed within the detected_at-desc ordered list.
+      const list = pendingList ?? [];
+      const position = list.findIndex(x => x.id === eventId) + 1; // 0-indexed → 1-indexed
+      const totalPending = list.length;
+      let label = 'Windfall';
+      const txnId = (wf as { transaction_id?: string }).transaction_id;
+      if (txnId) {
+        const { data: tx } = await supabase
+          .from('transactions')
+          .select('description')
+          .eq('id', txnId)
+          .maybeSingle();
+        if (!cancelled && tx?.description) {
+          label = normalizeWindfallLabel(tx.description);
+        }
+      }
+      if (!cancelled) {
+        setWindfallCtx({
+          label,
+          position: position > 0 ? position : 1,
+          totalPending: totalPending > 0 ? totalPending : 1,
+        });
+      }
       setLoading(false);
     }
     load();
@@ -145,6 +200,39 @@ export function WindfallAllocate() {
       <RitualHeader sectionLabel="Windfall" stepLabel="Step 1 of 2" onClose={() => navigate('/home')} />
 
       <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ padding: '8px 16px 24px' }}>
+        {/* C.28 (Stream 0.5p #9) — windfall identity header.
+            Real-user testing surfaced confusion when two pending windfalls
+            surface sequentially with no signal of which is which. The
+            label (e.g. "Diwali bonus") + amount + "N of M pending" tells
+            the user exactly what they're allocating and that another is
+            queued. Hidden cleanly when totalPending === 1 (no need to
+            say "1 of 1"). Identity rendered first so it's the first
+            thing the user reads, before the "Allocate your ₹X" title. */}
+        {windfallCtx && (
+          <div style={{ padding: '0 6px 14px' }}>
+            <div style={{
+              fontSize: 13, color: '#5A6B5F', fontWeight: 400,
+              letterSpacing: '-0.1px', marginBottom: 2,
+            }}>
+              {windfallCtx.label}
+            </div>
+            <div style={{
+              fontSize: 28, fontWeight: 500, color: tokens.p,
+              lineHeight: 1.15, letterSpacing: '-0.5px',
+            }}>
+              {formatRupeesIndian(TOTAL)}
+            </div>
+            {windfallCtx.totalPending > 1 && (
+              <div style={{
+                fontSize: 11, color: '#888880', fontWeight: 400,
+                marginTop: 8,
+              }}>
+                {windfallCtx.position} of {windfallCtx.totalPending} pending windfalls
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ padding: '0 6px 18px' }}>
           <div style={{
             fontSize: 28, fontWeight: 400, color: tokens.p,
