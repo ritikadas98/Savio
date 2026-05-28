@@ -2,7 +2,7 @@ import React from 'react';
 import { Download, FileText, Beaker, ChevronRight } from 'lucide-react';
 import { Card, SectionHeader } from '../primitives';
 import { ResetActionRow } from './ResetActionRow';
-import { resetAprilRitual, clearChatHistory, resetReflectionsToSeed } from '../../lib/reviewer-actions';
+import { resetAprilRitual, clearChatHistory, resetReflectionsToSeed, resetEntireDemoState } from '../../lib/reviewer-actions';
 import { getPreviousMonthName } from '../../lib/dates';
 
 /**
@@ -116,6 +116,14 @@ export function ReviewerConsole({ onStub }: Props) {
             buttonLabel="Restore"
             confirmCopy="Reflections added during this session will be deleted. The 9 seeded reflections come back. Continue?"
             onConfirm={resetReflectionsToSeed}
+          />
+
+          <ResetActionRow
+            title="Reset entire demo state"
+            description="Wipes chat, windfall allocations, May ritual, saved decisions, and restores reflections to seed in one shot. Skips the 60-minute auto-reset cooldown. Use between portfolio reviews to guarantee a fresh starting state."
+            buttonLabel="Reset"
+            confirmCopy="This wipes chat history, windfall lock-ins, May ritual, saved decisions, and any reflection labels added during this session. The auto-reset cooldown timer also resets. Continue?"
+            onConfirm={resetEntireDemoState}
           />
         </div>
       </Card>

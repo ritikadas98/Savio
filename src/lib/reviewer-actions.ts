@@ -58,6 +58,18 @@ export async function resetReflectionsToSeed(): Promise<ReviewerActionResult> {
   return data as ReviewerActionResult;
 }
 
+// Phase D-followup: manual override for the auto-reset's 60-minute
+// cooldown. Calls reset_to_canonical() directly — wipes chat,
+// windfall allocations, May ritual, saved decisions, and restores
+// reflections to seed. The cooldown timer also resets. Use between
+// portfolio reviews to guarantee a fresh starting state.
+export async function resetEntireDemoState(): Promise<ReviewerActionResult> {
+  const { data, error } = await supabase.rpc('reset_to_canonical');
+  if (error) throw error;
+  clearOnboardingLocalState();
+  return data as ReviewerActionResult;
+}
+
 // Stream 0.5j-fix — force a fresh AI synthesis, bypassing the 24-hour cache.
 // Calls the Edge Function with `force_refresh: true`, which already supports
 // this flag (verified by phase05j-ai-check.mjs).

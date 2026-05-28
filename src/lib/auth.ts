@@ -18,4 +18,18 @@ export async function loginAsPriya(): Promise<void> {
     password: priyaPassword(),
   });
   if (error) throw error;
+
+  // Phase D-followup: after every successful demo login, ping the
+  // cooldown-gated maybe_reset_demo RPC. If the demo hasn't been
+  // reset in the last 60 minutes, this restores Priya to canonical
+  // state (wipes chat / windfall allocations / May ritual /
+  // saved_decisions / non-seed reflections, reverts goal mutations
+  // from any prior rollover allocations). Within the cooldown window
+  // it's a cheap no-op. Non-fatal on error — the login itself
+  // already succeeded.
+  try {
+    await supabase.rpc('maybe_reset_demo');
+  } catch (err) {
+    console.warn('[auth] maybe_reset_demo failed (non-fatal)', err);
+  }
 }
