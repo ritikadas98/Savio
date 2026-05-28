@@ -112,9 +112,9 @@ export function ReviewerConsole({ onStub }: Props) {
 
           <ResetActionRow
             title="Restore reflection labels"
-            description="Restores reflections to the seeded set (the 9 historical labels behind Myntra 100% regret rate, etc.). Labels you added during demo iteration will be cleared."
+            description="Restores reflections to the seeded set (the 18 historical labels behind the Amazon/Myntra/Zara trend stories). Labels you added during demo iteration will be cleared."
             buttonLabel="Restore"
-            confirmCopy="Reflections added during this session will be deleted. The 9 seeded reflections come back. Continue?"
+            confirmCopy="Reflections added during this session will be deleted. The 18 seeded reflections come back. Continue?"
             onConfirm={resetReflectionsToSeed}
           />
 

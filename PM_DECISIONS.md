@@ -4,7 +4,7 @@ This is the running record of product decisions made during Savio's build. Engin
 
 This file is curated, not exhaustive. Engineering details live in CLAUDE.md and the build docs. Product opinions live here.
 
-Last updated: 2026-05-28 — Phase 3 complete (tag `phase-3-complete`). All Phase A/B/C/D work shipped: B1 Profile expansion · B2 v2 Reflect hybrid · B3 Goals · C1 Monthly Ritual 7-screen · C2 WindfallFlow · C3 Verdict Cards · C4 Onboarding · 0.5j-n polish streams · D audit + lint sweep. Stream 0.5p (8 pre-delivery enhancements) shipped under Phase 3 Build B.18 + C.26 + C.27 + C.28 + D.20–D.24 (D.25 resolved via Path B per B.18). Stream 0.5q (6 post-0.5p refinements) shipped: D.27 home copy · D.29 chat Upcoming bug · D.30 rainbow endpoint relabel · D.31 commitments in Profile · D.32 Reflect tab reframe (sticky Generate Reflections button + rotating loading copy + bundled trend-card render fix that resolves the second-pass real-user finding that B.18 trend cards from `d16200d` weren't actually visible). D.23 + D.28 superseded by D.32. Banked for post-delivery: divergence test artifact (Phase 3 Build C.23) and case study writeup (Phase 3 Build C.24).
+Last updated: 2026-05-28 — Phase 3 complete (tag `phase-3-complete`). All Phase A/B/C/D work shipped: B1 Profile expansion · B2 v2 Reflect hybrid · B3 Goals · C1 Monthly Ritual 7-screen · C2 WindfallFlow · C3 Verdict Cards · C4 Onboarding · 0.5j-n polish streams · D audit + lint sweep. Stream 0.5p (8 pre-delivery enhancements) shipped under Phase 3 Build B.18 + C.26 + C.27 + C.28 + D.20–D.24 (D.25 resolved via Path B per B.18). Stream 0.5q (6 post-0.5p refinements) shipped D.27 / D.29 / D.30 / D.31 / D.32 (D.23 + D.28 superseded by D.32). Stream 0.5r (6 post-0.5q refinements) shipped D.33 sticky button color sage #78A353 · D.34 label "Show my reflections" · D.35 state-aware discovery hint · D.36 4s minimum loading display · D.37 commitments expand/contract · D.38 seed redesign for three merchant trend stories (Amazon improving / Myntra worsening / Zara improving). Banked for post-delivery: divergence test artifact (Phase 3 Build C.23) and case study writeup (Phase 3 Build C.24).
 
 ---
 
@@ -686,6 +686,53 @@ Stream 0.5q piece #6 (expanded mid-stream). Real-user second-pass testing refram
 (h) **Rule-engine fallback preserved.** If the Edge Function fails or returns empty, `derivePatterns(reflections)` provides usable patterns and the `hasGeneratedThisSession` flag still flips — the user never gets stuck on a loading state.
 
 Supersedes D.23 (inline Generate insight button) and D.28 (bug-fix-only path). Case-study framing: *"Pre-flight discipline at the UI layer is as important as at the data layer — code shipping doesn't mean code rendering. The B.18 trend cards lived in source for 12 hours before second-pass testing surfaced that the gate around them was wrong. The fix collapsed into the same Reflect reframe that was already rebuilding the patterns surface."* Pairs with C.16 / C.26 / D.27 as the through-line of language-driven UX moments over generic patterns; also pairs with D.5 / D.19 / D.25 as a source-first verification record.
+
+#### D.33 Sticky button color refinement — sage `#78A353`
+Stream 0.5r piece #1. Real-user visual testing of 0.5q's sticky button found the original `#B2EF82` reading as "candy" / too playful. Adjusted ENABLED-state background to deeper sage `#78A353` — more grounded, confident, less reward-feel. Text `#173404` preserved (passes WCAG AA at ~5.2:1 contrast). DISABLED and LOADING states' chrome unchanged (DISABLED keeps `#F1EFE8`, LOADING uses the new `#78A353` with rotating phrases). Pairs with the Savio voice principle: confident, math-forward, no decorative softening.
+
+#### D.34 Button label — "Show my reflections" replaces "Generate Reflections"
+Stream 0.5r piece #2. Real-user testing flagged "Generate Reflections" as AI-coded / system-action language ("Generate Database Backup" reads). Reframed as "Show my reflections" — possessive ("my"), user-centric (the user asking to see their own data), resists the LLM-default "Generate X" framing. `aria-label` updated to match. Pairs with C.16 (three-step prose labels), C.26 (verdict action language), D.27 (homepage Reflect copy), D.32 (Reflect reframe) — same-family discipline of resisting LLM-default phrasing in favor of natural user-intention language. Component file/variable names (`GenerateReflectionsButton`) left as engineering artifacts — the rename is user-facing only; the component rename is V2 polish if anyone cares.
+
+#### D.35 Discovery hint copy near sticky button
+Stream 0.5r piece #3. Real-user testing showed users didn't know trend patterns would appear after tapping the CTA. Added a state-aware helper line below the button (11px / `#5A6B5F` / centered / 8px from button):
+- DISABLED state: "Label all spending first · Trend patterns appear after"
+- ENABLED state (pre-tap): "See trends after generation"
+- LOADING state: hidden (rotating phrases own the moment)
+- POST-GENERATION: hidden (patterns visible above)
+
+Visibility derives from `state !== 'loading' && !hasGeneratedThisSession`, so the hint disappears the moment the user has either initiated the load or already generated this session. Replaces the previous "Label all spending first" line that fired only in DISABLED. Pairs with D.32 — the sticky button is Reflect's load-bearing user-interaction moment; the helper text closes the discoverability gap that second-pass testing surfaced.
+
+#### D.36 Minimum 4-second loading display on Show my reflections
+Stream 0.5r piece #4. D.32's rotating loading phrases could flash and disappear if AI returned in <1s on warm Vertex isolates — defeating the narrate-the-AI-work intent. Added a `Promise.all` race against a 4-second min-delay timer; user-perceived loading time is `max(ai_latency, 4000ms)`. The error path also respects the 4s minimum (computed against actual elapsed) so errors don't flash for <1s. AI-takes-longer-than-4s path unchanged — whichever wins. Pairs with D.32 as the discipline detail that makes the language-driven loading moment actually land.
+
+#### D.37 Profile commitments expand/contract — total card is the affordance
+Stream 0.5r piece #5. Real-user testing of 0.5q D.31's commitments section found 13 always-visible rows was too much scroll. Locked expand/contract pattern: default state shows only the "Monthly total ₹62,468" card with a chevron-down indicator; tapping the total card itself (single affordance — no separate expand button) toggles the 13-row list below. Chevron rotates 180° as visual feedback. `aria-expanded` + `aria-controls` for accessibility. Same card chrome as the commitment rows when expanded. Per-session state — resets on navigation away (matches the demo's broader auto-reset discipline; no persistence layer needed). Pairs with D.31 as the followup that makes the dense surface scannable. V2 enhancements (edit, add, remove) banked.
+
+#### D.38 Seed redesign for trend visualization — three distinct merchant stories
+Stream 0.5r piece #7 (load-bearing). Stream 0.5p Piece #7 (B.18) shipped Path B (`occurred_at` bucketing) as the right architectural semantic, but canonical Priya seed didn't exercise it — every merchant card showed `—` because no current-window (last 30 days) reflections existed for the labeled merchants. Reshape adds 9 new transactions + 9 new pre-labeled reflections to produce three distinct trend stories:
+
+(a) **Amazon = IMPROVING.** Prior (30-120d): existing Mar 10 glad + new Mar 21 regret (= 50% over 2 reflections, hits `MIN_PRIOR_FOR_COMPARISON`). Current (last 30d): 2 new late-April purchases pre-labeled glad (= 0%). Delta -50 percentage points, sage stripe.
+
+(b) **Myntra = WORSENING from 75% to 100%.** Prior: existing Jan 18 + Feb 14 regret + new Feb 26 regret + new Mar 13 glad (= 3 of 4 regret = 75%). Current: 2 new late-April purchases pre-labeled regret (= 100%). Delta +25 percentage points, red stripe via the persistent-high (`current ≥ 70%`) rule combined with the worsening delta.
+
+(c) **Zara = IMPROVING.** Prior: existing Jan 25 + Feb 22 regret (= 100% over 2 reflections). Current: 2 new late-April purchases pre-labeled glad (= 0%). Delta -100 percentage points (starkest of the three), sage stripe.
+
+**Window math reminder.** Path B's current window is `[DEMO_TODAY − 30d, DEMO_TODAY)` strictly, so May 1 itself is excluded. New "May 2026" transactions are placed in the last week of April relative to the May 1 anchor. Doc 1.1's earlier "0 April reflections" expectation flipped to 6 — captured as a deliberate state shift in `scripts/doc1.1-verify.mjs` and not a regression.
+
+**Cross-cutting work shipped in same commit.**
+- 9 new transactions in `0006_seed_priya.sql` (3 prior + 6 current). Total seed transactions: 352 → 361.
+- 9 new reflections, all using `(v_demo_today - interval 'N days')` expressions per Phase 1 DEMO_TODAY discipline.
+- `merchant_stats` aggregate row updated: Myntra 8 reflections / 87.50% · Amazon 5 / 40.00% · Zara 4 / 50.00% · Swiggy unchanged. This is what the chat-grounding context (`prompt_builder.ts`) reads, so chat-side Myntra-regret-rate queries now cite 87.50% instead of 100%.
+- `reflections_seed_snapshot` is populated by 0010's backfill which runs after 0006 (`ON CONFLICT DO NOTHING` keeps existing rows but picks up the new transaction_ids). The D.15 auto-reset / D.16 chat-snapshot RPCs that restore from this table inherit the new state automatically.
+- `scripts/doc1.1-verify.mjs` updated: April-reflections expectation 0 → 6 (with `?✓:✗` marker); new "D.38 Trend stories — current vs prior 90d Path B buckets" block surfaces actual computed delta per merchant.
+- `scripts/test-chat-7cases.mjs` Case 3 expected output updated to "87.5% (over 8 reflections) post-D.38."
+- `ReviewerConsole.tsx` reset-reflections copy updated: "9 historical labels behind Myntra 100% regret rate" → "18 historical labels behind the Amazon/Myntra/Zara trend stories."
+
+**Verification still pending.** 7/7 chat audit re-baseline cannot run from this code change alone — requires a live deployment with the new seed applied. Surfaced for follow-up. Most likely path: Case 3 (Myntra regret rate) cites the new 87.50% naturally via grounded merchant_stats; if the AI cites the wrong number, the hallucination guard (D.18) catches it.
+
+**Resolves the gap from Stream 0.5p Piece #7 Path B where the right architectural choice shipped but the demo state didn't exercise it.** Pairs with B.18 (Path B semantic) and D.32 (trend card render fix) as the third discipline layer the trend visualization needed: semantic, then rendering, then data shape. Case-study line: *"We specced `labeled_at` bucketing, learned via pre-flight that `occurred_at` was the better semantic. Then learned via 0.5q verification that the right semantic with a buggy `hasUnlabeled` gate produces a missing surface. Then learned via 0.5r real-user testing that the right semantic and the right rendering on the wrong data shape still produces a hollow surface. Three discipline layers, three pre-flight passes — the trend visualization shipping correctly is the strongest single thread in Phase 3's source-first verification record."*
+
+Fallback note: this stream targeted three stories. If subsequent testing surfaces that one merchant's data shape breaks the chat audit or trend rendering, the seed can drop back to two stories (Amazon + Myntra) or one (Amazon only) per the spec's fallback ladder — but pre-flight didn't surface any blocker, so all three shipped.
 
 ---
 

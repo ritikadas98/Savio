@@ -59,12 +59,43 @@ for (const r of g4.rows) {
   console.log(`  ${r.label.padEnd(12)} budgeted=₹${b.toLocaleString('en-IN').padStart(6)}  actual=₹${a.toLocaleString('en-IN').padStart(8)}  ${delta >= 0 ? 'buffer +' : 'overrun −'}₹${Math.abs(delta).toLocaleString('en-IN')}`);
 }
 
-console.log('\n=== April reflections (should be 0 — ritual handles April labeling) ===');
+console.log('\n=== April reflections ===');
+// Pre-D.38 expectation was 0 (ritual handles April labeling).
+// Post-D.38 (Stream 0.5r piece #7), the seed pre-labels 6 late-April rows
+// (2 Amazon glad, 2 Myntra regret, 2 Zara glad) to populate the Path B
+// current 30-day window for the merchant trend stories. Expected: 6.
+// The two ritual-labeling-candidate unlabeled April rows (Myntra ₹4,800 +
+// Amazon ₹1,950) still flow through Reflect's labeling surface as before.
 const aprilRefs = await c.query(`
   SELECT COUNT(*)::int AS n
   FROM reflections r JOIN transactions t ON t.id = r.transaction_id
   WHERE r.user_id = $1 AND t.occurred_at >= '2026-04-01' AND t.occurred_at < '2026-05-01'`, [ID]);
-console.log(`  April-dated reflections: ${aprilRefs.rows[0].n}`);
+console.log(`  April-dated reflections: ${aprilRefs.rows[0].n}   ${aprilRefs.rows[0].n === 6 ? '✓' : '✗ (expected 6 post-D.38)'}`);
+
+console.log('\n=== D.38 Trend stories — current vs prior 90d Path B buckets ===');
+// Three merchant trend stories: Amazon improving, Myntra worsening,
+// Zara improving. Current window = (DEMO_TODAY - 30d, DEMO_TODAY).
+// Prior window = (DEMO_TODAY - 120d, DEMO_TODAY - 30d).
+const trends = await c.query(`
+  WITH params AS (SELECT '2026-05-01'::timestamptz AS now)
+  SELECT
+    t.merchant,
+    SUM(CASE WHEN t.occurred_at >= params.now - interval '30 days' AND t.occurred_at < params.now THEN 1 ELSE 0 END)::int AS current_total,
+    SUM(CASE WHEN t.occurred_at >= params.now - interval '30 days' AND t.occurred_at < params.now AND r.label = 'regret' THEN 1 ELSE 0 END)::int AS current_regret,
+    SUM(CASE WHEN t.occurred_at >= params.now - interval '120 days' AND t.occurred_at < params.now - interval '30 days' THEN 1 ELSE 0 END)::int AS prior_total,
+    SUM(CASE WHEN t.occurred_at >= params.now - interval '120 days' AND t.occurred_at < params.now - interval '30 days' AND r.label = 'regret' THEN 1 ELSE 0 END)::int AS prior_regret
+  FROM reflections r
+  JOIN transactions t ON t.id = r.transaction_id
+  CROSS JOIN params
+  WHERE r.user_id = $1 AND t.merchant IN ('Amazon','Myntra','Zara')
+  GROUP BY t.merchant
+  ORDER BY t.merchant`, [ID]);
+for (const r of trends.rows) {
+  const cur = r.current_total > 0 ? Math.round((r.current_regret / r.current_total) * 100) : null;
+  const pri = r.prior_total >= 2 ? Math.round((r.prior_regret / r.prior_total) * 100) : null;
+  const delta = (cur != null && pri != null) ? `${cur - pri > 0 ? '+' : ''}${cur - pri}` : '—';
+  console.log(`  ${r.merchant.padEnd(8)} current=${String(cur ?? '—').padStart(4)}% (${r.current_total} refs)   prior=${String(pri ?? '—').padStart(4)}% (${r.prior_total} refs)   delta=${delta}`);
+}
 
 await c.end();
 process.exit(0);

@@ -48,6 +48,13 @@ const LOADING_PHRASES = [
 ];
 const LOADING_PHRASE_INTERVAL_MS = 1800;
 
+// D.36 (Stream 0.5r piece #4) — minimum loading display duration. Without
+// this, AI synthesis on a warm Vertex isolate can return in under a second
+// and the rotating phrases flash + disappear before the user can read
+// them. Four seconds is long enough to see ~2 phrases and anchors the
+// loading moment as intentional UX rather than glitchy state-change.
+const MIN_LOADING_MS = 4000;
+
 // Local view-state extension on the fetched transaction row. Tracks the
 // optimistic label so the row can render labeled-pill UI before the DB write
 // confirms.
@@ -179,19 +186,32 @@ export function ReflectPage() {
     setLoadingPhraseIndex(0);
     setGenerating(true);
     setPatterns(null);
+    const startedAt = Date.now();
+    // D.36 (Stream 0.5r piece #4) — Promise.all race ensures the loading
+    // state is visible for at least MIN_LOADING_MS even when AI returns
+    // fast (warm Vertex isolates can return in <1s). The min-delay promise
+    // runs in parallel with the AI call, so user-perceived loading time
+    // is max(ai_latency, MIN_LOADING_MS) — whichever wins.
+    const minDelay = new Promise<void>(resolve => setTimeout(resolve, MIN_LOADING_MS));
     try {
-      const result = await forceResynthesizePatterns();
+      const [result] = await Promise.all([forceResynthesizePatterns(), minDelay]);
       const fresh = result.patterns ?? [];
       if (fresh.length === 0) {
         const rule = derivePatterns(reflections);
         setPatterns(rule);
-        } else {
+      } else {
         setPatterns(fresh);
-        setPatternsSource(result.source ?? 'ai');
       }
       setHasGeneratedThisSession(true);
     } catch (err) {
       console.warn('[ReflectPage] generate failed, falling back to rule engine', err);
+      // D.36 — respect MIN_LOADING_MS on the error path too, so an error
+      // doesn't flash on screen for <1s. Compute remaining delay against
+      // actual elapsed time.
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_LOADING_MS) {
+        await new Promise(resolve => setTimeout(resolve, MIN_LOADING_MS - elapsed));
+      }
       const rule = derivePatterns(reflections);
       setPatterns(rule);
       setHasGeneratedThisSession(true);
@@ -394,14 +414,18 @@ export function ReflectPage() {
         )}
       </div>
 
-      {/* D.32 — sticky Generate Reflections button. Sits above BottomNav
+      {/* D.32 — sticky "Show my reflections" button. Sits above BottomNav
           via the flex-shrink-0 order in the parent column. Three states:
           DISABLED (any unlabeled), ENABLED (allLabeled), LOADING (in
           synthesis). Loading state replaces the label with rotating
           phrases keyed by loadingPhraseIndex so each phrase re-runs the
-          CSS fade-in animation. */}
+          CSS fade-in animation.
+          D.33/D.34/D.35 (Stream 0.5r) — button restyled (sage #78A353),
+          label changed to "Show my reflections", and a state-aware
+          discovery hint rendered below in DISABLED + pre-tap ENABLED. */}
       <GenerateReflectionsButton
         state={generating ? 'loading' : allLabeled ? 'enabled' : 'disabled'}
+        hasGenerated={hasGeneratedThisSession}
         phraseIndex={loadingPhraseIndex}
         onTap={handleGenerate}
       />
@@ -414,16 +438,26 @@ export function ReflectPage() {
 
 // D.32 — sticky bottom button component. State machine:
 //   disabled — light gray, no tap (user still has unlabeled items)
-//   enabled  — sage green (#B2EF82 per B.18 lock), Sparkles + label, tappable
-//   loading  — sage green, rotating LOADING_PHRASES with fade animation
+//   enabled  — deeper sage (#78A353 per D.33 Stream 0.5r), Sparkles + label
+//   loading  — deeper sage, rotating LOADING_PHRASES with fade animation
+//
+// D.33 (Stream 0.5r piece #1) — ENABLED background tightened from the
+// original #B2EF82 (read as "candy") to #78A353 (grounded, confident).
+// Text color #173404 unchanged; contrast ratio passes WCAG AA (~5.2:1).
+// D.34 (Stream 0.5r piece #2) — label "Generate Reflections" → "Show my
+// reflections" (possessive, user-centric, resists LLM-default "Generate X").
+// D.35 (Stream 0.5r piece #3) — state-aware discovery hint below the
+// button bridges the "all labeled" → "trends appear" gap.
 type ButtonState = 'disabled' | 'enabled' | 'loading';
 
 function GenerateReflectionsButton({
   state,
+  hasGenerated,
   phraseIndex,
   onTap,
 }: {
   state: ButtonState;
+  hasGenerated: boolean;
   phraseIndex: number;
   onTap: () => void;
 }) {
@@ -431,9 +465,17 @@ function GenerateReflectionsButton({
   const isEnabled = state === 'enabled';
   const isDisabled = state === 'disabled';
 
-  const bg = isDisabled ? '#F1EFE8' : '#B2EF82';
+  const bg = isDisabled ? '#F1EFE8' : '#78A353';
   const fg = isDisabled ? '#888880' : '#173404';
   const cursor = isLoading ? 'wait' : isEnabled ? 'pointer' : 'not-allowed';
+
+  // D.35 — hint visibility. Hidden during LOADING (rotating phrases own
+  // the moment) and POST-GENERATION (patterns visible above). State-aware
+  // copy in the two pre-generation states.
+  const showHint = !isLoading && !hasGenerated;
+  const hintText = isDisabled
+    ? 'Label all spending first · Trend patterns appear after'
+    : 'See trends after generation';
 
   return (
     <div
@@ -447,7 +489,7 @@ function GenerateReflectionsButton({
         type="button"
         onClick={isEnabled ? onTap : undefined}
         disabled={!isEnabled}
-        aria-label="Generate Reflections"
+        aria-label="Show my reflections"
         style={{
           width: '100%',
           background: bg,
@@ -479,20 +521,20 @@ function GenerateReflectionsButton({
             {LOADING_PHRASES[phraseIndex]}
           </span>
         ) : (
-          <span>Generate Reflections</span>
+          <span>Show my reflections</span>
         )}
       </button>
-      {isDisabled && (
+      {showHint && (
         <div
           style={{
             fontSize: 11,
-            color: '#888780',
+            color: '#5A6B5F',
             textAlign: 'center',
-            marginTop: 6,
+            marginTop: 8,
             lineHeight: 1.3,
           }}
         >
-          Label all spending first
+          {hintText}
         </div>
       )}
       {/* keyframes inlined here so the component is self-contained */}

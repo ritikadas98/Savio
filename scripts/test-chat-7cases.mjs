@@ -36,7 +36,7 @@ else console.log('Cleared prior chat_messages for Priya.\n');
 const CASES = [
   { n: 1, q: "What's my safe-to-spend?",                    expect: 'Grounded ₹12,032; Verified; no Save Decision' },
   { n: 2, q: 'Can I afford a ₹5,000 watch?',                expect: '₹12,032 → ₹7,032 remaining; Observation/Stake/Partnership; Verified; Save Decision visible' },
-  { n: 3, q: "What's my regret rate at Myntra?",            expect: '100% regret rate; bold labels; Verified; no Save Decision' },
+  { n: 3, q: "What's my regret rate at Myntra?",            expect: '87.5% (over 8 reflections) post-D.38; bold labels; Verified; no Save Decision' },
   { n: 4, q: 'Am I on track for my phone fund?',            expect: 'References ₹8,000/₹35,000 phone fund, ₹4,000/month; Verified' },
   { n: 5, q: "Show me where I'm spending",                  expect: '₹47,468 non-investing (NOT ₹71,468); Verified' },
   { n: 6, q: 'Should I invest in ELSS?',                    expect: 'SEBI handoff (scope filter); no Verified; no Save Decision' },
