@@ -24,14 +24,19 @@ export type CloseOutData = {
   commitment_buffers: CommitmentBuffer[];
   commitment_overruns: CommitmentOverrun[];
   unlabeled_transactions: UnlabeledTransaction[];
-  one_off_breakdown: {
+  // D.60 + D.62 fields are OPTIONAL on the TypeScript side — the Edge
+  // Function deploy can lag behind the frontend deploy briefly, and
+  // during that window the response shape is pre-0.5v (no recap, no
+  // one_off_breakdown, no guidance). Render guards in the component
+  // fall back gracefully when these are undefined.
+  one_off_breakdown?: {
     top: MerchantTotal[];
     other_total: number;
     other_count: number;
     total: number;
     full_list: MerchantTotal[];
   };
-  recap: {
+  recap?: {
     income: number;
     fixed_commitments: number;
     goal_contributions: number;
@@ -39,7 +44,7 @@ export type CloseOutData = {
     one_off_discretionary: number;
     net_leftover: number;
   };
-  guidance: {
+  guidance?: {
     show: boolean;
     severity: 'small_short' | 'deficit_safe' | 'deficit_breached' | 'repeated_deficit';
     heading: string;
@@ -211,7 +216,12 @@ export function MonthlyRitualCloseOut() {
             Function; the user can audit the math row by row. The
             "One-off spending" row is tappable — expands to show top-4
             merchants + "N others" bucket so the largest single drivers
-            are visible without overwhelming the surface. */}
+            are visible without overwhelming the surface.
+            Defensive guard: if the Edge Function hasn't been redeployed
+            past 0.5v yet (front/back schema race), data.recap is undefined.
+            Render the screen without the recap + guidance rather than
+            crashing — falls back to the pre-0.5v look until deploy lands. */}
+        {data.recap && data.one_off_breakdown && (
         <Card className="mb-3" style={{ padding: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 500, color: '#5A6B5F', letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 12 }}>
             The math
@@ -301,6 +311,26 @@ export function MonthlyRitualCloseOut() {
             Income minus commitments minus your actual spending. Negative means you went past your safe-to-spend.
           </div>
         </Card>
+        )}
+
+        {/* Legacy fallback — Edge Function still on the pre-0.5v schema
+            (no recap field returned). Show a minimal "Spending leftover"
+            card using the existing discretionary_leftover value, so the
+            screen has SOMETHING in the leftover slot until the Edge
+            Function deploy lands. Goes away once data.recap is defined. */}
+        {!data.recap && (
+          <Card className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="font-medium text-[#1A1A1A]">Spending leftover</div>
+              <div className="text-xs text-[#5F5E5A] mt-1">
+                Income minus commitments minus your actual spending. Negative means you went past your safe-to-spend.
+              </div>
+            </div>
+            <div className={`font-medium flex-shrink-0 ${data.discretionary_leftover >= 0 ? 'text-[#1A1A1A]' : 'text-[#791F1F]'}`}>
+              {data.discretionary_leftover < 0 ? '−' : ''}{formatINRInt(data.discretionary_leftover)}
+            </div>
+          </Card>
+        )}
 
         {/* D.62 (Stream 0.5v piece #5) — "What you can do now" guidance.
             Renders only when the Edge Function's rule-engine determined
@@ -308,8 +338,10 @@ export function MonthlyRitualCloseOut() {
             deficit_breached / repeated_deficit). Card tint varies by
             severity — calm neutral for the lighter tiers, warmer amber
             for the more serious ones. NOT alarmist; pairs the deficit
-            truth with a concrete lever tied to the user's own rules. */}
-        {data.guidance.show && (
+            truth with a concrete lever tied to the user's own rules.
+            Same defensive guard: if Edge Function still on pre-0.5v
+            schema, data.guidance is undefined — skip silently. */}
+        {data.guidance?.show && (
           <GuidanceCard guidance={data.guidance} />
         )}
 
