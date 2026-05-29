@@ -867,6 +867,24 @@ Stream 0.5t piece #9. Updates to `scripts/test-chat-7cases.mjs`:
 
 Total cases: 9 (was 7). All cases manually-verified — script logs the expected vs actual response for eyeball comparison, no programmatic assertions. Re-baselining is documentation work; the AI's grounding context is what actually drives behavior.
 
+#### D.54 SafeToSpendHero labels — drop "today" / "N days remaining" framing
+Stream 0.5t post-deploy patch. Real-user testing on the live Netlify deploy (visited May 29, 2026 real-world) flagged that the hero showed *"Safe to spend today · ₹1,339 · ₹41,532 this month · 31 days remaining"* — but the actual real-world date had only 3 days left in May. The discrepancy traces to Foundation Decision #1 (DEMO_TODAY pinned to 1st of current real-world calendar month at 9 AM IST); on May 29 the entire app computes as if today were May 1, so `daysRemaining = 31` is mathematically correct from May 1's perspective. The labels were the bug, not the math.
+
+Considered three fixes:
+- Option A (small "Demo state: May 1" disclosure badge) — adds chrome
+- Option B (relabel the hero to date-based framing) — minimal patch, no math change
+- Option C (drop DEMO_TODAY pinning entirely) — would empty the Path B current-window bucket on most days of the month, collapsing trend cards and breaking other demo state. Rejected.
+
+Locked B. Two label changes:
+- `"Safe to spend today"` → `"Safe to spend daily this month"`
+- `"₹X this month · N days remaining"` → `"₹X this month · Salary next on {date}"` (date computed dynamically from `anchorDate` via Intl en-US, e.g. "June 1")
+
+Rainbow center caption (*"31 days until salary on the 1st"*) intentionally left as-is per scope lock — same DEMO_TODAY pinning issue technically applies, but the user's instruction was scoped to the hero labels only. Revisit if confusion surfaces there too.
+
+`computeDailySafeToSpend` helper unchanged — it still computes `daysRemaining` internally to derive `dailyAmount`, just no longer exposed in the JSX. Destructure cleaned up to only pull `dailyAmount`.
+
+Case-study line: *"DEMO_TODAY pinning gave reviewers a consistent start-of-month framing on every visit. But the 'today' / 'N days remaining' labels read as real-time. The fix was the labels, not the data — frame the math as what it actually describes."*
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs

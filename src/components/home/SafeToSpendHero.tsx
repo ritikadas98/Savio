@@ -18,11 +18,23 @@ type Props = {
 //   - rainbow ceiling rescales to daily-spend visualization
 // Month value still drives everything in chat grounding + ritual lock-in
 // (canonical formula unchanged). Daily is a presentation-layer derivation.
+//
+// D.54 (Stream 0.5t-followup, post-deploy) — relabeled to remove the
+// "today" / "N days remaining" framing that reads as real-time but is
+// computed from the pinned DEMO_TODAY (1st of month). Reviewers visiting
+// on day 29 saw "31 days remaining" and it didn't match real-world reality.
+// New labels frame the data as daily-this-month + next-salary-date —
+// honest about what the math actually describes. Rainbow center caption
+// kept as-is per scope; revisit if the same confusion surfaces there.
 
 export function SafeToSpendHero({ amount, anchorDate }: Props) {
   const now = today();
   const diffDays = Math.ceil((anchorDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const { dailyAmount, daysRemaining } = computeDailySafeToSpend(amount);
+  // daysRemaining from computeDailySafeToSpend is unused in the JSX after
+  // D.54 dropped the "N days remaining" copy, but the helper still computes
+  // it internally to derive dailyAmount. Destructure only the field we
+  // actually render.
+  const { dailyAmount } = computeDailySafeToSpend(amount);
 
   // Gauge ceiling — scaled to daily now, not month. For Priya's ₹388 on
   // May 1, ceiling = max(388 * 1.5, 1000) = 1000. Keeps the marker in
@@ -36,10 +48,15 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
   // real-user testers. Right endpoint now reads "Day's cap" — the
   // label answers what the bar is showing without surfacing the value.
 
+  // D.54 — next-salary date label. Force en-US for the "Month Day"
+  // ordering ("June 1") rather than the host locale's en-IN default
+  // ("1 June"); the spec lock used the en-US form.
+  const salaryDateLabel = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(anchorDate);
+
   return (
     <Card variant="hero" className="flex flex-col mb-3">
       <div className="mb-2" style={{ fontSize: 14, color: tokens.s }}>
-        Safe to spend today
+        Safe to spend daily this month
       </div>
 
       <div style={{ marginBottom: 4 }}>
@@ -56,10 +73,13 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
         </span>
       </div>
 
-      {/* D.22 secondary line — month total + days remaining as context.
-          Subdued treatment so the daily figure remains primary. */}
+      {/* D.54 — month total + next salary date. "N days remaining" wording
+          dropped because DEMO_TODAY pinning made the day count read wrong
+          to live-site visitors arriving mid-month. Date-based framing is
+          honest about what the demo state actually models. daysRemaining
+          is still used by computeDailySafeToSpend for the math above. */}
       <div style={{ fontSize: 12, color: tokens.t, marginBottom: 18 }}>
-        ₹{formatINR(amount)} this month · {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining
+        ₹{formatINR(amount)} this month · Salary next on {salaryDateLabel}
       </div>
 
       {/* Rainbow gradient bar — preview lines 266–285. 10px high, 4×16 vertical
