@@ -1,4 +1,5 @@
 // Edge function uses Deno
+import { getUserRulesFromProfile, type UserRules } from '../_shared/user-rules.ts';
 
 // DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
 // 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
@@ -73,7 +74,16 @@ FORMATTING:
 // shape {kind, message?, structured?} on every call. Verdict-eligible
 // queries get structured; everything else stays prose. The frontend routes
 // off `kind`. Returned strictly as JSON via responseMimeType in the payload.
-export const buildVerdictLayer = (): string => {
+export const buildVerdictLayer = (rules: UserRules): string => {
+  const safetyNetK = Math.round(rules.safety_net / 1000);                       // 100 → "₹1,00,000" / 100K → "₹100K"
+  const safetyNetINR = rules.safety_net.toLocaleString('en-IN');
+  const impulseTK = Math.round(rules.impulse_wait_threshold / 1000);            // 3 → "₹3K"
+  const impulseTINR = rules.impulse_wait_threshold.toLocaleString('en-IN');
+  const impulseH = rules.impulse_wait_hours;
+  const dailyFloor = rules.daily_sps_floor.toLocaleString('en-IN');
+  void safetyNetK;
+  void impulseTK;
+
   return `OUTPUT CONTRACT (STRICT):
 Always return a single JSON object. No prose preamble. No markdown fences.
 
@@ -86,7 +96,12 @@ Shape:
     "verdict_line": "string",        // 15-25 words, opens with the action phrase per C.26 (see ACTION LANGUAGE RULES below)
     "body": "string",                // 30-50 words. The math — what the spend leaves, daily impact, rules touched.
     "tradeoffs": ["string", ...],    // 2-4 items, MIX positive and negative, each with specific numbers
-    "best_next_step": "string"       // 15-25 words, opens with the action phrase per C.26 (see ACTION LANGUAGE RULES below)
+    "best_next_step": "string",      // 15-25 words, opens with the action phrase per C.26 (see ACTION LANGUAGE RULES below)
+    "rule_citations": ["safety_net" | "impulse_wait" | "daily_sps_floor", ...]
+                                     // D.52 (Stream 0.5t #8): every rule the user's stated rules
+                                     // you actually reference anywhere in verdict_line / body /
+                                     // tradeoffs / best_next_step gets its slug added here.
+                                     // Empty array if no rule was relevant. Don't fabricate.
   }
 }
 
@@ -99,10 +114,10 @@ Triggers (any of) — fire REGARDLESS of how large or small the amount is:
 - "I'm thinking of getting [thing for ₹X]"
 - "Should I get a ₹X [thing]?"
 
-If the amount is too large (would exceed safe-to-spend or break the buffer
-rule), STILL return structured with verdict_color = "RED" — do not fall back
-to prose just because the spend is unwise. The structured RED card is how
-you tell the user "no" with reasoning.
+If the amount is too large (would exceed safe-to-spend or break the safety
+net rule), STILL return structured with verdict_color = "RED" — do not fall
+back to prose just because the spend is unwise. The structured RED card is
+how you tell the user "no" with reasoning.
 
 WHEN TO USE prose (kind="prose"):
 Everything else. Examples:
@@ -115,21 +130,42 @@ Everything else. Examples:
 - Open-ended worry: "I'm worried about money"
 
 VERDICT_COLOR LOGIC:
-- GREEN: spend fits, no rules touched, buffer stays above floor, daily budget stays workable
-- YELLOW: spend works but has real tradeoffs — daily budget tight, focus-goal contribution at risk, eats most of the remaining month
-- RED: spend would break a rule — push buffer below ₹1,00,000 floor, push daily safe-to-spend negative, or exceed total safe-to-spend
+- GREEN: spend fits, no rules touched, safety net stays above its floor, daily budget stays workable
+- YELLOW: spend works but has real tradeoffs — daily budget tight, focus-goal contribution at risk, eats most of the remaining month, OR the amount crosses the user's impulse-wait threshold
+- RED: spend would break a rule — push safety net below ₹${safetyNetINR}, push daily safe-to-spend negative, or exceed total safe-to-spend
+
+USER RULE VALUES (use these exact numbers when citing):
+- Safety net: ₹${safetyNetINR}  (slug: "safety_net")
+- Impulse-wait threshold: ₹${impulseTINR}  (slug: "impulse_wait")
+- Impulse-wait duration: ${impulseH} hours  (same "impulse_wait" slug)
+- Daily SPS floor: ₹${dailyFloor}  (slug: "daily_sps_floor")
+
+VERDICT_LINE RULES (D.51 — Stream 0.5t #7):
+- Open with the action phrase per ACTION LANGUAGE RULES below.
+- When the spend amount is above ₹${impulseTINR}, name the impulse-wait threshold explicitly inside verdict_line. Example: "Think twice — this ₹4,000 watch is over your impulse-wait threshold of ₹${impulseTINR}."
+- When the spend would push accessible cash below ₹${safetyNetINR}, name the safety net explicitly inside verdict_line. Example: "Step back — this would drop you below your safety net of ₹${safetyNetINR}."
+- If no rule is crossed, verdict_line stays focused on the math (safe-to-spend impact). Don't fabricate rule violations.
+
+BODY RULES (D.51 — extended):
+- When verdict_line references a rule, body restates the rule briefly: "Your rule says wait ${impulseH} hours over ₹${impulseTINR}." OR: "Your rule keeps a ₹${safetyNetINR} safety net before discretionary spending."
+- Body still carries the math (what the spend leaves, daily impact). Rule reference adds context; it doesn't replace the numbers.
 
 TRADEOFFS RULES:
 - 2 to 4 items, mix positive AND negative when possible
 - Each item carries SPECIFIC NUMBERS, not vague phrasing
-  GOOD: "Daily budget drops from ₹715 to ₹435 — still above your ₹300 floor"
+  GOOD: "Daily budget drops from ₹1,340 to ₹1,180 — still above your ₹${dailyFloor} floor"
   BAD:  "Daily budget reduced significantly"
-- Reference the user's known rules where applicable ("above ₹1L buffer rule", "still above ₹300 daily floor")
+- Reference the user's known rules where applicable ("above ₹${safetyNetINR} safety net rule", "still above ₹${dailyFloor} daily floor")
 
 BEST_NEXT_STEP RULES:
 - Open with the action phrase per ACTION LANGUAGE RULES below (matches verdict_color)
-- After the opener, the rest of best_next_step references the user's impulse-wait rule (48 hours) for GREEN/YELLOW discretionary purchases, or a concrete next step for RED
+- After the opener, the rest of best_next_step references the user's impulse-wait rule (${impulseH} hours) for GREEN/YELLOW discretionary purchases, or a concrete next step for RED
 - Action should be achievable in under 1 week
+
+RULE_CITATIONS RULES (D.52 — Stream 0.5t #8):
+- For every user rule you actually referenced (in verdict_line, body, tradeoffs[], or best_next_step), add its slug to rule_citations[]. Valid slugs: "safety_net", "impulse_wait", "daily_sps_floor".
+- Empty array if no rule applied. Don't fabricate rule violations to populate the array.
+- This array drives downstream verification + UI rendering. It's not decorative.
 
 ACTION LANGUAGE RULES (C.26 — verdict_line + best_next_step ONLY):
 
@@ -158,11 +194,11 @@ body and tradeoffs[] stay neutral — no forced action language there. These
 rules apply to verdict-shaped responses only. Prose responses are unaffected.
 
 SAMPLE OPENERS (for the model's reference, not for literal copying):
-- GREEN verdict_line: "Go ahead — fits comfortably. ₹5K leaves ₹7K daily buffer."
-- YELLOW verdict_line: "Think twice — workable but tight. Pulls daily spend to ₹400."
-- RED verdict_line: "Step back — too heavy right now. ₹50K equals 4 months of safe-to-spend."
+- GREEN verdict_line: "Go ahead — fits comfortably. ₹5K leaves ₹36K month safe-to-spend."
+- YELLOW verdict_line: "Think twice — this ₹4,000 watch is over your impulse-wait threshold of ₹${impulseTINR}."
+- RED verdict_line: "Step back — this would drop you below your safety net of ₹${safetyNetINR}."
 - GREEN best_next_step: "Go ahead and complete the purchase — label it Worth-it / Regret after."
-- YELLOW best_next_step: "Wait 48 hours per your impulse rule, then revisit."
+- YELLOW best_next_step: "Wait ${impulseH} hours per your impulse rule, then revisit."
 - RED best_next_step: "Defer to next month's ritual — see if it makes the focus-goal list."
 `;
 };
@@ -312,13 +348,20 @@ export const buildGroundingContext = (
   }
   lines.push('');
 
-  // Phase C3 — user rules referenced by structured-verdict tradeoffs and
-  // best-next-step. These aren't on the profile row yet (V2 work to expose
-  // as editable settings); hardcoded constants here keep the AI grounded.
-  lines.push('### User rules (reference these in tradeoffs and best_next_step)');
-  lines.push('- Buffer floor: maintain emergency fund / accessible cash above ₹1,00,000');
-  lines.push('- Impulse purchase wait: 48 hours before any discretionary spend above ₹2,000');
-  lines.push('- Daily safe-to-spend floor: prefer to keep daily SPS above ₹300 for the remainder of the month');
+  // D.49 + D.51 (Stream 0.5t pieces #5 + #7) — user rules now read from
+  // the profile row via getUserRulesFromProfile(). Was hardcoded English-
+  // language constants pre-0.5t which caused two bugs:
+  //   1. Impulse-wait threshold drifted between prompt (₹2,000) and
+  //      Profile UI (₹3,000). Fixed by construction here — same source.
+  //   2. "Buffer floor" was finance-jargon; renamed to "Safety net" per
+  //      D.48.
+  // Citation instructions for verdict_line + body live in the verdict
+  // layer (D.51 extended); this section just provides the data + slugs.
+  const rules = getUserRulesFromProfile(profile);
+  lines.push('### User rules (reference these in verdict_line / body / tradeoffs / best_next_step — and add the slug to rule_citations[] per D.52)');
+  lines.push(`- Safety net (slug: "safety_net"): maintain emergency fund / accessible cash above ₹${rules.safety_net.toLocaleString('en-IN')}`);
+  lines.push(`- Impulse purchase wait (slug: "impulse_wait"): ${rules.impulse_wait_hours} hours before any discretionary spend above ₹${rules.impulse_wait_threshold.toLocaleString('en-IN')}`);
+  lines.push(`- Daily safe-to-spend floor (slug: "daily_sps_floor"): prefer to keep daily SPS above ₹${rules.daily_sps_floor.toLocaleString('en-IN')} for the remainder of the month`);
   lines.push('');
 
   if (merchantStats && merchantStats.length > 0) {
@@ -351,10 +394,11 @@ export const buildSystemPrompt = (
   ritual: any,
   merchantStats: any[]
 ): string => {
+  const rules = getUserRulesFromProfile(profile);
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
   const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats);
-  const layer4 = buildVerdictLayer();
+  const layer4 = buildVerdictLayer(rules);
   const layer5 = buildProseStructureLayer();
 
   return `${layer1}\n\n${layer2}\n\n${layer3}\n\n${layer4}\n\n${layer5}`;

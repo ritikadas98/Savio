@@ -159,6 +159,12 @@ interface OnboardingState {
   lifeStage: '' | 'student' | 'working_no_dependents' | 'supporting_dependents' | 'pre_retiree';
   anchor: string;
   irregular: boolean;
+  // D.50 (Stream 0.5t piece #6) — rule input state. Strings (not numbers)
+  // because we render them inside <input type="number"> and the canonical
+  // mid-edit state of a numeric input is its string value. Cast at submit.
+  safetyNet: string;
+  impulseThreshold: string;
+  impulseHours: string;
   focusGoal: string;     // 'phone' | 'emergency' | 'goa' | 'none' | <custom from manual>
 }
 
@@ -166,7 +172,15 @@ const initialState: OnboardingState = {
   disclaimer: false, dataSource: '', uploaded: false,
   manualIncome: '', manualBank: '',
   smsAllowed: null, avatar: '',
-  lifeStage: '', anchor: '1', irregular: false, focusGoal: '',
+  lifeStage: '', anchor: '1', irregular: false,
+  // D.50 — pre-populated with Priya's seeded values from migration 0019.
+  // Real new users would see these as inputs they fill themselves; for the
+  // Priya demo path they read as "this is what you've set" and the user
+  // can edit or accept.
+  safetyNet: '100000',
+  impulseThreshold: '3000',
+  impulseHours: '48',
+  focusGoal: '',
 };
 
 export function OnboardingPage() {
@@ -221,10 +235,12 @@ export function OnboardingPage() {
     }
   };
 
-  // 7 progress dots cover steps 1-7 (disclaimer through focus goal); Ready
-  // and Interstitial sit outside the dotted progress per JSX source.
-  const TOTAL_STEPS = 7;
-  const showProgress = step >= 1 && step <= 7;
+  // 8 progress dots cover steps 1-8 (disclaimer through focus goal). Was 7
+  // pre-D.50 (Stream 0.5t piece #6); the new YourRules step inserted at
+  // step 7 pushed FocusGoal→8, Ready→9, Interstitial→10. Ready and
+  // Interstitial still sit outside the dotted progress per JSX source.
+  const TOTAL_STEPS = 8;
+  const showProgress = step >= 1 && step <= 8;
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: T.bg }}>
@@ -298,6 +314,14 @@ export function OnboardingPage() {
         />
       )}
       {step === 7 && (
+        <YourRules
+          safetyNet={state.safetyNet} setSafetyNet={v => set('safetyNet', v)}
+          impulseThreshold={state.impulseThreshold} setImpulseThreshold={v => set('impulseThreshold', v)}
+          impulseHours={state.impulseHours} setImpulseHours={v => set('impulseHours', v)}
+          onNext={next}
+        />
+      )}
+      {step === 8 && (
         <FocusGoal
           focusGoal={state.focusGoal}
           setFocusGoal={v => set('focusGoal', v)}
@@ -305,14 +329,14 @@ export function OnboardingPage() {
           onNext={next}
         />
       )}
-      {step === 8 && (
+      {step === 9 && (
         <Ready
           state={state}
-          onEnter={next}                            /* → step 9 Interstitial */
+          onEnter={next}                            /* → step 10 Interstitial */
           onRestart={() => { setStep(0); setStateInternal(initialState); }}
         />
       )}
-      {step === 9 && <Interstitial onContinue={continueAsPriya} />}
+      {step === 10 && <Interstitial onContinue={continueAsPriya} />}
     </div>
   );
 }
@@ -601,7 +625,7 @@ function StatementReview({ uploaded, setUploaded, onNext }: {
                 </span>
               </div>
               {[
-                { label: 'Income detected', value: '₹68,500/mo · 1st' },
+                { label: 'Income detected', value: '₹98,000/mo · 1st' },
                 { label: 'Recurring commitments', value: '10 found' },
                 { label: 'Spending categories', value: '6 patterns' },
                 { label: 'Existing savings', value: '₹2,26,800' },
@@ -660,7 +684,7 @@ function ManualEntry({ income, setIncome, bank, setBank, onNext }: {
             <span style={{ fontSize: 26, color: T.t, fontWeight: 400 }}>₹</span>
             <input
               type="number"
-              placeholder="e.g. 68,500"
+              placeholder="e.g. 98,000"
               value={income}
               onChange={(e) => setIncome(e.target.value)}
               style={{
@@ -1048,7 +1072,137 @@ function LifeAnchor({ lifeStage, setLifeStage, anchor, setAnchor, irregular, set
 }
 
 // =====================================================================
-// STEP 7 — Focus goal (JSX 927-1045)
+// STEP 7 — Your rules (D.50 — Stream 0.5t piece #6)
+// =====================================================================
+// New step inserted between LifeAnchor (step 6) and FocusGoal (was 7,
+// now 8). Captures the three editable user rules: safety net, impulse-
+// wait threshold, impulse-wait duration. Daily-SPS floor stays auto-
+// derived per spec — not user input in V1.
+//
+// For Priya seed: input fields are pre-populated with the canonical
+// values (₹1,00,000 / ₹3,000 / 48 hours). User can accept or edit.
+// On Continue → state captured; no DB write (per C.18 — onboarding is
+// useState-only for the Priya demo path. New-user persistence is V2.)
+function YourRules({
+  safetyNet, setSafetyNet,
+  impulseThreshold, setImpulseThreshold,
+  impulseHours, setImpulseHours,
+  onNext,
+}: {
+  safetyNet: string; setSafetyNet: (v: string) => void;
+  impulseThreshold: string; setImpulseThreshold: (v: string) => void;
+  impulseHours: string; setImpulseHours: (v: string) => void;
+  onNext: () => void;
+}) {
+  const sn = parseInt(safetyNet || '0', 10);
+  const it = parseInt(impulseThreshold || '0', 10);
+  const ih = parseInt(impulseHours || '0', 10);
+  const canContinue = sn >= 1000 && it >= 100 && ih >= 1 && ih <= 168;
+
+  const HOUR_OPTIONS = [24, 48, 72] as const;
+
+  return (
+    <StepFrame>
+      <StepTitle sub="Two thresholds Savio will reference when it weighs in on spending decisions. Defaults work; tweak if you've thought about it.">
+        Your rules
+      </StepTitle>
+      <ScrollBody>
+        <div style={{ fontSize: 11.5, color: T.s, fontWeight: 500, padding: '0 6px 8px', letterSpacing: 0.3, textTransform: 'uppercase' }}>
+          Safety net
+        </div>
+        <Card style={{ padding: '6px 14px', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22, color: T.t, fontWeight: 400 }}>₹</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="e.g. 1,00,000"
+              value={safetyNet}
+              onChange={(e) => setSafetyNet(e.target.value)}
+              style={{
+                flex: 1, border: 'none', outline: 'none',
+                fontSize: 20, fontWeight: 500, color: T.p,
+                fontFamily: 'inherit', padding: '12px 0',
+                backgroundColor: 'transparent',
+              }}
+            />
+          </div>
+        </Card>
+        <div style={{ fontSize: 11.5, color: T.t, padding: '0 6px', lineHeight: 1.4 }}>
+          Money you want available before any discretionary spend touches it.
+        </div>
+
+        <div style={{ fontSize: 11.5, color: T.s, fontWeight: 500, padding: '20px 6px 8px', letterSpacing: 0.3, textTransform: 'uppercase' }}>
+          Impulse-wait threshold
+        </div>
+        <Card style={{ padding: '6px 14px', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22, color: T.t, fontWeight: 400 }}>₹</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="e.g. 3,000"
+              value={impulseThreshold}
+              onChange={(e) => setImpulseThreshold(e.target.value)}
+              style={{
+                flex: 1, border: 'none', outline: 'none',
+                fontSize: 20, fontWeight: 500, color: T.p,
+                fontFamily: 'inherit', padding: '12px 0',
+                backgroundColor: 'transparent',
+              }}
+            />
+          </div>
+        </Card>
+        <div style={{ fontSize: 11.5, color: T.t, padding: '0 6px', lineHeight: 1.4 }}>
+          Any spend above this triggers a wait period before you commit.
+        </div>
+
+        <div style={{ fontSize: 11.5, color: T.s, fontWeight: 500, padding: '20px 6px 8px', letterSpacing: 0.3, textTransform: 'uppercase' }}>
+          Wait how long
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {HOUR_OPTIONS.map((h) => {
+            const active = parseInt(impulseHours || '0', 10) === h;
+            return (
+              <button
+                key={h}
+                type="button"
+                onClick={() => setImpulseHours(String(h))}
+                style={{
+                  flex: 1, padding: '12px 10px',
+                  backgroundColor: T.card,
+                  border: active ? `1.5px solid ${T.avStop}` : `0.5px solid ${T.border}`,
+                  borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: 13, color: T.p, fontWeight: active ? 500 : 400,
+                }}
+              >{h} hrs</button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 11.5, color: T.t, padding: '6px 6px 0', lineHeight: 1.4 }}>
+          Most people land at 48 — long enough to forget the impulse, short enough to remember you wanted it.
+        </div>
+
+        <div style={{
+          marginTop: 18, padding: '10px 12px', borderRadius: 12,
+          backgroundColor: T.cardSoft, fontSize: 11.5, color: T.s,
+          lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: 6,
+        }}>
+          <Sparkles size={11} color={T.s} strokeWidth={2} style={{ marginTop: 2, flexShrink: 0 }} />
+          <span>When Savio weighs in on a purchase that crosses one of these, you'll see the rule named in the verdict.</span>
+        </div>
+      </ScrollBody>
+      <Footer>
+        <PrimaryButton onClick={onNext} disabled={!canContinue}>
+          Continue <ArrowRight size={16} />
+        </PrimaryButton>
+      </Footer>
+    </StepFrame>
+  );
+}
+
+// =====================================================================
+// STEP 8 — Focus goal (JSX 927-1045; was step 7 pre-D.50)
 // =====================================================================
 function FocusGoal({ focusGoal, setFocusGoal, dataSource, onNext }: {
   focusGoal: string; setFocusGoal: (v: string) => void; dataSource: string; onNext: () => void;
@@ -1207,7 +1361,7 @@ function Ready({ state, onEnter, onRestart }: {
       : focusLabel;
     const monthlyIncome = state.dataSource === 'manual'
       ? (parseInt(state.manualIncome || '0', 10) || null)
-      : 68500;
+      : 98000;
     return {
       avatar: (state.avatar || 'strategist') as AvatarKey,
       lifeStage: (state.lifeStage || 'working_no_dependents') as NonNullable<OnboardingState['lifeStage']>,
