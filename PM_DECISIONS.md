@@ -978,6 +978,8 @@ Pairs with the book-ending ritual thesis (Foundation #1 — intervene at book-en
 
 The expanded body copy is the strongest single quality lift in the build's prose surfaces. It models what an AI-feeling close-out should read like: specific to the user's actual numbers, naming their actual rules, offering levers that are real (lower the threshold, label the purchases, audit recent commitments), and reframing the deficit appropriately to its severity tier (course-correct vs rebuild vs structural).
 
+**(d) Heading: "What you can do now" → "Where we can help next".** Real-user feedback flagged the original heading as positioning the user alone with the problem — "what YOU can do" implies Savio handed off the deficit and walked away. Reframed to "Where we can help next": the "we" implicates Savio as the co-pilot reading the user's data and offering the constructive path, not a coach standing on the sideline issuing assignments. Pairs with the broader voice-discipline thread (C.16 three-step labels, C.26 verdict action language, D.27 "Reflect on your spending", D.34 "Show my reflections"): each of these resists framings where the AI talks AT the user, in favor of framings where the AI is implicated in the user's next decision. The body copy itself stays user-centric for the action verbs ("Open the Reflect tab", "Consider tightening your impulse-wait threshold") because those ARE the user's calls — Savio's job is the analysis + lever surfacing, the user's job is the choice. Heading + body together: Savio's read, user's decision, joint problem.
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs

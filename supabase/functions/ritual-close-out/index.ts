@@ -111,7 +111,7 @@ function deriveCloseOutGuidance(params: {
     return {
       show: true,
       severity: 'repeated_deficit',
-      heading: 'What you can do now',
+      heading: 'Where we can help next',
       body: [
         `This is the ${ord} month in a row closing short. Once is a bad month — that's normal. Twice in a row is a pattern, and patterns don't fix themselves by hoping next month is different.`,
         `The arithmetic is worth sitting with. Your fixed commitments (rent, EMI, SIPs, utilities) come to roughly the same amount each month — those aren't the variable here. What's variable is one-off spending: this month it was ${inr(oneOffTotal)} (${topThreeMerchants}). If that pattern keeps repeating, the deficit will too.`,
@@ -132,7 +132,7 @@ function deriveCloseOutGuidance(params: {
     return {
       show: true,
       severity: 'deficit_breached',
-      heading: 'What you can do now',
+      heading: 'Where we can help next',
       body: [
         `This month went past your safety net. Your accessible cash is now ${inr(current_savings)} — below the ${inr(rules.safety_net)} line you set as the floor. The shortfall is ${inr(shortfall)}.`,
         `The safety net rule exists for a specific reason: it's the cushion that lets you handle an emergency without taking on debt. Once it's below the threshold, every new discretionary purchase makes the gap wider.`,
@@ -153,7 +153,7 @@ function deriveCloseOutGuidance(params: {
     return {
       show: true,
       severity: 'deficit_safe',
-      heading: 'What you can do now',
+      heading: 'Where we can help next',
       body: [
         `Your spending leftover landed at ${inr(net_leftover)} this month. The biggest drivers were ${inr(oneOffTotal)} of one-off spending — ${topThreeMerchants}. That's where the gap between budgeted and actual came from; the fixed commitments and goal contributions were on plan.`,
         `Your impulse-wait rule (${rules.impulse_wait_hours} hours over ${inr(rules.impulse_wait_threshold)}) would have given you a cooling-off period on ${inr(caughtByImpulseRule)} of those purchases. If you'd taken the pause on even one or two — particularly ${topTwoMerchants} — this month would have closed at or near zero instead of in the red. The rule is built for exactly this pattern.`,
@@ -171,7 +171,7 @@ function deriveCloseOutGuidance(params: {
   return {
     show: true,
     severity: 'small_short',
-    heading: 'What you can do now',
+    heading: 'Where we can help next',
     body: [
       `You finished ${inr(net_leftover)} ahead — close to the line. That's not a deficit, but it's also not the buffer you'd want every month. Variable categories came in ${variable_category_net >= 0 ? `${inr(variable_category_net)} under budget` : `${inr(variable_category_net)} over budget`}; the rest of the gap came from ${inr(oneOffTotal)} in one-off spending (${topThreeMerchants}).`,
       `Months that finish this close are the most useful ones to reflect on. The leftover was small enough that even one or two different discretionary calls would have made the month feel different — but big enough that nothing scary happened.`,
