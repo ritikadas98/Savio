@@ -1,14 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatMonthName, getNextMonthName } from '../../lib/dates';
 import { Card, Pill, SectionHeader } from '../primitives';
-import { ReflectionLabelRow, type ReflectionLabel } from './ReflectionLabelRow';
+// D.61 (Stream 0.5v piece #4) — ReflectionLabelRow no longer used here.
+// Reflect tab owns transaction labeling; the close-out's "Looking back"
+// section was removed to avoid duplication.
 
 type CommitmentBuffer = { commitment_id: string; commitment_name: string; budgeted: number; actual: number; buffer: number };
 type CommitmentOverrun = { commitment_id: string; commitment_name: string; budgeted: number; actual: number; overrun: number };
 type UnlabeledTransaction = { id: string; merchant: string | null; amount: number; occurred_at: string; category?: string | null };
+
+// D.60 + D.62 (Stream 0.5v) — Edge Function now returns one_off_breakdown,
+// recap, and guidance. unlabeled_transactions retained on the wire for
+// backward compat with other consumers; not rendered here post-D.61.
+type MerchantTotal = { merchant: string; total: number };
 
 export type CloseOutData = {
   month: string;
@@ -17,6 +24,27 @@ export type CloseOutData = {
   commitment_buffers: CommitmentBuffer[];
   commitment_overruns: CommitmentOverrun[];
   unlabeled_transactions: UnlabeledTransaction[];
+  one_off_breakdown: {
+    top: MerchantTotal[];
+    other_total: number;
+    other_count: number;
+    total: number;
+    full_list: MerchantTotal[];
+  };
+  recap: {
+    income: number;
+    fixed_commitments: number;
+    goal_contributions: number;
+    variable_category_net: number;
+    one_off_discretionary: number;
+    net_leftover: number;
+  };
+  guidance: {
+    show: boolean;
+    severity: 'small_short' | 'deficit_safe' | 'deficit_breached' | 'repeated_deficit';
+    heading: string;
+    body: string;
+  };
 };
 
 const formatINRInt = (n: number) =>
@@ -25,6 +53,10 @@ const formatINRInt = (n: number) =>
 export function MonthlyRitualCloseOut() {
   const { month = '2026-04' } = useParams();
   const navigate = useNavigate();
+  // D.60 — recap card's "One-off spending" row expands inline to show
+  // top-4 merchants + the "N others" bucket. Per-mount state; collapses
+  // by default to keep the recap card scannable.
+  const [oneOffExpanded, setOneOffExpanded] = useState(false);
 
   const [data, setData] = useState<CloseOutData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,19 +80,6 @@ export function MonthlyRitualCloseOut() {
     load();
     return () => { cancelled = true; };
   }, [month]);
-
-  const handleReflectionLabel = async (txnId: string, label: ReflectionLabel) => {
-    // Resolve profile.id (same pattern as HomePage/ChatPage)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single();
-    if (!profile) throw new Error('Profile not found');
-
-    const { error: insertErr } = await supabase
-      .from('reflections')
-      .insert({ user_id: profile.id, transaction_id: txnId, label });
-    if (insertErr) throw insertErr;
-  };
 
   if (loading) {
     return (
@@ -184,36 +203,114 @@ export function MonthlyRitualCloseOut() {
           </Card>
         )}
 
-        {/* Discretionary leftover */}
-        <Card className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="font-medium text-[#1A1A1A]">Discretionary leftover</div>
-            <div className="text-xs text-[#5F5E5A] mt-1">
-              Income minus commitments minus discretionary spend.
-            </div>
+        {/* D.60 (Stream 0.5v #1+#3) — math-reveal recap card. Replaces
+            the standalone "Spending leftover" card (now demoted to the
+            total row here) and the previously-opaque jump from
+            Spending Categories → giant red leftover number. Every line
+            ties back to a value in the recap payload from the Edge
+            Function; the user can audit the math row by row. The
+            "One-off spending" row is tappable — expands to show top-4
+            merchants + "N others" bucket so the largest single drivers
+            are visible without overwhelming the surface. */}
+        <Card className="mb-3" style={{ padding: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#5A6B5F', letterSpacing: 0.3, textTransform: 'uppercase', marginBottom: 12 }}>
+            The math
           </div>
-          <div className={`font-medium flex-shrink-0 ${data.discretionary_leftover >= 0 ? 'text-[#1A1A1A]' : 'text-[#791F1F]'}`}>
-            {data.discretionary_leftover < 0 ? '−' : ''}{formatINRInt(data.discretionary_leftover)}
+
+          <RecapRow label="Income" amount={data.recap.income} positive />
+          <RecapRow label="Fixed commitments" amount={data.recap.fixed_commitments} positive={false} />
+          <RecapRow label="Goal contributions" amount={data.recap.goal_contributions} positive={false} />
+          <RecapRow label="Variable category net" amount={data.recap.variable_category_net} positive={data.recap.variable_category_net >= 0} />
+
+          {/* Tappable one-off-spending row + inline expansion. */}
+          <button
+            type="button"
+            onClick={() => setOneOffExpanded(e => !e)}
+            aria-expanded={oneOffExpanded}
+            className="hover:bg-black/[0.02] transition-colors"
+            style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              width: '100%', padding: '6px 0', gap: 12,
+              background: 'transparent', border: 'none', textAlign: 'left',
+              fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 13, color: '#1A1A1A', flex: 1 }}>One-off spending</span>
+            <span style={{ fontSize: 13, color: '#501313', fontVariantNumeric: 'tabular-nums' }}>
+              −{formatINRInt(data.recap.one_off_discretionary)}
+            </span>
+            <ChevronDown
+              size={14}
+              color="#5A6B5F"
+              style={{
+                transform: oneOffExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 200ms ease',
+                flexShrink: 0,
+              }}
+              aria-hidden
+            />
+          </button>
+          {oneOffExpanded && (
+            <div style={{ paddingLeft: 14, paddingTop: 4, paddingBottom: 6 }}>
+              {data.one_off_breakdown.top.map(m => (
+                <div key={m.merchant} style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: 12, color: '#5F5E5A', padding: '3px 0',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  <span>{m.merchant}</span>
+                  <span>−{formatINRInt(m.total)}</span>
+                </div>
+              ))}
+              {data.one_off_breakdown.other_count > 0 && (
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: 12, color: '#5F5E5A', padding: '3px 0',
+                  fontVariantNumeric: 'tabular-nums', fontStyle: 'italic',
+                }}>
+                  <span>{data.one_off_breakdown.other_count} others</span>
+                  <span>−{formatINRInt(data.one_off_breakdown.other_total)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hairline divider above the net leftover total */}
+          <div style={{ borderTop: '0.5px solid rgba(0,0,0,0.07)', margin: '10px 0 8px' }} />
+
+          {/* D.60 piece #2 — "Spending leftover" rename lands here as the
+              total row label. Old standalone card title was "Discretionary
+              leftover"; per the spec the rename was banked but never
+              shipped in 0.5p — landing now as part of the recap. */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+            padding: '4px 0',
+          }}>
+            <span style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500 }}>
+              Spending leftover
+            </span>
+            <span style={{
+              fontSize: 16, fontWeight: 500,
+              color: data.recap.net_leftover >= 0 ? '#173404' : '#501313',
+              fontVariantNumeric: 'tabular-nums',
+            }}>
+              {data.recap.net_leftover >= 0 ? '+' : '−'}{formatINRInt(data.recap.net_leftover)}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: '#5F5E5A', marginTop: 2, lineHeight: 1.45 }}>
+            Income minus commitments minus your actual spending. Negative means you went past your safe-to-spend.
           </div>
         </Card>
 
-        {/* Reflection prompts */}
-        {data.unlabeled_transactions.length > 0 && (
-          <Card className="mb-3">
-            <SectionHeader title="Looking back" />
-            <div className="text-xs text-[#5F5E5A] mb-1">
-              Label how these felt. Helps Savio learn your patterns.
-            </div>
-            <div className="flex flex-col divide-y divide-borderSoft">
-              {data.unlabeled_transactions.map(t => (
-                <ReflectionLabelRow
-                  key={t.id}
-                  transaction={t}
-                  onLabel={(label) => handleReflectionLabel(t.id, label)}
-                />
-              ))}
-            </div>
-          </Card>
+        {/* D.62 (Stream 0.5v piece #5) — "What you can do now" guidance.
+            Renders only when the Edge Function's rule-engine determined
+            we're in the yellow/red zone (small_short / deficit_safe /
+            deficit_breached / repeated_deficit). Card tint varies by
+            severity — calm neutral for the lighter tiers, warmer amber
+            for the more serious ones. NOT alarmist; pairs the deficit
+            truth with a concrete lever tied to the user's own rules. */}
+        {data.guidance.show && (
+          <GuidanceCard guidance={data.guidance} />
         )}
 
         {/* Continue */}
@@ -232,6 +329,71 @@ export function MonthlyRitualCloseOut() {
             {continueLabel}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// D.60 — single recap-row primitive. Income / Fixed commitments /
+// Goal contributions / Variable category net all use this shape;
+// only the one-off-spending row is bespoke (because it's tappable).
+function RecapRow({ label, amount, positive }: { label: string; amount: number; positive: boolean }) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+      padding: '6px 0',
+    }}>
+      <span style={{ fontSize: 13, color: '#1A1A1A' }}>{label}</span>
+      <span style={{
+        fontSize: 13,
+        color: positive ? '#173404' : '#501313',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {positive ? '+' : '−'}{new Intl.NumberFormat('en-IN', {
+          style: 'currency', currency: 'INR', maximumFractionDigits: 0,
+        }).format(Math.abs(amount))}
+      </span>
+    </div>
+  );
+}
+
+// D.62 (Stream 0.5v #5) — "What you can do now" card. Severity tints:
+//   - small_short, deficit_safe: calm light-blue (supportive, non-alarmist)
+//   - deficit_breached, repeated_deficit: light amber (attention without
+//     red-alarm — the body copy carries the seriousness, not the chrome)
+// No emoji, no exclamation cheerleading, no doom. Constructive +
+// real lever tied to the user's own rules.
+function GuidanceCard({
+  guidance,
+}: {
+  guidance: {
+    show: boolean;
+    severity: 'small_short' | 'deficit_safe' | 'deficit_breached' | 'repeated_deficit';
+    heading: string;
+    body: string;
+  };
+}) {
+  const isSerious = guidance.severity === 'deficit_breached' || guidance.severity === 'repeated_deficit';
+  const bg = isSerious ? '#FFF4E8' : '#F0F4F8';
+  const border = isSerious ? 'rgba(184,134,11,0.18)' : 'rgba(12,68,124,0.12)';
+
+  return (
+    <div
+      className="mb-3"
+      style={{
+        backgroundColor: bg,
+        border: `0.5px solid ${border}`,
+        borderRadius: 14,
+        padding: 16,
+      }}
+      role="note"
+      aria-label={guidance.heading}
+    >
+      <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 8 }}>
+        {guidance.heading}
+      </div>
+      <div style={{ fontSize: 13, color: '#3A3A3A', lineHeight: 1.6 }}>
+        {guidance.body}
       </div>
     </div>
   );

@@ -347,6 +347,23 @@ BEGIN
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
   VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '22 days')::timestamptz, 2800, 'debit', 'Bblunt Salon', 'Hair cut + treatment', 'Personal Care', true);
 
+  -- D.62 (Stream 0.5v piece #5) — March 2026 negative close-out seed.
+  -- Default April is positive post-D.47 (₹98K income); to exercise the
+  -- "What you can do now" deficit_safe guidance tier the demo also needs
+  -- a negative month. Four high-impact null-commitment March purchases
+  -- push March's nullCommitmentDebitTotal up by ~₹38K, dropping the
+  -- close-out math to ~−₹10K (safety net intact since emergency fund
+  -- stays at ₹1,84,000 > ₹1,00,000). Reviewer Console "Preview March
+  -- close-out" row routes to /ritual/2026-03 to demo it.
+  -- Plausible mid-twenties Bangalore Indian-professional spending mix:
+  -- weekend trip flight, celebration dinner, tech accessory, apparel splurge.
+  INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category, is_significant)
+  VALUES
+    (gen_random_uuid(), v_user_id, (v_demo_today - interval '1 month 26 days')::timestamptz, 18000, 'debit', 'IndiGo Airlines', 'Bangalore → Goa weekend', 'Travel',   true),
+    (gen_random_uuid(), v_user_id, (v_demo_today - interval '1 month 17 days')::timestamptz,  6500, 'debit', 'Royal China',     'Birthday dinner',         'Food',     true),
+    (gen_random_uuid(), v_user_id, (v_demo_today - interval '1 month 11 days')::timestamptz,  4500, 'debit', 'Croma',           'Wireless earbuds',        'Shopping', true),
+    (gen_random_uuid(), v_user_id, (v_demo_today - interval '1 month 5 days')::timestamptz,   9200, 'debit', 'Forever 21',      'Spring wardrobe refresh', 'Shopping', true);
+
   -- Update merchant stats explicitly for demo certainty.
   -- Numbers reflect the labeled corpus above (NOT all merchant txns — just labeled).
   -- D.38 (Stream 0.5r piece #7) — totals updated to include the 9 new

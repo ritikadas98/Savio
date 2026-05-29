@@ -1,5 +1,6 @@
 import React from 'react';
-import { Download, FileText, Beaker, ChevronRight } from 'lucide-react';
+import { Download, FileText, Beaker, ChevronRight, AlertTriangle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, SectionHeader } from '../primitives';
 import { ResetActionRow } from './ResetActionRow';
 import { resetAprilRitual, clearChatHistory, resetReflectionsToSeed, resetEntireDemoState } from '../../lib/reviewer-actions';
@@ -80,6 +81,12 @@ function StubRow({ icon: Icon, label, sublabel, onClick, isLast }: StubRowProps)
 export function ReviewerConsole({ onStub }: Props) {
   const prevMonth = getPreviousMonthName();
   const handleStub = onStub ?? (() => {});
+  // D.62 (Stream 0.5v piece #5) — navigation hook for the March
+  // close-out preview link below. The route accepts any month string;
+  // seed has March pre-arranged to land negative so reviewers can see
+  // the "What you can do now" deficit_safe guidance tier without
+  // having to wait for a real deficit to occur.
+  const navigate = useNavigate();
 
   return (
     <>
@@ -148,6 +155,20 @@ export function ReviewerConsole({ onStub }: Props) {
             label="View divergence tests"
             sublabel="Architectural changes from the team v1 build"
             onClick={handleStub}
+          />
+          {/* D.62 (Stream 0.5v #5) — March close-out preview. Canonical
+              April is positive post-D.47; March is seeded with extra
+              one-off purchases to land at ~₹10K deficit, exercising the
+              "What you can do now" deficit_safe tier (safety net still
+              intact). Navigates via the same /ritual/:month route the
+              ritual banner uses — the close-out screen renders fine for
+              past months, the Continue button routes to /complete for
+              negative leftovers. */}
+          <StubRow
+            icon={AlertTriangle}
+            label="Preview March close-out (deficit demo)"
+            sublabel="See the &lsquo;What you can do now&rsquo; guidance tier for a negative month"
+            onClick={() => navigate('/ritual/2026-03')}
             isLast
           />
         </Card>
