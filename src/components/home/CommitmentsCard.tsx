@@ -36,7 +36,7 @@ export function CommitmentsCard({ paidThisWeek, totalThisWeek }: Props) {
           <Calendar size={20} strokeWidth={2} />
         </div>
         <div>
-          <div style={{ fontSize: 15, color: '#1A1A1A', fontWeight: 400 }}>Commitments on track</div>
+          <div style={{ fontSize: 15, color: '#1A1A1A', fontWeight: 400 }}>Fixed commitments on track</div>
           <div style={{ fontSize: 12.5, color: '#5F5E5A', marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>

@@ -54,7 +54,10 @@ export function WindfallReview() {
 
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
-      <RitualHeader sectionLabel="Windfall" stepLabel="Step 2 of 2" onClose={() => navigate('/home')} />
+      {/* D.56 (Stream 0.5u piece #2) — Allocate flow section label across
+          both steps. Page identity is the action; windfall identity lives
+          in the C.28 labeled header. */}
+      <RitualHeader sectionLabel="Allocate" stepLabel="Step 2 of 2" onClose={() => navigate('/home')} />
 
       <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ padding: '8px 16px 24px' }}>
         <div style={{ padding: '0 6px 18px' }}>

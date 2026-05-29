@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { tokens } from '../../lib/design-tokens';
 import { Card } from '../primitives';
 
@@ -10,6 +10,12 @@ type Props = {
   // HomePage call site; safe to drop in a V2 cleanup if a `source` field
   // never re-emerges in the design.
   source?: string;
+  // D.55 (Stream 0.5u piece #3) — onDismiss is wired to "Skip for now"
+  // only. The previous duplicate X-cross dismiss affordance was removed:
+  // (a) both buttons called the same handler so there was no UX value
+  // in having two; (b) HomePage never passed onDismiss pre-D.55, so both
+  // were silently inert; (c) single Skip affordance reduces the chance
+  // of the same bug recurring.
   onDismiss?: () => void;
   onAllocate?: () => void;
 };
@@ -30,23 +36,16 @@ export function WindfallCard({ amount, onDismiss, onAllocate }: Props) {
 
         {/* Doc 1.15 Stream E: amount IS the headline. The prior small source
             label above the amount has been removed — preview reserves that
-            slot pattern for elsewhere. */}
+            slot pattern for elsewhere.
+            D.55 (Stream 0.5u #3): X-cross dismiss removed (was redundant
+            with Skip; both were silently broken). Skip for now is the
+            single dismiss affordance below. */}
         <div
           className="flex-1 min-w-0"
           style={{ fontSize: 15, color: tokens.p, fontWeight: 500, lineHeight: 1.35 }}
         >
           {formattedAmount} landed today — well above your usual.
         </div>
-
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-          className="flex-shrink-0 transition-colors"
-          style={{ color: tokens.s }}
-        >
-          <X size={18} />
-        </button>
       </div>
 
       <p style={{ fontSize: 12.5, color: tokens.s, lineHeight: 1.4 }}>
