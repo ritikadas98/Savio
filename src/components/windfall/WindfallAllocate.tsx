@@ -197,7 +197,12 @@ export function WindfallAllocate() {
 
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
-      <RitualHeader sectionLabel="Windfall" stepLabel="Step 1 of 2" onClose={() => navigate('/home')} />
+      {/* D.56 (Stream 0.5u piece #2) — section label renamed "Windfall" →
+          "Allocate" so the handoff from the Home card's "Allocate now"
+          button reads as one continuous action. The windfall identity
+          (e.g. "Diwali bonus · ₹50,000") lives in the C.28 labeled
+          header below; the page itself is about the action. */}
+      <RitualHeader sectionLabel="Allocate" stepLabel="Step 1 of 2" onClose={() => navigate('/home')} />
 
       <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ padding: '8px 16px 24px' }}>
         {/* C.28 (Stream 0.5p #9) — windfall identity header.

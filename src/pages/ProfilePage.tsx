@@ -334,7 +334,7 @@ export function ProfilePage() {
             variable categories surface on the close-out + ritual flow. */}
         {commitments.length > 0 && (
           <>
-            <ProfileSectionHeader title="Your commitments" />
+            <ProfileSectionHeader title="Your fixed commitments" />
             <Card className="!p-0">
               <button
                 type="button"

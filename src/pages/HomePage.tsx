@@ -14,7 +14,12 @@ import { ForYouTodayCard } from '../components/home/ForYouTodayCard';
 import { CategorizationBanner } from '../components/home/CategorizationBanner';
 import { UpcomingBillsCard } from '../components/home/UpcomingBillsCard';
 import { computeUpcomingBills } from '../lib/upcoming-bills';
-import { PatternsCallout } from '../components/home/PatternsCallout';
+// D.58 (Stream 0.5u piece #4) — PatternsCallout removed from Home.
+// Real-user testing flagged the "Patterns this week" section as
+// non-functional/low-value. Component file kept dormant for git
+// history; not imported, not rendered. Reflect tab trend cards +
+// emotion chart (0.5p-0.5s) carry pattern analysis instead.
+// import { PatternsCallout } from '../components/home/PatternsCallout';
 import { ReflectEntryCard } from '../components/home/ReflectEntryCard';
 import { ProfilePill } from '../components/layout/ProfilePill';
 
@@ -23,6 +28,13 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  // D.55 (Stream 0.5u piece #3) — session-level windfall skip flag. The
+  // underlying windfall stays pending_allocation in DB; this just hides
+  // the card on Home for the rest of the session. Resets when the
+  // component unmounts (navigating away + back keeps it; full reload OR
+  // auto-reset D.15 clears it). Intentionally NOT persisted — Skip is
+  // "not now", not "never."
+  const [windfallSkipped, setWindfallSkipped] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,11 +245,12 @@ export function HomePage() {
             </h1>
           </header>
 
-          {pendingWindfall && (
+          {pendingWindfall && !windfallSkipped && (
             <WindfallCard
               amount={pendingWindfall.amount}
               source={pendingWindfall.source || 'Unexpected deposit'}
               onAllocate={() => navigate(`/windfall/${pendingWindfall.id}/allocate`)}
+              onDismiss={() => setWindfallSkipped(true)}
             />
           )}
 
@@ -266,7 +279,7 @@ export function HomePage() {
 
           <ForYouTodayCard insight={guidance.focusGoal} />
 
-          <PatternsCallout insight={guidance.reflectionPattern} />
+          {/* D.58 (Stream 0.5u #4) — "Patterns this week" section removed. */}
 
           <RecentTransactionsList transactions={recentTransactions} />
 

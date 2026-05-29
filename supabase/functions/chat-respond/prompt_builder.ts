@@ -296,7 +296,11 @@ export const buildGroundingContext = (
   lines.push(`- Anchor day (salary day of month): ${anchorDay}`);
   lines.push('');
 
-  lines.push(`### Non-investing commitments (outflow — ${nonInvestingCommitments.length} items, total ₹${INR(totalNonInvesting)}/month)`);
+  // D.57 (Stream 0.5u piece #1) — labeled "Fixed commitments" matching the
+  // user-facing UI label (Home CommitmentsCard + Profile section). Subtitle
+  // "(outflow, non-investing)" preserves the math-relevant subset distinction
+  // for the AI without re-introducing finance-jargon to the user.
+  lines.push(`### Fixed commitments (outflow, non-investing — ${nonInvestingCommitments.length} items, total ₹${INR(totalNonInvesting)}/month)`);
   if (nonInvestingCommitments.length === 0) {
     lines.push('- (none)');
   } else {

@@ -4,9 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { Card, SectionHeader } from '../primitives';
 import type { FocusGoalInsight } from '../../lib/guidance';
 
-// Doc 1.16 + Stream 0.5-D: primary "For you today" insight with target-icon
+// Doc 1.16 + Stream 0.5-D: primary focus-goal insight card with target-icon
 // plate (32×32 avPlate / Target icon T.avStop / size 15). Layout matches JSX
 // preview lines 338-355.
+//
+// D.59 (Stream 0.5u piece #5) — section header renamed "For you today" →
+// "Track your goals". Real-user testing flagged the original as vague; the
+// section content has always been goal-progress insights (FocusGoalInsight),
+// so the new label states what's actually rendered.
 export function ForYouTodayCard({ insight }: { insight: FocusGoalInsight | null }) {
   const navigate = useNavigate();
 
@@ -14,7 +19,7 @@ export function ForYouTodayCard({ insight }: { insight: FocusGoalInsight | null 
 
   return (
     <div className="mb-3">
-      <SectionHeader title="For you today" />
+      <SectionHeader title="Track your goals" />
       <Card>
         <button
           type="button"
