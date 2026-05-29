@@ -63,8 +63,12 @@ export function MonthlyRitualCommitments() {
   return (
     <div className="flex flex-col h-full bg-[#E4ECE6]">
       <RitualHeader stepLabel="5 of 7" onClose={() => navigate('/home')} />
+      {/* D.57 (Stream 0.5u piece #1) — title aligned with the
+          "Fixed commitments" sweep across Home + Profile + chat
+          grounding. This surface lists kind='fixed' rows only
+          (see line 46 query); the label now matches the data. */}
       <RitualTitle sub="A quick scan of what's committed. Tap to adjust any that changed.">
-        Your commitments
+        Your fixed commitments
       </RitualTitle>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide" style={{ padding: '0 16px 24px' }}>
