@@ -968,6 +968,16 @@ Implementation in `supabase/functions/ritual-close-out/index.ts::deriveCloseOutG
 
 Pairs with the book-ending ritual thesis (Foundation #1 — intervene at book-ending moments, not at the moment of decision) and the regret-rate North Star — a deficit month is the highest-leverage moment for honest decision-support, not a moment to flash a scary number and walk away.
 
+**Follow-up patch (real-user feedback on the first D.62 ship):** three changes layered on:
+
+(a) **Position**: guidance card moved from "below the math recap" to "directly below the hero". The truth about a deficit is the headline; the constructive path forward needs to be the second thing the user reads, not buried below the breakdown. Hero → guidance → demo toggle → spending categories → math recap is the new vertical order on the close-out screen.
+
+(b) **Length / depth**: bodies expanded from ~50 words to ~150-220 words across all four severity tiers. Structured as 4-7 paragraphs: diagnosis → rule analysis → safety-net status → concrete steps (with `•` unicode bullets) → reframe. The user expects a thorough analysis when they hit a deficit, not a one-liner that reads as canned. `body` field still typed as `string` on the wire; paragraphs separated by `\n\n`, frontend `GuidanceCard` splits and renders each as its own `<div>` with bullet detection on the leading `•`. Length budget: enough for diagnosis + lever + concrete steps without becoming a wall of text. The `deficit_safe` body now explicitly names the impulse-wait rule by value, computes how much would have been caught, suggests a tighter threshold (`Math.max(1000, threshold × 0.8)`) as a concrete adjustment lever, and points to Reflect labeling as the next action.
+
+(c) **Inline demo toggle replaces Reviewer Console navigation**: small pill on the close-out screen ("Demo: positive month · switch to March deficit" / inverse on March), only shown for `2026-04` and `2026-03`. Tapping flips between the two seeded demo months. The Reviewer Console row stays for completeness but the discoverable affordance is now on the surface where the demo lives — reviewers see the toggle the moment they land on the canonical close-out, rather than needing to find Profile → Reviewer tools first.
+
+The expanded body copy is the strongest single quality lift in the build's prose surfaces. It models what an AI-feeling close-out should read like: specific to the user's actual numbers, naming their actual rules, offering levers that are real (lower the threshold, label the purchases, audit recent commitments), and reframing the deficit appropriately to its severity tier (course-correct vs rebuild vs structural).
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs

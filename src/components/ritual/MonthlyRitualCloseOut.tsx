@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { formatMonthName, getNextMonthName } from '../../lib/dates';
 import { Card, Pill, SectionHeader } from '../primitives';
@@ -170,6 +170,52 @@ export function MonthlyRitualCloseOut() {
           </div>
         </Card>
 
+        {/* D.62 follow-up — inline demo toggle. Replaces the Reviewer
+            Console-only path to the deficit demo. When viewing April
+            (canonical positive month), tap toggles to March (seeded
+            deficit). When viewing March, toggles back. Visible only on
+            the two demo months — past Jan/Feb or future months don't
+            show it. Subtle pill styling reads as "demo affordance"
+            without competing with the primary content. */}
+        {(month === '2026-04' || month === '2026-03') && (
+          <button
+            type="button"
+            onClick={() => navigate(`/ritual/${month === '2026-04' ? '2026-03' : '2026-04'}`)}
+            className="hover:bg-black/[0.02] transition-colors"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 11,
+              color: '#5F5E5A',
+              padding: '6px 10px',
+              borderRadius: 999,
+              background: 'rgba(12,68,124,0.05)',
+              border: '0.5px solid rgba(12,68,124,0.15)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              marginBottom: 12,
+            }}
+          >
+            <ArrowLeftRight size={11} strokeWidth={2} />
+            {month === '2026-04'
+              ? 'Demo: positive month · switch to March deficit'
+              : 'Demo: deficit month · switch to April positive'}
+          </button>
+        )}
+
+        {/* D.62 (Stream 0.5v piece #5) — "What you can do now" guidance,
+            positioned right below the hero per follow-up UX feedback.
+            The truth about a deficit is the headline; the constructive
+            path forward should be the very next thing the user reads,
+            not buried below the breakdown. Renders only when the rule
+            engine flags yellow/red zone. Defensive guard via optional
+            chaining: if Edge Function is still on pre-0.5v schema,
+            data.guidance is undefined → skip silently. */}
+        {data.guidance?.show && (
+          <GuidanceCard guidance={data.guidance} />
+        )}
+
         {/* Spending-category breakdown. D.20 (Stream 0.5p #4): rows here are
             variable spending categories (Eating out, Transport, Groceries)
             with budget caps, not fixed commitments. Real fixed commitments
@@ -332,18 +378,11 @@ export function MonthlyRitualCloseOut() {
           </Card>
         )}
 
-        {/* D.62 (Stream 0.5v piece #5) — "What you can do now" guidance.
-            Renders only when the Edge Function's rule-engine determined
-            we're in the yellow/red zone (small_short / deficit_safe /
-            deficit_breached / repeated_deficit). Card tint varies by
-            severity — calm neutral for the lighter tiers, warmer amber
-            for the more serious ones. NOT alarmist; pairs the deficit
-            truth with a concrete lever tied to the user's own rules.
-            Same defensive guard: if Edge Function still on pre-0.5v
-            schema, data.guidance is undefined — skip silently. */}
-        {data.guidance?.show && (
-          <GuidanceCard guidance={data.guidance} />
-        )}
+        {/* D.62 guidance card position moved up to just below the hero
+            (see the GuidanceCard render right after the demo toggle
+            above). The constructive path forward needs to be the
+            second thing the user reads after the headline number,
+            not buried below the math breakdown. */}
 
         {/* Continue */}
         <div className="pt-2">
@@ -395,6 +434,15 @@ function RecapRow({ label, amount, positive }: { label: string; amount: number; 
 //     red-alarm — the body copy carries the seriousness, not the chrome)
 // No emoji, no exclamation cheerleading, no doom. Constructive +
 // real lever tied to the user's own rules.
+//
+// Body copy from the Edge Function uses "\n\n" as paragraph separator
+// and "•" as bullet marker (unicode bullet on its own paragraph line).
+// We split on \n\n, then within each paragraph check if it starts with
+// "•" to apply bullet indentation. The post-D.62-follow-up bodies are
+// 4-7 paragraphs each (~150-220 words), structured as: diagnosis →
+// rule analysis → safety-net status → concrete steps (bullets) →
+// reframe. The list rendering keeps the visual texture varied so a
+// long body doesn't read as a wall of text.
 function GuidanceCard({
   guidance,
 }: {
@@ -409,6 +457,8 @@ function GuidanceCard({
   const bg = isSerious ? '#FFF4E8' : '#F0F4F8';
   const border = isSerious ? 'rgba(184,134,11,0.18)' : 'rgba(12,68,124,0.12)';
 
+  const paragraphs = guidance.body.split('\n\n').filter(p => p.trim().length > 0);
+
   return (
     <div
       className="mb-3"
@@ -421,12 +471,26 @@ function GuidanceCard({
       role="note"
       aria-label={guidance.heading}
     >
-      <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 8 }}>
+      <div style={{ fontSize: 14, fontWeight: 500, color: '#1A1A1A', marginBottom: 10 }}>
         {guidance.heading}
       </div>
-      <div style={{ fontSize: 13, color: '#3A3A3A', lineHeight: 1.6 }}>
-        {guidance.body}
-      </div>
+      {paragraphs.map((para, i) => {
+        const isBullet = para.trimStart().startsWith('•');
+        return (
+          <div
+            key={i}
+            style={{
+              fontSize: 13,
+              color: '#3A3A3A',
+              lineHeight: 1.6,
+              marginBottom: i < paragraphs.length - 1 ? (isBullet ? 4 : 10) : 0,
+              paddingLeft: isBullet ? 8 : 0,
+            }}
+          >
+            {para}
+          </div>
+        );
+      })}
     </div>
   );
 }
