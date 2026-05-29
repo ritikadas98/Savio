@@ -51,7 +51,20 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
   // D.54 — next-salary date label. Force en-US for the "Month Day"
   // ordering ("June 1") rather than the host locale's en-IN default
   // ("1 June"); the spec lock used the en-US form.
-  const salaryDateLabel = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(anchorDate);
+  //
+  // anchorDate from the parent comes from getNextAnchorDate(), which uses
+  // strict > so that ON the anchor day itself it returns today's date
+  // (drives the rainbow's "Payday!" branch when diffDays === 0). For
+  // Priya, DEMO_TODAY = 1st of month + anchor_day = 1 ⇒ anchorDate is
+  // always today, which would read as "Salary next on May 1" on May 1 —
+  // i.e. "your next salary is the salary that just landed." Bump to the
+  // following month whenever diffDays ≤ 0 so the label always names a
+  // future salary date. Rainbow center caption keeps the original
+  // anchorDate-driven "Payday!" / "X days until..." logic.
+  const nextSalaryDate = diffDays <= 0
+    ? new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, anchorDate.getDate())
+    : anchorDate;
+  const salaryDateLabel = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(nextSalaryDate);
 
   return (
     <Card variant="hero" className="flex flex-col mb-3">
