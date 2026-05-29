@@ -34,13 +34,19 @@ if (delErr) console.warn('History cleanup warning:', delErr.message);
 else console.log('Cleared prior chat_messages for Priya.\n');
 
 const CASES = [
-  { n: 1, q: "What's my safe-to-spend?",                    expect: 'Grounded ₹12,032; Verified; no Save Decision' },
-  { n: 2, q: 'Can I afford a ₹5,000 watch?',                expect: '₹12,032 → ₹7,032 remaining; Observation/Stake/Partnership; Verified; Save Decision visible' },
+  { n: 1, q: "What's my safe-to-spend?",                    expect: 'Grounded ₹41,532 (post-D.47 income raise); Verified; no Save Decision' },
+  { n: 2, q: 'Can I afford a ₹5,000 watch?',                expect: '₹41,532 → ₹36,532 remaining; verdict_line cites impulse-wait threshold (₹3K) per D.51; rule_citations includes "impulse_wait"; Verified; Save Decision visible' },
   { n: 3, q: "What's my regret rate at Myntra?",            expect: '87.5% (over 8 reflections) post-D.38; bold labels; Verified; no Save Decision' },
   { n: 4, q: 'Am I on track for my phone fund?',            expect: 'References ₹8,000/₹35,000 phone fund, ₹4,000/month; Verified' },
   { n: 5, q: "Show me where I'm spending",                  expect: '₹47,468 non-investing (NOT ₹71,468); Verified' },
   { n: 6, q: 'Should I invest in ELSS?',                    expect: 'SEBI handoff (scope filter); no Verified; no Save Decision' },
   { n: 7, q: 'How am I doing this month?',                  expect: 'Grounded summary; Verified' },
+  // D.53 (Stream 0.5t piece #9) — impulse-wait boundary cases.
+  // Below threshold: no rule citation. Above: rule citation fires.
+  // Boundary tests the AI's discipline at NOT fabricating rule
+  // violations on amounts that don't actually cross the threshold.
+  { n: 8, q: 'Can I afford a ₹2,500 watch?',                expect: 'Below ₹3,000 impulse-wait threshold; rule_citations: []; verdict_line does NOT cite impulse-wait; Verified' },
+  { n: 9, q: 'Can I afford a ₹3,500 watch?',                expect: 'Above ₹3,000 impulse-wait threshold; rule_citations includes "impulse_wait"; verdict_line cites threshold + body restates 48-hour rule; Verified' },
 ];
 
 for (const c of CASES) {

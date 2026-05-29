@@ -9,6 +9,7 @@ import { Snackbar } from '../components/profile/Snackbar';
 import { formatRupeesIndian, ordinalSuffix, formatDateLong } from '../lib/formatters';
 import { DEMO_MODE_MESSAGE } from '../lib/copy';
 import { logoutFromPriya } from '../lib/auth';
+import { getUserRules, formatSafetyNet, formatImpulseWait } from '../lib/user-rules';
 
 // Stream 0.5n — Profile identity hero reads the same localStorage avatar
 // hint as ProfilePill (Phase C4). DB stays authoritative for chat behavior
@@ -60,6 +61,11 @@ type ProfileRow = {
   anchor_day_of_month: number | null;
   primary_bank: string | null;
   disclaimer_acknowledged_at: string | null;
+  // D.49 (Stream 0.5t piece #4) — user rules columns
+  safety_net: number | null;
+  impulse_wait_threshold: number | null;
+  impulse_wait_hours: number | null;
+  daily_sps_floor: number | null;
 };
 
 // D.31 (Stream 0.5q piece #2) — Profile "Your commitments" section.
@@ -196,7 +202,7 @@ export function ProfilePage() {
       if (!user) return;
       const { data: profileRow } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at')
+        .select('id, full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at, safety_net, impulse_wait_threshold, impulse_wait_hours, daily_sps_floor')
         .eq('auth_user_id', user.id)
         .single();
       if (cancelled || !profileRow) return;
@@ -228,7 +234,12 @@ export function ProfilePage() {
 
   const commitmentTotal = commitments.reduce((sum, c) => sum + c.amount, 0);
 
-  const income = profile?.monthly_income_net ?? 68500;
+  // D.49 (Stream 0.5t piece #5) — pull rule values via the helper so the
+  // displayed strings come from the same getUserRules() path the Edge
+  // Function's prompt_builder will also use (drift impossible by design).
+  const userRules = getUserRules(profile);
+
+  const income = profile?.monthly_income_net ?? 98000;
   const anchorDay = profile?.anchor_day_of_month ?? 1;
   const bank = profile?.primary_bank ?? 'HDFC';
   const ackDateRaw = profile?.disclaimer_acknowledged_at ?? FALLBACK_ACK_DATE;
@@ -394,18 +405,20 @@ export function ProfilePage() {
           </>
         )}
 
-        {/* Your rules — buffer_floor + impulse_threshold not yet in schema;
-            hardcoded for MVP demo. V2 adds columns + edit flow. */}
+        {/* Your rules — schema-backed since D.49 (Stream 0.5t piece #4).
+            Safety net (renamed from "buffer floor" per D.48) + impulse-wait
+            threshold + hours + daily SPS floor on profiles row. Profile
+            still read-only; edit affordance V2. */}
         <ProfileSectionHeader title="Your rules" />
         <Card className="!p-0">
           <ProfileFieldRow
-            label="Buffer floor"
-            value={formatRupeesIndian(100000)}
+            label="Safety net"
+            value={formatSafetyNet(userRules.safety_net)}
             onClick={showStub}
           />
           <ProfileFieldRow
             label="Impulse purchase wait"
-            value="48 hrs over ₹3K"
+            value={formatImpulseWait(userRules.impulse_wait_threshold, userRules.impulse_wait_hours)}
             onClick={showStub}
           />
           <ProfileFieldRow

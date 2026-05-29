@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Check, Target } from 'lucide-react';
+import { Check, Target, Shield, Clock, Wallet } from 'lucide-react';
 import { Card, Pill } from '../primitives';
 import { SaveDecisionButton } from './SaveDecisionButton';
 import { tokens } from '../../lib/design-tokens';
 import { formatRelativeDate } from '../../lib/dates';
-import type { StructuredVerdict, VerdictColor } from '../../lib/chat-types';
+import type { StructuredVerdict, VerdictColor, RuleCitationSlug } from '../../lib/chat-types';
 
 // Phase C3 — verdict card per JSX preview lines 421-475.
 //
@@ -21,6 +21,21 @@ const VERDICT_PILL: Record<VerdictColor, 'sage' | 'yellow' | 'red'> = {
   GREEN: 'sage',
   YELLOW: 'yellow',
   RED: 'red',
+};
+
+// D.52 (Stream 0.5t piece #8) — labels + icons for the per-rule badges.
+// Rendered above tradeoffs when rule_citations is non-empty. Kept inline
+// rather than in design-tokens because they're verdict-card-specific and
+// the icon mapping is tightly coupled to the rule slug enum.
+const RULE_CITATION_LABEL: Record<RuleCitationSlug, string> = {
+  safety_net:      'Safety net rule',
+  impulse_wait:    'Impulse-wait rule',
+  daily_sps_floor: 'Daily floor rule',
+};
+const RULE_CITATION_ICON: Record<RuleCitationSlug, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
+  safety_net:      Shield,
+  impulse_wait:    Clock,
+  daily_sps_floor: Wallet,
 };
 
 const SAVIO_GRADIENT = 'linear-gradient(135deg, #FF8F8F, #F4D123, #B2EF82, #58B9FF)';
@@ -88,6 +103,47 @@ export function VerdictCard({ structured, messageId, createdAt, readOnly = false
             {structured.body}
           </ReactMarkdown>
         </div>
+
+        {/* D.52 (Stream 0.5t #8) — rule citation badges. AI populates
+            rule_citations[] when it references the user's stated rules in
+            any of the four content fields. Rendered as small inline chips
+            so the user can see at a glance which rules the verdict honored.
+            Hidden when empty or absent (old saved_decisions rows). */}
+        {structured.rule_citations && structured.rule_citations.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginBottom: 10,
+            }}
+          >
+            {structured.rule_citations.map((slug) => {
+              const Icon = RULE_CITATION_ICON[slug];
+              return (
+                <span
+                  key={slug}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 10.5,
+                    color: '#5A6B5F',
+                    backgroundColor: 'rgba(59,109,17,0.06)',
+                    border: '0.5px solid rgba(59,109,17,0.15)',
+                    padding: '3px 8px',
+                    borderRadius: 999,
+                    lineHeight: 1.2,
+                  }}
+                  title={`Verdict references your ${RULE_CITATION_LABEL[slug].toLowerCase()}`}
+                >
+                  <Icon size={10} strokeWidth={2} />
+                  {RULE_CITATION_LABEL[slug]}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* Tradeoffs callout */}
         <div

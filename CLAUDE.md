@@ -49,7 +49,7 @@ The owner (Ritika) is a PM in transition, not an engineer. She directs the agent
 - Password in `.env.local` as `DEMO_PRIYA_PASSWORD`
 - Avatar: Strategist (math-forward voice)
 - Life stage: Supporting dependents
-- Income: ₹68,500 net, paid 1st of month
+- Income: ₹98,000 net (gross ₹1,25,000), paid 1st of month — raised from ₹68,500 in Stream 0.5t D.47 to give Priya realistic discretionary room
 - 13 commitments (monthly outflow ≈ ₹62,468)
 - 3 goals (Phone fund, Emergency fund, Goa trip)
 - ~600 transactions across 6 months ending around DEMO_TODAY (seed is relative to `v_demo_today`, which `apply-migrations.js` auto-pins to the 1st of the current calendar month)

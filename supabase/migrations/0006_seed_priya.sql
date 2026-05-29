@@ -16,6 +16,11 @@ BEGIN
   -- If not found, we can still create the profile but leave auth_user_id null until we fix it.
   -- But in Supabase the auth.users should be seeded via script beforehand.
 
+  -- D.49 (Stream 0.5t piece #4): user rule columns (safety_net,
+  -- impulse_wait_threshold, impulse_wait_hours, daily_sps_floor) are added
+  -- to profiles by migration 0019 — which runs AFTER this seed — and that
+  -- migration also backfills Priya with the canonical values. We don't list
+  -- them here because the columns don't exist yet at INSERT time.
   INSERT INTO public.profiles (id, auth_user_id, email, full_name, avatar, life_stage, city, monthly_income_gross, monthly_income_net, anchor_day_of_month, income_pattern, primary_bank)
   VALUES (
     v_user_id,
@@ -25,8 +30,8 @@ BEGIN
     'strategist',
     'supporting_dependents',
     'Bangalore',
-    85000.00,
-    68500.00,
+    125000.00,
+    98000.00,
     1,
     'regular_salaried',
     'HDFC'
@@ -148,14 +153,17 @@ BEGIN
     );
   END LOOP;
 
-  -- Insert Salary (1st of each month for 6 months)
+  -- Insert Salary (1st of each month for 6 months).
+  -- D.47 (Stream 0.5t piece #1): bumped 68,500 → 98,000 net to give Priya
+  -- realistic discretionary room. Original ratio left ~₹12K month SPS
+  -- against ₹62K commitments — implausible for the Strategist persona.
   FOR i IN 0..5 LOOP
     INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, description, category)
     VALUES (
       gen_random_uuid(),
       v_user_id,
       date_trunc('month', v_demo_today - (i || ' months')::interval),
-      68500.00,
+      98000.00,
       'credit',
       'Acme Corp Salary',
       'Monthly Salary',
@@ -362,11 +370,14 @@ BEGIN
   -- the snapshot table doesn't exist yet at this point). The backfill in
   -- 0010 reads from the reflections table we just populated.
 
-  -- Monthly Rituals (Jan/Feb/Mar 2026 completed, April pending)
+  -- Monthly Rituals (Jan/Feb/Mar 2026 completed, April pending).
+  -- D.47 (Stream 0.5t piece #1): income_confirmed + safe_to_spend_locked
+  -- bumped to reflect the new ₹98,000 net. Locked SPS values keep the same
+  -- ±₹500 variance pattern around the new computed ₹41,532 baseline.
   INSERT INTO public.monthly_rituals (user_id, month_year, status, income_confirmed, safe_to_spend_locked) VALUES
-    (v_user_id, '2026-01', 'completed', 68500, 12000),
-    (v_user_id, '2026-02', 'completed', 68500, 11500),
-    (v_user_id, '2026-03', 'completed', 68500, 12200),
+    (v_user_id, '2026-01', 'completed', 98000, 41500),
+    (v_user_id, '2026-02', 'completed', 98000, 41000),
+    (v_user_id, '2026-03', 'completed', 98000, 41700),
     (v_user_id, '2026-04', 'pending', null, null);
 
   ------------------------------------------------------------------

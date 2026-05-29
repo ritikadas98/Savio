@@ -24,8 +24,8 @@ console.log('\n=== Calling complete_monthly_setup ===');
 const { data: res, error } = await sb.rpc('complete_monthly_setup', {
   p_month_year: '2026-05',
   p_focus_goal_id: phoneFund.id,
-  p_safe_to_spend_locked: 12032,
-  p_confirmed_income: 68500,
+  p_safe_to_spend_locked: 41532,
+  p_confirmed_income: 98000,
 });
 if (error) { console.error('RPC error:', error); process.exit(1); }
 console.log(`  result: ${JSON.stringify(res)}`);
@@ -38,8 +38,8 @@ console.log('\n=== Idempotency: call again, expect update not error ===');
 const { data: res2 } = await sb.rpc('complete_monthly_setup', {
   p_month_year: '2026-05',
   p_focus_goal_id: null,            // change focus to null this time
-  p_safe_to_spend_locked: 11500,    // change SPS
-  p_confirmed_income: 68500,
+  p_safe_to_spend_locked: 41000,    // change SPS (D.47 post-raise variance)
+  p_confirmed_income: 98000,
 });
 console.log(`  result: ${JSON.stringify(res2)}`);
 const { data: post2 } = await sb.from('monthly_rituals').select('focus_goal_id, safe_to_spend_locked').eq('user_id', PRIYA_ID).eq('month_year', '2026-05').single();
