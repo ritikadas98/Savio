@@ -883,6 +883,8 @@ Rainbow center caption (*"31 days until salary on the 1st"*) intentionally left 
 
 `computeDailySafeToSpend` helper unchanged — it still computes `daysRemaining` internally to derive `dailyAmount`, just no longer exposed in the JSX. Destructure cleaned up to only pull `dailyAmount`.
 
+**Follow-up patch — "Salary next on May 1" → "June 1":** First D.54 ship had the secondary line reading "Salary next on May 1" on payday (May 1) — the `anchorDate` prop comes from `getNextAnchorDate()` which uses strict `>` comparison so that ON the anchor day itself it returns today's date (drives the rainbow's "Payday!" branch). For Priya (anchor_day = 1, DEMO_TODAY = 1st of month) anchorDate is always today, which the new "Salary next on..." framing read as "your next salary is the salary that just landed." Local fix in `SafeToSpendHero.tsx`: when `diffDays <= 0`, bump the displayed date forward one month so the label always names a future salary date. Rainbow center caption keeps the original anchorDate logic so "Payday!" still shows correctly when today IS payday. The dual treatment matches the dual semantic: hero secondary describes "the next salary event in the future," rainbow center describes "today's relationship to the anchor."
+
 Case-study line: *"DEMO_TODAY pinning gave reviewers a consistent start-of-month framing on every visit. But the 'today' / 'N days remaining' labels read as real-time. The fix was the labels, not the data — frame the math as what it actually describes."*
 
 ---
