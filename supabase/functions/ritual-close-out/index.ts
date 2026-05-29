@@ -88,12 +88,21 @@ function deriveCloseOutGuidance(params: {
 
   const inr = (n: number) => `₹${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
   const topThreeMerchants = one_off_breakdown.top.slice(0, 3).map(m => m.merchant).join(', ');
+  const topTwoMerchants = one_off_breakdown.top.slice(0, 2).map(m => m.merchant).join(' and ');
   const oneOffTotal = one_off_breakdown.total;
   // How much of the one-off spending would have been caught by the
   // impulse-wait rule (each transaction above the threshold).
   const caughtByImpulseRule = one_off_breakdown.full_list
     .filter(m => m.total >= rules.impulse_wait_threshold)
     .reduce((s, m) => s + m.total, 0);
+  const tighterThreshold = Math.max(1000, Math.round(rules.impulse_wait_threshold * 0.8));
+
+  // Bodies are multi-paragraph (paragraphs separated by \n\n). Frontend
+  // GuidanceCard splits and renders each as its own <p>. Bullets use
+  // unicode "•" — keep them on their own paragraph break so the visual
+  // list reads clean. Length budget: 4-5 short paragraphs / ~150-220
+  // words. The goal is thorough analysis (the user expects context +
+  // diagnosis + concrete steps), not a one-liner that reads as canned.
 
   // ── repeated_deficit (highest priority) ──
   if (consecutive_deficit_months >= 2) {
@@ -103,7 +112,15 @@ function deriveCloseOutGuidance(params: {
       show: true,
       severity: 'repeated_deficit',
       heading: 'What you can do now',
-      body: `This is the ${ord} month running short. Worth a deeper look at whether your commitments and income are matched — this pattern isn't one to ride out. Your safety net of ${inr(rules.safety_net)} is the line to protect.`,
+      body: [
+        `This is the ${ord} month in a row closing short. Once is a bad month — that's normal. Twice in a row is a pattern, and patterns don't fix themselves by hoping next month is different.`,
+        `The arithmetic is worth sitting with. Your fixed commitments (rent, EMI, SIPs, utilities) come to roughly the same amount each month — those aren't the variable here. What's variable is one-off spending: this month it was ${inr(oneOffTotal)} (${topThreeMerchants}). If that pattern keeps repeating, the deficit will too.`,
+        `Your safety net of ${inr(rules.safety_net)} is the line worth protecting. Two more months of this rate would put real pressure on it.`,
+        `Three things worth doing this week:`,
+        `• Open the Reflect tab and walk through the labeled purchases from the past three months. Which ones felt worth it? Which felt like regret? The pattern of regret-labeled purchases is where the leak is.`,
+        `• Consider whether your commitments and income are actually matched. If non-discretionary outflow + goal contributions are eating most of your income, the math will keep pulling discretionary into the red regardless of how careful you are. That's a structural conversation, not a willpower one.`,
+        `• Lower your impulse-wait threshold from ${inr(rules.impulse_wait_threshold)} to ${inr(tighterThreshold)} for the next month. Tightening the cooling-off period catches more decisions before they happen. Profile → Your rules.`,
+      ].join('\n\n'),
     };
   }
 
@@ -111,11 +128,21 @@ function deriveCloseOutGuidance(params: {
   // Safety net is breached when accessible cash (emergency fund proxy)
   // dropped below the user's safety_net rule value.
   if (current_savings < rules.safety_net) {
+    const shortfall = rules.safety_net - current_savings;
     return {
       show: true,
       severity: 'deficit_breached',
       heading: 'What you can do now',
-      body: `This month dipped into your safety net — accessible cash is now below ${inr(rules.safety_net)}. The biggest driver was ${inr(oneOffTotal)} in one-off spending (${topThreeMerchants}). Rebuilding the safety net before the next discretionary purchase is the priority.`,
+      body: [
+        `This month went past your safety net. Your accessible cash is now ${inr(current_savings)} — below the ${inr(rules.safety_net)} line you set as the floor. The shortfall is ${inr(shortfall)}.`,
+        `The safety net rule exists for a specific reason: it's the cushion that lets you handle an emergency without taking on debt. Once it's below the threshold, every new discretionary purchase makes the gap wider.`,
+        `What drove this month: ${inr(oneOffTotal)} in one-off spending — ${topThreeMerchants}. The big one-offs add up faster than they feel like they should.`,
+        `Until your safety net is back above ${inr(rules.safety_net)}, the priority is rebuilding it. Concretely:`,
+        `• Pause discretionary purchases above ${inr(rules.impulse_wait_threshold)} for the next 4-6 weeks. The ${rules.impulse_wait_hours}-hour wait rule becomes a "wait until safety net restored" rule for this window.`,
+        `• Redirect the next month's leftover (when it goes positive) straight to the emergency fund rather than carrying forward as free spend. ${inr(shortfall)} restored is the target.`,
+        `• Audit fixed commitments — anything that's a recent add (a subscription, a new EMI) is worth questioning. If it can wait, pausing it for a month accelerates the rebuild.`,
+        `This isn't permanent. It's a short window to get back above the line. May resets fresh on the 1st.`,
+      ].join('\n\n'),
     };
   }
 
@@ -127,7 +154,14 @@ function deriveCloseOutGuidance(params: {
       show: true,
       severity: 'deficit_safe',
       heading: 'What you can do now',
-      body: `Your biggest driver was ${inr(oneOffTotal)} in one-off spending — ${topThreeMerchants}. Your impulse-wait rule (${rules.impulse_wait_hours} hours over ${inr(rules.impulse_wait_threshold)}) would have given you a pause on ${inr(caughtByImpulseRule)} of that. Your safety net of ${inr(rules.safety_net)} is still intact, so this is a course-correct, not an alarm.`,
+      body: [
+        `Your spending leftover landed at ${inr(net_leftover)} this month. The biggest drivers were ${inr(oneOffTotal)} of one-off spending — ${topThreeMerchants}. That's where the gap between budgeted and actual came from; the fixed commitments and goal contributions were on plan.`,
+        `Your impulse-wait rule (${rules.impulse_wait_hours} hours over ${inr(rules.impulse_wait_threshold)}) would have given you a cooling-off period on ${inr(caughtByImpulseRule)} of those purchases. If you'd taken the pause on even one or two — particularly ${topTwoMerchants} — this month would have closed at or near zero instead of in the red. The rule is built for exactly this pattern.`,
+        `Your safety net of ${inr(rules.safety_net)} is still intact (current accessible cash: ${inr(current_savings)}). So this is a course-correct moment, not an emergency. You don't carry this deficit forward — next month resets fresh on the 1st — but the pattern itself is the signal worth paying attention to.`,
+        `Two things worth doing this week:`,
+        `• Open the Reflect tab and label the ${topThreeMerchants} purchases as worth-it / neutral / regret. Whichever ones you label "regret" are the ones the impulse-wait rule should have caught — and labeling them trains the regret-rate signal so next time those merchants show up in chat, you'll have evidence.`,
+        `• If these one-offs feel recurring, consider tightening your impulse-wait threshold from ${inr(rules.impulse_wait_threshold)} to ${inr(tighterThreshold)} for next month. You can update it in Profile → Your rules. Lower threshold catches more decisions before they happen.`,
+      ].join('\n\n'),
     };
   }
 
@@ -138,7 +172,13 @@ function deriveCloseOutGuidance(params: {
     show: true,
     severity: 'small_short',
     heading: 'What you can do now',
-    body: `You finished ${inr(net_leftover)} ahead — close. Variable categories came in ${variable_category_net >= 0 ? 'under budget' : 'over'} (${inr(variable_category_net)}). Worth a look at which one-off purchases felt worth it on the Reflect tab.`,
+    body: [
+      `You finished ${inr(net_leftover)} ahead — close to the line. That's not a deficit, but it's also not the buffer you'd want every month. Variable categories came in ${variable_category_net >= 0 ? `${inr(variable_category_net)} under budget` : `${inr(variable_category_net)} over budget`}; the rest of the gap came from ${inr(oneOffTotal)} in one-off spending (${topThreeMerchants}).`,
+      `Months that finish this close are the most useful ones to reflect on. The leftover was small enough that even one or two different discretionary calls would have made the month feel different — but big enough that nothing scary happened.`,
+      `What's worth doing this week:`,
+      `• Open the Reflect tab and label the top one-off purchases. The ones you label "worth it" are evidence the spend was aligned with what matters to you. The ones you label "regret" are exactly the kind of purchase your impulse-wait rule is meant to catch — and labeling them trains the regret-rate signal so the chat verdicts get sharper.`,
+      `• No need to change the rules — they're working. Just notice if the same merchants keep showing up across months.`,
+    ].join('\n\n'),
   };
 }
 
