@@ -8,7 +8,8 @@
     "build": "vite build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "apply-migrations": "node scripts/apply-migrations.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

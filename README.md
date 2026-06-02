@@ -4,6 +4,10 @@
 
 **Live demo:** [savio-financial-app.netlify.app](https://savio-financial-app.netlify.app/)
 
+<p align="center">
+  <img src="docs/screenshots/hero.png" alt="Savio home screen — Safe to spend, commitments, windfall card, goals tracker" width="320" />
+</p>
+
 ---
 
 ## What it is
@@ -38,6 +42,20 @@ Open the live URL above and click **"Continue as Priya"** on the Welcome screen 
 5. **Monthly ritual** — 7-screen close-out + setup flow, with the math-reveal recap card showing income → commitments → goals → variable category net → one-off spending = net leftover
 
 If the cold-start AI calls feel slow on the first chat or first "Show my reflections," that's Vertex JWT mint latency (~6-15s on cold isolates); warm calls are 2-4s.
+
+<details>
+<summary><strong>More screenshots</strong> — Chat verdict, Reflect chart, March deficit guidance, Monthly ritual</summary>
+
+<p align="center">
+  <img src="docs/screenshots/chat.png" alt="Chat — verdict card with rule-citation badges" width="240" />
+  <img src="docs/screenshots/reflect.png" alt="Reflect — emotion line chart + per-merchant trend cards" width="240" />
+</p>
+<p align="center">
+  <img src="docs/screenshots/march-deficit.png" alt="March close-out — Where we can help next constructive guidance" width="240" />
+  <img src="docs/screenshots/monthly-ritual.png" alt="Monthly ritual — math-reveal recap card" width="240" />
+</p>
+
+</details>
 
 ---
 
