@@ -1,4 +1,3 @@
-import React from 'react';
 import { Signal, Wifi, BatteryFull } from 'lucide-react';
 
 function StatusBar() {

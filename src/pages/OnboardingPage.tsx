@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Compass, Sailboat, Hammer, Check, ArrowRight, ArrowLeft,
@@ -565,7 +565,7 @@ function DataSource({ source, setSource, onNext }: {
         </div>
       </ScrollBody>
       <Footer>
-        <PrimaryButton onClick={onNext} disabled={!source || source === ''}>
+        <PrimaryButton onClick={onNext} disabled={!source}>
           Continue <ArrowRight size={16} />
         </PrimaryButton>
       </Footer>
@@ -1364,7 +1364,7 @@ function Ready({ state, onEnter, onRestart }: {
       : 98000;
     return {
       avatar: (state.avatar || 'strategist') as AvatarKey,
-      lifeStage: (state.lifeStage || 'working_no_dependents') as NonNullable<OnboardingState['lifeStage']>,
+      lifeStage: (state.lifeStage || 'working_no_dependents') as Exclude<OnboardingState['lifeStage'], ''>,
       anchorDay,
       focusGoalLabel,
       monthlyIncome: monthlyIncome != null ? Math.round(monthlyIncome / 1000) * 1000 : null,

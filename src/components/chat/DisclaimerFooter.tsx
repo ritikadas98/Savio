@@ -1,4 +1,3 @@
-import React from 'react';
 
 // Stream 0E: locked copy per master plan §2.5 #23. Non-italic, T.t color,
 // centered, font size 12-13px per §2.5 #24. Master plan supersedes the prior

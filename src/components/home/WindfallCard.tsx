@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sparkles } from 'lucide-react';
 import { tokens } from '../../lib/design-tokens';
 import { Card } from '../primitives';

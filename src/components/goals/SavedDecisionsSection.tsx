@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Card } from '../primitives';
 import { VerdictCard } from '../chat/VerdictCard';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Target, Shield, CalendarPlus, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 

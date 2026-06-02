@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -235,7 +235,10 @@ export function ReflectPage() {
     // before the effect can re-read it. Best-effort: a network failure on
     // invalidate is non-fatal — the user still sees patterns based on
     // their previous label, just one beat behind.
-    await supabase.rpc('invalidate_patterns_cache').catch(() => { /* non-fatal */ });
+    // .catch is not on PostgrestFilterBuilder (it's a Thenable, not a real
+     // Promise). Awaiting destructured error keeps this best-effort.
+    const { error: invalidateErr } = await supabase.rpc('invalidate_patterns_cache');
+    if (invalidateErr) { /* non-fatal */ }
     const refs = await fetchAllReflections(profileId);
     setReflections(refs);
   }, [profileId]);
