@@ -21,6 +21,9 @@ supabase/.temp/
 # Claude Code session state — per-developer, not source
 .claude/
 
+# Local-only portfolio blurb (kept off the repo deliberately)
+BLURB.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
