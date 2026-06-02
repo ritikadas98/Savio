@@ -43,8 +43,7 @@ Open the live URL above and click **"Continue as Priya"** on the Welcome screen 
 
 If the cold-start AI calls feel slow on the first chat or first "Show my reflections," that's Vertex JWT mint latency (~6-15s on cold isolates); warm calls are 2-4s.
 
-<details>
-<summary><strong>More screenshots</strong> — Chat verdict, Reflect (labeling + patterns), deficit guidance, Monthly ritual</summary>
+### More screenshots
 
 <p align="center">
   <img src="docs/screenshots/chat.png" alt="Chat — verdict card with rule-citation badges" width="240" />
@@ -55,8 +54,6 @@ If the cold-start AI calls feel slow on the first chat or first "Show my reflect
   <img src="docs/screenshots/month-deficit.png" alt="Deficit close-out (M-2) — Where we can help next constructive guidance" width="240" />
   <img src="docs/screenshots/monthly-ritual.png" alt="Monthly ritual — math-reveal recap card" width="240" />
 </p>
-
-</details>
 
 ---
 
