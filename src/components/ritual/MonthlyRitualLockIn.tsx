@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { Card } from '../primitives';
 import { Snackbar } from '../profile/Snackbar';
 import { formatRupeesIndian } from '../../lib/formatters';
-import { getNextMonthName } from '../../lib/dates';
+import { getNextMonthName, defaultPendingMonth } from '../../lib/dates';
 import { calculateSafeToSpend } from '../../lib/safeToSpend';
 import { RitualHeader, RitualTitle, RitualPrimaryButton } from './RitualPrimitives';
 
@@ -40,7 +40,8 @@ function daysInMonth(monthYear: string): number {
 }
 
 export function MonthlyRitualLockIn() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as LocationState) ?? null;

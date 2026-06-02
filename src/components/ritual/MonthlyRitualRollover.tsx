@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { formatMonthName } from '../../lib/dates';
+import { formatMonthName, defaultPendingMonth } from '../../lib/dates';
 import type { CloseOutData } from './MonthlyRitualCloseOut';
 import {
   AllocationRow,
@@ -27,7 +27,8 @@ const formatINRInt = (n: number) =>
 const isEmergency = (g: ActiveGoal) => g.label.toLowerCase().includes('emergency');
 
 export function MonthlyRitualRollover() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
 
   const [data, setData] = useState<CloseOutData | null>(null);

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Card } from '../primitives';
 import { Snackbar } from '../profile/Snackbar';
 import { formatRupeesIndian } from '../../lib/formatters';
+import { defaultPendingMonth } from '../../lib/dates';
 import { DEMO_MODE_MESSAGE } from '../../lib/copy';
 import { RitualHeader, RitualTitle, RitualPrimaryButton, ArrowRight } from './RitualPrimitives';
 
@@ -22,7 +23,8 @@ type CommitmentRow = {
 };
 
 export function MonthlyRitualCommitments() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
 
   const [commitments, setCommitments] = useState<CommitmentRow[]>([]);

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, SectionHeader } from '../primitives';
 import { ResetActionRow } from './ResetActionRow';
 import { resetAprilRitual, clearChatHistory, resetReflectionsToSeed, resetEntireDemoState } from '../../lib/reviewer-actions';
-import { getPreviousMonthName } from '../../lib/dates';
+import { getPreviousMonthName, getDeficitDemoMonth, formatMonthName } from '../../lib/dates';
 
 /**
  * Reviewer Console — Phase B1 expanded version.
@@ -155,19 +155,18 @@ export function ReviewerConsole({ onStub }: Props) {
             sublabel="Architectural changes from the team v1 build"
             onClick={handleStub}
           />
-          {/* D.62 (Stream 0.5v #5) — March close-out preview. Canonical
-              April is positive post-D.47; March is seeded with extra
-              one-off purchases to land at ~₹10K deficit, exercising the
-              "What you can do now" deficit_safe tier (safety net still
-              intact). Navigates via the same /ritual/:month route the
-              ritual banner uses — the close-out screen renders fine for
-              past months, the Continue button routes to /complete for
-              negative leftovers. */}
+          {/* D.62 (Stream 0.5v #5) + Stream 0.5x — deficit-month close-out
+              preview. The seed places big-ticket one-offs (IndiGo,
+              Forever 21, Royal China) at `v_demo_today - 1 month 17-26d`
+              offsets, which always lands them in M-2 — exercising the
+              "Where we can help next" deficit_safe tier (safety net
+              still intact). Navigates via the dynamic M-2 month string
+              so the demo survives calendar-month rollovers. */}
           <StubRow
             icon={AlertTriangle}
-            label="Preview March close-out (deficit demo)"
-            sublabel="See the &lsquo;What you can do now&rsquo; guidance tier for a negative month"
-            onClick={() => navigate('/ritual/2026-03')}
+            label={`Preview ${formatMonthName(getDeficitDemoMonth()).split(' ')[0]} close-out (deficit demo)`}
+            sublabel="See the &lsquo;Where we can help next&rsquo; guidance tier for a negative month"
+            onClick={() => navigate(`/ritual/${getDeficitDemoMonth()}`)}
             isLast
           />
         </Card>

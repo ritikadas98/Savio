@@ -143,6 +143,50 @@ export function getThisWeekRange(): {
   return { startDay, endDay, startDate, endDate };
 }
 
+// Stream 0.5x — dynamic month resolution for the ritual flow. The seed
+// creates 4 monthly_rituals rows: M-4/M-3/M-2 completed, M-1 pending,
+// where M is the current calendar month (1st-of-month IST). Components
+// default their `:month` route param to M-1 so the "close out last
+// month" surface always points at the legitimately closeable past.
+//
+// Returned strings are 'YYYY-MM' format, matching the column shape of
+// monthly_rituals.month_year. Mirrors the SQL `to_char(..., 'YYYY-MM')`
+// expression in the seed.
+export function getRitualMonths(): {
+  m4: string; m3: string; m2: string; m1: string; current: string;
+} {
+  return {
+    m4: monthsAgoYYYYMM(4),
+    m3: monthsAgoYYYYMM(3),
+    m2: monthsAgoYYYYMM(2),
+    m1: monthsAgoYYYYMM(1),
+    current: monthsAgoYYYYMM(0),
+  };
+}
+
+// "Pending" close-out month: M-1 (the month just ended, ready to close out).
+// Use as the route-default for the 7 ritual components.
+export function defaultPendingMonth(): string {
+  return monthsAgoYYYYMM(1);
+}
+
+// Stream 0.5x — the "deficit demo" close-out is wired to M-2 by the seed's
+// transaction offset tuning (the big-ticket one-offs at `v_demo_today -
+// interval '1 month 17–26 days'` always land in M-2). Reviewer-console
+// preview + close-out toggle navigate here for the constructive-guidance
+// showcase.
+export function getDeficitDemoMonth(): string {
+  return monthsAgoYYYYMM(2);
+}
+
+function monthsAgoYYYYMM(n: number): string {
+  const t = DEMO_TODAY;
+  let y = t.getFullYear();
+  let m = t.getMonth() - n;
+  while (m < 0) { m += 12; y -= 1; }
+  return `${y}-${String(m + 1).padStart(2, '0')}`;
+}
+
 // Returns the previous month's 1st-of-month date as 'YYYY-MM-DD' (UTC-safe).
 // Used by the ritual rollover lookup — "what was last month's ritual_month?"
 export function getPreviousMonthFirstDate(): string {

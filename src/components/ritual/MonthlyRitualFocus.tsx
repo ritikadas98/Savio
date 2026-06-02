@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { inrCompact } from '../../lib/formatters';
-import { formatGoalDueDate } from '../../lib/dates';
+import { formatGoalDueDate, defaultPendingMonth } from '../../lib/dates';
 import { RitualHeader, RitualTitle, RitualPrimaryButton, ArrowRight } from './RitualPrimitives';
 
 // Phase C1 Screen 6: focus-goal selection. 3 active goals + "No specific
@@ -22,7 +22,8 @@ type GoalRow = {
 const NO_FOCUS_ID = 'none';
 
 export function MonthlyRitualFocus() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
 
   const [goals, setGoals] = useState<GoalRow[]>([]);
