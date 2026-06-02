@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Check, ArrowRight, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { formatMonthName, getNextMonthName } from '../../lib/dates';
+import { formatMonthName, getNextMonthName, defaultPendingMonth } from '../../lib/dates';
 
 type LocationState = {
   total_amount?: number;
@@ -21,7 +21,8 @@ const formatINRInt = (n: number) =>
 // already committed (per Doc 1.2 RPC), so the new-month setup can be
 // resumed any time before month-end.
 export function MonthlyRitualComplete() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state as LocationState) ?? null;

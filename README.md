@@ -38,8 +38,8 @@ Open the live URL above and click **"Continue as Priya"** on the Welcome screen 
 1. **Home** — Safe to spend daily this month + fixed commitments on track + windfall card + goals tracker
 2. **Chat** — Send *"Can I afford a ₹3,500 watch?"* → verdict card with rule-citation badges, body explaining the math + the impulse-wait rule by name
 3. **Reflect** — Label any unlabeled transactions, tap "Show my reflections" → 4s loading with rotating copy → emotion line chart + tap-to-expand per-merchant trend cards behind "Know more"
-4. **Profile → Reviewer tools → Preview March close-out (deficit demo)** — see the "Where we can help next" guidance card with a four-paragraph constructive analysis (names driver merchants, cites the impulse-wait rule by value, suggests a tighter threshold, points to Reflect labeling)
-5. **Monthly ritual** — 7-screen close-out + setup flow, with the math-reveal recap card showing income → commitments → goals → variable category net → one-off spending = net leftover
+4. **Profile → Reviewer tools → Preview [two-months-back] close-out (deficit demo)** — see the "Where we can help next" guidance card with a four-paragraph constructive analysis (names driver merchants, cites the impulse-wait rule by value, suggests a tighter threshold, points to Reflect labeling). The month name on the button updates dynamically — the seed always places the big-ticket one-offs in M-2 so the deficit narrative survives calendar rollovers.
+5. **Monthly ritual** — 7-screen close-out + setup flow for the M-1 pending ritual (whatever month just ended), with the math-reveal recap card showing income → commitments → goals → variable category net → one-off spending = net leftover
 
 If the cold-start AI calls feel slow on the first chat or first "Show my reflections," that's Vertex JWT mint latency (~6-15s on cold isolates); warm calls are 2-4s.
 

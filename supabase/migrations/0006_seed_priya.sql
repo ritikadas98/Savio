@@ -105,6 +105,13 @@ DECLARE
   v_direction text;
   v_is_significant boolean;
   v_cat text;
+  -- Stream 0.5x — dynamic month-year strings for monthly_rituals. Derived
+  -- from v_demo_today so the seeded "M-1 pending, M-2/M-3/M-4 completed"
+  -- invariant holds regardless of which calendar month we're seeding into.
+  v_ritual_pending text := to_char(v_demo_today - interval '1 month',  'YYYY-MM');
+  v_ritual_done1   text := to_char(v_demo_today - interval '2 months', 'YYYY-MM');
+  v_ritual_done2   text := to_char(v_demo_today - interval '3 months', 'YYYY-MM');
+  v_ritual_done3   text := to_char(v_demo_today - interval '4 months', 'YYYY-MM');
   -- Phase 3 additions
   v_commitment record;
   v_pay_day int;
@@ -387,15 +394,17 @@ BEGIN
   -- the snapshot table doesn't exist yet at this point). The backfill in
   -- 0010 reads from the reflections table we just populated.
 
-  -- Monthly Rituals (Jan/Feb/Mar 2026 completed, April pending).
+  -- Monthly Rituals — M-4/M-3/M-2 completed, M-1 pending. Stream 0.5x:
+  -- month_year strings derived from v_demo_today so the "previous-month
+  -- closeable past" invariant survives calendar-month rollovers.
   -- D.47 (Stream 0.5t piece #1): income_confirmed + safe_to_spend_locked
   -- bumped to reflect the new ₹98,000 net. Locked SPS values keep the same
   -- ±₹500 variance pattern around the new computed ₹41,532 baseline.
   INSERT INTO public.monthly_rituals (user_id, month_year, status, income_confirmed, safe_to_spend_locked) VALUES
-    (v_user_id, '2026-01', 'completed', 98000, 41500),
-    (v_user_id, '2026-02', 'completed', 98000, 41000),
-    (v_user_id, '2026-03', 'completed', 98000, 41700),
-    (v_user_id, '2026-04', 'pending', null, null);
+    (v_user_id, v_ritual_done3,   'completed', 98000, 41500),
+    (v_user_id, v_ritual_done2,   'completed', 98000, 41000),
+    (v_user_id, v_ritual_done1,   'completed', 98000, 41700),
+    (v_user_id, v_ritual_pending, 'pending',   null,  null);
 
   ------------------------------------------------------------------
   -- PHASE 3 — Commitment linkage backfill

@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Card } from '../primitives';
 import { Snackbar } from '../profile/Snackbar';
 import { formatRupeesIndian, formatDateLong } from '../../lib/formatters';
-import { getNextMonthName } from '../../lib/dates';
+import { getNextMonthName, defaultPendingMonth } from '../../lib/dates';
 import { DEMO_MODE_MESSAGE } from '../../lib/copy';
 import { RitualHeader, RitualTitle, RitualPrimaryButton, ArrowRight } from './RitualPrimitives';
 
@@ -30,7 +30,8 @@ function nextMonthYear(monthYear: string): string {
 }
 
 export function MonthlyRitualIncome() {
-  const { month = '2026-04' } = useParams();
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
   const newMonth = nextMonthYear(month);
   const newMonthName = getNextMonthName(month);

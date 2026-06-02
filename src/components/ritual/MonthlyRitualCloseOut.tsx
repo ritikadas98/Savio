@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { formatMonthName, getNextMonthName } from '../../lib/dates';
+import { formatMonthName, getNextMonthName, defaultPendingMonth, getDeficitDemoMonth } from '../../lib/dates';
 import { Card, Pill, SectionHeader } from '../primitives';
 // D.61 (Stream 0.5v piece #4) — ReflectionLabelRow no longer used here.
 // Reflect tab owns transaction labeling; the close-out's "Looking back"
@@ -56,7 +56,10 @@ const formatINRInt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.abs(n));
 
 export function MonthlyRitualCloseOut() {
-  const { month = '2026-04' } = useParams();
+  // Stream 0.5x — dynamic month resolution. Default to M-1 (the seed-
+  // canonical pending close-out) when no `:month` param is given.
+  const { month: rawMonth } = useParams();
+  const month = rawMonth ?? defaultPendingMonth();
   const navigate = useNavigate();
   // D.60 — recap card's "One-off spending" row expands inline to show
   // top-4 merchants + the "N others" bucket. Per-mount state; collapses
@@ -171,38 +174,48 @@ export function MonthlyRitualCloseOut() {
         </Card>
 
         {/* D.62 follow-up — inline demo toggle. Replaces the Reviewer
-            Console-only path to the deficit demo. When viewing April
-            (canonical positive month), tap toggles to March (seeded
-            deficit). When viewing March, toggles back. Visible only on
-            the two demo months — past Jan/Feb or future months don't
-            show it. Subtle pill styling reads as "demo affordance"
-            without competing with the primary content. */}
-        {(month === '2026-04' || month === '2026-03') && (
-          <button
-            type="button"
-            onClick={() => navigate(`/ritual/${month === '2026-04' ? '2026-03' : '2026-04'}`)}
-            className="hover:bg-black/[0.02] transition-colors"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: 11,
-              color: '#5F5E5A',
-              padding: '6px 10px',
-              borderRadius: 999,
-              background: 'rgba(12,68,124,0.05)',
-              border: '0.5px solid rgba(12,68,124,0.15)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              marginBottom: 12,
-            }}
-          >
-            <ArrowLeftRight size={11} strokeWidth={2} />
-            {month === '2026-04'
-              ? 'Demo: positive month · switch to March deficit'
-              : 'Demo: deficit month · switch to April positive'}
-          </button>
-        )}
+            Console-only path to the deficit demo. When viewing the M-1
+            canonical positive close-out, tap toggles to M-2 (seeded
+            deficit). When viewing M-2, toggles back. Visible only on
+            the two demo months — older completed rituals or unrelated
+            routes don't show it. Subtle pill styling reads as "demo
+            affordance" without competing with the primary content.
+            Stream 0.5x — month pair derived dynamically so the toggle
+            survives calendar-month rollovers. */}
+        {(() => {
+          const positiveMonth = defaultPendingMonth();
+          const deficitMonth = getDeficitDemoMonth();
+          if (month !== positiveMonth && month !== deficitMonth) return null;
+          const isPositive = month === positiveMonth;
+          const otherMonth = isPositive ? deficitMonth : positiveMonth;
+          const otherName = formatMonthName(otherMonth).split(' ')[0];
+          return (
+            <button
+              type="button"
+              onClick={() => navigate(`/ritual/${otherMonth}`)}
+              className="hover:bg-black/[0.02] transition-colors"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 11,
+                color: '#5F5E5A',
+                padding: '6px 10px',
+                borderRadius: 999,
+                background: 'rgba(12,68,124,0.05)',
+                border: '0.5px solid rgba(12,68,124,0.15)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                marginBottom: 12,
+              }}
+            >
+              <ArrowLeftRight size={11} strokeWidth={2} />
+              {isPositive
+                ? `Demo: positive month · switch to ${otherName} deficit`
+                : `Demo: deficit month · switch to ${otherName} positive`}
+            </button>
+          );
+        })()}
 
         {/* D.62 (Stream 0.5v piece #5) — "What you can do now" guidance,
             positioned right below the hero per follow-up UX feedback.
