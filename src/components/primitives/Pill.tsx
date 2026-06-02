@@ -1,4 +1,3 @@
-import React from 'react';
 import { cn } from '../../lib/utils';
 
 type PillVariant = 'sage' | 'navy' | 'yellow' | 'red' | 'neutral';

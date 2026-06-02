@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { ReviewerActionResult } from '../../lib/reviewer-actions';
 
 type ResetActionRowProps = {

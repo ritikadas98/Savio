@@ -1,4 +1,3 @@
-import React from 'react';
 import { X, ArrowRight } from 'lucide-react';
 
 // Phase C1: shared inline primitives for the 4 new ritual screens (Income,

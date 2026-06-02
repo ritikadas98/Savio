@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { parseDate } from '../../lib/dates';
 import { Pill } from '../primitives';
 import { MOOD_META, ORDERED_MOODS, type ReflectionLabel } from '../../lib/mood';

@@ -1,4 +1,3 @@
-import React from 'react';
 
 // Matches the SAVIO_GRADIENT in MessageBubble — Savio's brand mark.
 const SAVIO_GRADIENT = 'linear-gradient(135deg, #FF8F8F, #F4D123, #B2EF82, #58B9FF)';

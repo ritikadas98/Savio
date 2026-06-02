@@ -1,4 +1,3 @@
-import React from 'react';
 import { Receipt } from 'lucide-react';
 import { Card, SectionHeader } from '../primitives';
 import type { UpcomingBill } from '../../lib/upcoming-bills';

@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { VerdictCard } from './VerdictCard';
 import { Card } from '../primitives';

@@ -1,4 +1,3 @@
-import React from 'react';
 
 // Stream 0.5c-C: sizes per JSX preview line 537-547.
 //   padding: 8px 14px, borderRadius: 999, fontSize: 12

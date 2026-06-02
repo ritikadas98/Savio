@@ -1,4 +1,3 @@
-import React from 'react';
 import { today } from '../../lib/dates';
 import { computeDailySafeToSpend } from '../../lib/dailySafeToSpend';
 import { tokens } from '../../lib/design-tokens';

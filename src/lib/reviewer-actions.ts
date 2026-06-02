@@ -53,7 +53,10 @@ export async function resetReflectionsToSeed(): Promise<ReviewerActionResult> {
   // Stream 0.5j — reset bypasses the label-tap path that normally invalidates,
   // so we explicitly clear the cache here. Otherwise post-reset patterns
   // would be stale until the cache TTL expired.
-  await supabase.rpc('invalidate_patterns_cache').catch(() => { /* non-fatal */ });
+  // .catch is not on PostgrestFilterBuilder. Awaiting + ignoring error
+  // preserves the non-fatal intent.
+  const { error: invalidateErr } = await supabase.rpc('invalidate_patterns_cache');
+  if (invalidateErr) { /* non-fatal */ }
   clearOnboardingLocalState();
   return data as ReviewerActionResult;
 }

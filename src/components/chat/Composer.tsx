@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Send } from 'lucide-react';
 
 export function Composer({ onSend, disabled }: { onSend: (text: string) => void, disabled: boolean }) {

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# tsc -b project-build incremental cache (per-developer)
+*.tsbuildinfo
+
 # Supabase CLI working state — per-developer, not source
 supabase/.temp/
 

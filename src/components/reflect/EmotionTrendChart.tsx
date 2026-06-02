@@ -1,4 +1,3 @@
-import React from 'react';
 import { Card } from '../primitives';
 import type { EmotionChartData, EmotionHeadline } from '../../lib/reflect-patterns';
 

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 
 // Phase B1: minimal snackbar for [PRESENTATIONAL] row stubs on Profile.
 // Renders fixed at the bottom of the page when message is non-null. Caller

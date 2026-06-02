@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Receipt, X, type LucideIcon } from 'lucide-react';
 import { Card, Pill } from '../primitives';
 import { formatRupeesIndian } from '../../lib/formatters';

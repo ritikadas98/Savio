@@ -1,4 +1,3 @@
-import React from 'react';
 import { formatRelativeDate } from '../../lib/dates';
 import { getMerchantIcon } from '../../lib/merchant-icons';
 import { Card, SectionHeader, Row } from '../primitives';

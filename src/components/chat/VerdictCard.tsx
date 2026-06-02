@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Check, Target, Shield, Clock, Wallet } from 'lucide-react';
 import { Card, Pill } from '../primitives';
