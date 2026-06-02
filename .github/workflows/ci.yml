@@ -2,9 +2,23 @@ name: CI
 
 # Runs on every push to main and on every pull request. Mirrors the
 # local verification gates: type-check (tsc -b project-build mode) and
-# lint (ESLint, baseline ~24 problems per D.13 + a no-new-errors policy).
-# Build artifacts are NOT published from CI — Netlify auto-deploys
-# directly from main. CI's job is just "did the code stay healthy."
+# lint (ESLint, advisory). Build artifacts are NOT published from CI —
+# Netlify auto-deploys directly from main. CI's job is "did the code
+# stay healthy."
+#
+# Hardening (after the first run hit npm registry ECONNRESET):
+#   - npm-native retry config + shell-level retry loop around npm ci.
+#     Per actions/runner-images#3737 and npm/cli#7477, both layers
+#     together are what survives intermittent network drops on cold-
+#     cache runs. --no-audit --no-fund removes two extra registry
+#     round-trips that are themselves ECONNRESET candidates.
+#   - Concurrency block cancels superseded runs (rapid commit cadence
+#     during the D.* follow-ups was queuing redundant builds).
+#   - actions/checkout + actions/setup-node bumped @v4 → @v6 to clear
+#     the Node 20 deprecation warning before the June 16 2026 forced
+#     Node 24 cutover. v6 is on Node 24 and 8+ months of patch
+#     releases mature.
+#   - permissions:contents:read for least-privilege GITHUB_TOKEN hygiene.
 
 on:
   push:
@@ -12,38 +26,74 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel any in-progress run on the same branch when a new commit lands.
+# Group key is (workflow × ref) so PR branches and main run independently.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege token: this workflow only reads the repo, never writes.
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Type-check + lint
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           # Matches .nvmrc pin (Node 22 LTS). Update both files together.
           node-version-file: '.nvmrc'
           cache: 'npm'
+          # Pinning the cache key to the lockfile path is the default
+          # behavior; making it explicit future-proofs against adding
+          # nested workspaces (supabase/functions/, scripts/) with
+          # their own lockfiles later.
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies (with retry + extended timeouts)
+        shell: bash
+        run: |
+          # Bump npm's in-process retry config above defaults.
+          # Defaults: 2 retries / 10s mintimeout / 60s maxtimeout / 5min total.
+          # These are too tight for the long tarball reads where ECONNRESET
+          # typically lands; bumped values give npm room to self-recover.
+          npm config set fetch-retries 5
+          npm config set fetch-retry-mintimeout 20000
+          npm config set fetch-retry-maxtimeout 120000
+          npm config set fetch-timeout 600000
+
+          # Shell-level retry as belt-and-suspenders: if npm exits before
+          # its internal retry kicks in (which happens on some socket
+          # drops), the loop tries the whole install again. Three attempts
+          # with backoff is the widely-cited pattern.
+          for i in 1 2 3; do
+            npm ci --no-audit --no-fund && break
+            echo "npm ci attempt $i failed, retrying in $((i*15))s..."
+            sleep $((i*15))
+          done
 
       - name: Type-check
         # tsc -b runs in project-build mode and traverses tsconfig.app.json
         # + tsconfig.node.json references. Catches type errors that the
-        # production build (Vite-only after 0.5t) would otherwise skip.
+        # production build (Vite-only post-0.5t) would otherwise skip.
+        # This is the hard gate — failures here fail the run.
         run: npm run typecheck
 
-      - name: Lint
-        # ESLint baseline is ~24 problems (mostly pre-existing TS6133 +
-        # set-state-in-effect items per D.13). CI flags any regression
-        # via the bare `eslint .` exit code being non-zero only when
-        # new errors are introduced, not when baseline ones persist.
-        # If the baseline shifts, update package.json's lint script
-        # OR bake a baseline-comparison step here.
+      - name: Lint (advisory — baseline carries pre-existing problems)
+        # Per D.13: 73 → 22 baseline after the sweep, then settled
+        # around ~24 with the set-state-in-effect rule additions.
+        # Strict gating would fail every PR until the baseline clears,
+        # so this step runs ESLint for visibility but doesn't block the
+        # run (continue-on-error). New regressions still show in the
+        # log; a future stream that clears the remaining baseline can
+        # tighten this gate to fail on any error.
         run: npm run lint
         continue-on-error: true
