@@ -329,12 +329,23 @@ BEGIN
   VALUES (v_txn_id, v_user_id, (v_demo_today - interval '3 days')::timestamptz, 2750, 'debit', 'Zara', 'Zara - Apparel', 'Shopping', true);
   INSERT INTO public.reflections (user_id, transaction_id, label) VALUES (v_user_id, v_txn_id, 'glad');
 
-  -- April unlabeled high-impact transactions (NOT in reflections).
-  -- These are what the ritual close-out's "Looking back" prompts surface
-  -- AND what the Reflect tab shows as labeling candidates.
-  -- Doc 1.1: one ₹4,000+ and one ₹1,500+, both commitment_id NULL (discretionary).
+  -- M-1 (current pending close-out month) unlabeled high-impact
+  -- transactions — NOT in reflections. These are what the ritual
+  -- close-out's "Looking back" prompts surface AND what the Reflect
+  -- tab shows as labeling candidates.
+  -- Doc 1.1: one ₹3,000+ and one ₹1,500+, both commitment_id NULL
+  -- (discretionary). Comment used to say "April" — stale from before
+  -- Stream 0.5x re-anchored months dynamically.
+  -- D.66 follow-up (2026-06-04): Myntra reduced ₹4,800 → ₹3,000.
+  -- Pre-Spec 1 with STS budget ₹41,532 this row left May at a small
+  -- positive (~₹1.2K). Spec 1 dropped STS to ₹26,532 by deducting
+  -- investing, and the ₹4,800 row pushed M-1 into a small deficit
+  -- (-₹646) — losing the "positive vs deficit" toggle contrast on
+  -- the close-out demo. ₹3,000 restores the contrast (~+₹1,154
+  -- leftover). Still over the impulse-wait threshold; still labeled
+  -- unlabeled-Myntra-regret-candidate territory.
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
-  VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '13 days')::timestamptz, 4800, 'debit', 'Myntra',  'Shopping', true);
+  VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '13 days')::timestamptz, 3000, 'debit', 'Myntra',  'Shopping', true);
   INSERT INTO public.transactions (id, user_id, occurred_at, amount, direction, merchant, category, is_significant)
   VALUES (gen_random_uuid(), v_user_id, (v_demo_today - interval '9 days')::timestamptz,  1950, 'debit', 'Amazon', 'Shopping', true);
 
