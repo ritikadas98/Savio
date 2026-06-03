@@ -4,6 +4,13 @@
 
 **Live demo:** [savio-financial-app.netlify.app](https://savio-financial-app.netlify.app/)
 
+> This is a **PM portfolio demo**, not a real financial product. Priya
+> Sharma's financial state — income, commitments, goals, transactions,
+> reflections — is **synthetic seed data**, not a real person. Savio is
+> not a financial advisor; see the in-app disclaimer (Profile → Disclaimer)
+> for the full statement. Don't use anything here to make real money
+> decisions.
+
 <p align="center">
   <img src="docs/screenshots/hero.png" alt="Savio home screen — Safe to spend, commitments, windfall card, goals tracker" width="320" />
 </p>
