@@ -489,7 +489,7 @@ export function ProfilePage() {
           />
           {savings.floorCovered ? (
             <ProfileFieldRow
-              label="Cushion above it"
+              label="Cushion"
               value={
                 savings.cushion > 0 ? (
                   <span>
@@ -518,12 +518,12 @@ export function ProfilePage() {
         </Card>
 
         {/* D.65 Spec 2.2 — Account details (formerly part of "Your
-            finances"). Anchor day + primary bank are profile metadata,
+            finances"). Payday + primary bank are profile metadata,
             not flow or stock; they belong in their own group. */}
         <ProfileSectionHeader title="Account details" />
         <Card className="!p-0">
           <ProfileFieldRow
-            label="Anchor date"
+            label="Payday"
             value={`${ordinalSuffix(anchorDay)} of month`}
             onClick={showStub}
           />

@@ -90,7 +90,7 @@ NUMBER DISCIPLINE:
   - USE the pre-computed "Daily safe-to-spend (today through month-end)" figure verbatim. Do NOT recompute it from safe-to-spend / day count.
   - When describing where the user's income goes, use the "Canonical income decomposition" block verbatim. Do NOT introduce alternative groupings (e.g., "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", or "₹62,468 fixed commitments" with SIPs lumped into a single bucket) — those break the safe-to-spend math.
   - Do NOT recompute safe-to-spend from raw commitments — the derived figure is the authoritative value.
-  - Investing commitments (SIPs, PPF, NPS, RDs) ARE subtracted from safe-to-spend — they auto-debit on their anchor day, so they aren't spendable this month. PRESENT them as savings (not cost) — they're committed outflows toward the user's future, in the same shape as a goal contribution.
+  - Investing commitments (SIPs, PPF, NPS, RDs) ARE subtracted from safe-to-spend — they auto-debit on payday, so they aren't spendable this month. PRESENT them as savings (not cost) — they're committed outflows toward the user's future, in the same shape as a goal contribution.
 - For affordability checks ("Can I afford ₹X?"), compute remaining = safe-to-spend − X and reason from that.
 
 FORMATTING:
@@ -319,7 +319,7 @@ export const buildGroundingContext = (
   if (profile.life_stage) lines.push(`- Life stage: ${profile.life_stage}`);
   if (profile.avatar) lines.push(`- Avatar: ${profile.avatar}`);
   lines.push(`- Net monthly income: ₹${INR(incomeNet)}`);
-  lines.push(`- Anchor day (salary day of month): ${anchorDay}`);
+  lines.push(`- Payday (day of month income lands): ${anchorDay}`);
   lines.push('');
 
   // D.57 (Stream 0.5u piece #1) — labeled "Fixed commitments" matching the
@@ -387,7 +387,7 @@ export const buildGroundingContext = (
   }
   lines.push(`- **Days remaining in current month (today through month-end, inclusive): ${daysRemaining}**`);
   lines.push(`- **Daily safe-to-spend (today through month-end): ₹${INR(dailySps)}** (= ₹${INR(safeToSpend)} ÷ ${daysRemaining})`);
-  lines.push(`- Days until next salary: ${daysUntilSalary} (separate from days-remaining-in-month; use days-remaining for daily SPS, not this)`);
+  lines.push(`- Days until next payday: ${daysUntilSalary} (separate from days-remaining-in-month; use days-remaining for daily SPS, not this)`);
   lines.push('');
 
   // D.64 (Spec 1, revises D.63) — canonical income decomposition.

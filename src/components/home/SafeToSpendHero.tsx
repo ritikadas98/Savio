@@ -91,7 +91,7 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
           honest about what the demo state actually models. daysRemaining
           is still used by computeDailySafeToSpend for the math above. */}
       <div style={{ fontSize: 12, color: tokens.t, marginBottom: 18 }}>
-        ₹{formatINR(amount)} this month · Salary next on {salaryDateLabel}
+        ₹{formatINR(amount)} this month · Payday on {salaryDateLabel}
       </div>
 
       {/* Rainbow gradient bar — preview lines 266–285. 10px high, 4×16 vertical
@@ -129,7 +129,7 @@ export function SafeToSpendHero({ amount, anchorDate }: Props) {
       >
         <span>₹0</span>
         <span>
-          {diffDays > 0 ? `${diffDays} days until salary on the 1st` : 'Payday!'}
+          {diffDays > 0 ? `${diffDays} days until payday on the 1st` : 'Payday!'}
         </span>
         <span>Day&rsquo;s cap</span>
       </div>

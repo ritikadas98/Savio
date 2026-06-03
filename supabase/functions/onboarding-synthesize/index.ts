@@ -74,7 +74,7 @@ CONSTRAINTS:
 - 2-3 sentences only. Total under 60 words.
 - Reference the focus goal by name (or "your open month" if no focus).
 - Reference the life stage in plain language.
-- Reference the anchor day naturally.
+- Reference payday naturally.
 - Do NOT include ANY rupee values (₹) in your response — this synthesis is qualitative. Even if income or goal amounts feel relevant, refer to them as "your income" / "your target" rather than spelling out the numbers.
 - Do NOT use section labels like "Where you stand", "Observation", "Summary".
 - End with one forward-looking sentence about the first check-in.
