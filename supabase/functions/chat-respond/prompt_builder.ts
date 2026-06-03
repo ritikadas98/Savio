@@ -85,9 +85,9 @@ NUMBER DISCIPLINE:
   - USE the pre-computed "Safe-to-spend this month" figure from Derived Figures.
   - USE the pre-computed "Days remaining in current month" verbatim. Do NOT recompute the day count. Every response in a session must use the same day count — it's a calendar fact, not a per-question estimate.
   - USE the pre-computed "Daily safe-to-spend (today through month-end)" figure verbatim. Do NOT recompute it from safe-to-spend / day count.
-  - When describing where the user's income goes, use the "Canonical income decomposition" block verbatim. Do NOT introduce alternative groupings (e.g., "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", or "₹62,468 fixed commitments" with SIPs lumped in) — those break the safe-to-spend math.
+  - When describing where the user's income goes, use the "Canonical income decomposition" block verbatim. Do NOT introduce alternative groupings (e.g., "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", or "₹62,468 fixed commitments" with SIPs lumped into a single bucket) — those break the safe-to-spend math.
   - Do NOT recompute safe-to-spend from raw commitments — the derived figure is the authoritative value.
-  - Investing commitments (SIPs, PPF, NPS, mutual funds) are NOT subtracted from safe-to-spend — they sit inside it as savings.
+  - Investing commitments (SIPs, PPF, NPS, RDs) ARE subtracted from safe-to-spend — they auto-debit on their anchor day, so they aren't spendable this month. PRESENT them as savings (not cost) — they're committed outflows toward the user's future, in the same shape as a goal contribution.
 - For affordability checks ("Can I afford ₹X?"), compute remaining = safe-to-spend − X and reason from that.
 
 FORMATTING:
@@ -300,8 +300,12 @@ export const buildGroundingContext = (
   const totalVariable     = variableCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
   const totalGoalContrib  = activeGoals.reduce((s, g) => s + Number(g.monthly_contribution || 0), 0);
 
-  // Authoritative safe-to-spend: lock-in from ritual if present, else computed.
-  const computedSTS = incomeNet - totalNonInvesting - totalGoalContrib;
+  // Authoritative safe-to-spend (post-D.64 — Spec 1, revises D.63):
+  // ALL fixed commitments deduct, including investing SIPs/RDs. The
+  // investing/non-investing distinction is preserved at presentation
+  // time (investing labelled as savings, not cost) but the STS math
+  // sees them identically. Mirrors src/lib/safeToSpend.ts.
+  const computedSTS = incomeNet - totalNonInvesting - totalInvesting - totalGoalContrib;
   const safeToSpend = ritual?.safe_to_spend_locked != null
     ? Number(ritual.safe_to_spend_locked)
     : computedSTS;
@@ -380,28 +384,28 @@ export const buildGroundingContext = (
 
   lines.push('### Derived figures (use these verbatim — do not recompute)');
   lines.push(`- **Safe-to-spend this month: ₹${INR(safeToSpend)}**`);
-  lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
+  lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − investing commitments ₹${INR(totalInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
   lines.push(`- **Days remaining in current month (today through month-end, inclusive): ${daysRemaining}**`);
   lines.push(`- **Daily safe-to-spend (today through month-end): ₹${INR(dailySps)}** (= ₹${INR(safeToSpend)} ÷ ${daysRemaining})`);
   lines.push(`- Days until next salary: ${daysUntilSalary} (separate from days-remaining-in-month; use days-remaining for daily SPS, not this)`);
   lines.push('');
 
-  // D.63 — canonical income decomposition. The model previously described
-  // Priya's ₹98K decomposition inconsistently across answers (sometimes
-  // "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", sometimes lumping SIPs
-  // into fixed commitments). Lock the breakdown to the one that matches
-  // the safe-to-spend math already in use (income − non_investing_fixed −
-  // goals = STS), state SIP placement explicitly, and mandate verbatim use.
-  const checksum = totalNonInvesting + totalGoalContrib + safeToSpend;
+  // D.64 (Spec 1, revises D.63) — canonical income decomposition.
+  // Four lines summing to net income: non-investing + investing + goals
+  // + STS. Investing SIPs/RDs subtract from STS (auto-debit, not
+  // spendable) but are PRESENTED as savings, not cost. The decomposition
+  // is locked here and the NUMBER DISCIPLINE block mandates verbatim use,
+  // so prose answers can't drift between groupings ("₹38,500 fixed +
+  // ₹15,000 SIP", "₹62,468 fixed commitments lumped together", etc.).
+  const checksum = totalNonInvesting + totalInvesting + totalGoalContrib + safeToSpend;
   lines.push('### Canonical income decomposition (use this verbatim — do not rearrange)');
   lines.push(`Net monthly income ₹${INR(incomeNet)} decomposes as:`);
-  lines.push(`- Fixed commitments (outflow, excludes SIPs): ₹${INR(totalNonInvesting)}`);
-  lines.push(`- Goal contributions: ₹${INR(totalGoalContrib)}`);
-  lines.push(`- Safe-to-spend: ₹${INR(safeToSpend)}`);
-  lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(safeToSpend)} = ₹${INR(checksum)}`);
-  if (totalInvesting > 0) {
-    lines.push(`- Investing SIPs ₹${INR(totalInvesting)} sit INSIDE safe-to-spend as planned savings — NOT a separate bucket, NOT subtracted from safe-to-spend.`);
-  }
+  lines.push(`- Non-investing commitments (cost — rent, EMIs, utilities, family support): ₹${INR(totalNonInvesting)}`);
+  lines.push(`- Investing commitments (savings — SIPs / RDs / PPF / NPS, auto-debit toward future): ₹${INR(totalInvesting)}`);
+  lines.push(`- Goal contributions (savings — earmarked toward specific goals): ₹${INR(totalGoalContrib)}`);
+  lines.push(`- Safe-to-spend (discretionary — what's left for variable spending this month): ₹${INR(safeToSpend)}`);
+  lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(safeToSpend)} = ₹${INR(checksum)}`);
+  lines.push(`- Presentation: investing commitments and goal contributions are SAVINGS, not COST. Describe them that way. They still subtract from safe-to-spend because they are committed outflows the user can't redirect this month.`);
   lines.push('');
 
   // D.49 + D.51 (Stream 0.5t pieces #5 + #7) — user rules now read from

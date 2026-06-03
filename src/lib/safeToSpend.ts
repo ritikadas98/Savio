@@ -12,11 +12,19 @@ export type Goal = {
 /**
  * Deterministic safe-to-spend formula.
  *
- * Formula:
+ * Formula (post-D.64 — Spec 1, revises D.63):
  *   monthly_income_net
  *   - sum(FIXED non-investing commitments)
+ *   - sum(FIXED investing commitments — SIPs, RDs, PPF, NPS)
  *   - sum(active goals' monthly_contribution)
  *   + carryForwardFromLastMonth (Phase 3 ritual rollover)
+ *
+ * Why investing commitments are now deducted (D.64): a monthly SIP / RD
+ * auto-debits on its anchor day; the money isn't spendable, even though
+ * it isn't "cost" — it's a committed outflow toward the user's future.
+ * Same shape as a goal contribution. The investing/non-investing split is
+ * preserved at *presentation* time (the prompt builder labels investing
+ * as savings, not cost) but both subtract from STS.
  *
  * Variable commitments (kind='variable') are budgets WITHIN the discretionary
  * bucket — they do NOT subtract from safe-to-spend. The ritual close-out
@@ -38,9 +46,11 @@ export function calculateSafeToSpend(
 ): number {
   if (monthlyIncomeNet === null || monthlyIncomeNet === undefined) return 0;
 
+  // D.64: ALL fixed commitments deduct, including investing. The category
+  // distinction is for presentation (investing = savings, not cost) — the
+  // STS math sees them identically.
   const totalCommitments = commitments
     .filter(c => (c.kind ?? 'fixed') !== 'variable')
-    .filter(c => c.category !== 'Investing' && c.category !== 'Investment')
     .reduce((sum, c) => sum + Number(c.amount || 0), 0);
 
   const totalGoals = goals
