@@ -279,12 +279,21 @@ serve(async (req) => {
     commitment_overruns.sort((a, b) => b.overrun - a.overrun);
 
     // ── Discretionary leftover ──
-    // safe_to_spend (budgeted discretionary) = income - fixed_non_investing_commits - active_goal_contribs
+    // safe_to_spend (budgeted discretionary)
+    //   = income − fixed_non_investing_commits − fixed_investing_commits − active_goal_contribs
+    //
+    // D.64 (Spec 1, revises D.63): investing commitments now deduct from
+    // STS — same shape as goal contributions (auto-debit, not spendable).
+    // Linear consistency invariant: same formula as src/lib/safeToSpend.ts
+    // and the chat-respond prompt builder; one canonical computation
+    // shape across all three sites.
     const fixedCommits = comms.filter((c: any) => (c.kind ?? 'fixed') !== 'variable');
     const fixedNonInvesting = fixedCommits.filter((c: any) => !isInvestingCategory(c.category));
+    const fixedInvesting    = fixedCommits.filter((c: any) =>  isInvestingCategory(c.category));
     const totalFixedNonInvesting = fixedNonInvesting.reduce((s: number, c: any) => s + num(c.amount), 0);
+    const totalFixedInvesting    = fixedInvesting.reduce((s: number, c: any) => s + num(c.amount), 0);
     const totalGoalContrib = (goals || []).reduce((s: number, g: any) => s + num(g.monthly_contribution), 0);
-    const safeToSpendBudget = num(profile.monthly_income_net) - totalFixedNonInvesting - totalGoalContrib;
+    const safeToSpendBudget = num(profile.monthly_income_net) - totalFixedNonInvesting - totalFixedInvesting - totalGoalContrib;
     const discretionary_leftover = Number((safeToSpendBudget - nullCommitmentDebitTotal).toFixed(2));
 
     // ── Net total leftover ──

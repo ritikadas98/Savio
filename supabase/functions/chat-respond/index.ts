@@ -82,7 +82,14 @@ serve(async (req) => {
       supabase.from('goals').select('*').eq('user_id', profileId),
       supabase.from('commitments').select('*').eq('user_id', profileId),
       supabase.from('transactions').select('amount, merchant, category, direction, occurred_at').eq('user_id', profileId).order('occurred_at', { ascending: false }).limit(15),
-      supabase.from('monthly_rituals').select('*').eq('user_id', profileId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      // D.64 (Spec 1) — filter to status='pending' so we always pick the
+      // "current ritual to act on" (M-1 in the dynamic-month world). The
+      // previous .order('created_at') picked an arbitrary completed
+      // ritual when all four seeded rows shared a created_at, which
+      // routed the OLD locked safe_to_spend_locked value (₹41,500-₹41,700)
+      // into the prompt and bypassed computedSTS. Pending row has
+      // safe_to_spend_locked=null until close-out → computedSTS wins.
+      supabase.from('monthly_rituals').select('*').eq('user_id', profileId).eq('status', 'pending').limit(1).maybeSingle(),
       supabase.from('merchant_stats').select('*').eq('user_id', profileId),
       supabase.from('chat_messages').select('role, content').eq('user_id', profileId).order('created_at', { ascending: false }).limit(6)
     ]);

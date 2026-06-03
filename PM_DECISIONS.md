@@ -1010,6 +1010,39 @@ Headline numbers (safe-to-spend ₹41,532, deficit math, verdict colors, rule ci
 
 Companion to the divergence-test artifact (C.23) — D.63 is the FIRST fix the artifact's results drove, validating the artifact as a quality-discovery surface rather than a one-off case-study illustration.
 
+**Superseded in part by D.64 (Spec 1):** the canonical income decomposition shape changed — SIPs are now subtracted from STS rather than "sitting inside it." Day-count and daily-SPS injection mechanics carry forward unchanged.
+
+#### D.64 Investing commitments deducted from safe-to-spend — Savings Model Spec 1 (revises D.63)
+
+Stream 0.5z, Spec 1 of the three-spec savings-model stack. The D.63 decomposition placed investing SIPs *inside* safe-to-spend ("planned savings — NOT subtracted") — categorically correct (SIPs aren't cost; they're savings) but operationally wrong: a SIP auto-debits on its anchor day, so the money isn't spendable that month even though it isn't "cost." "Not a cost" and "not spendable" are both true; D.63 encoded only the first, which overstated headroom by ₹15K — the user looking at STS saw ₹41,532 of supposed discretionary cash, of which ₹15,000 was already committed to leave their account.
+
+**Principle.** A monthly investing commitment (SIP / RD / PPF / NPS) is the same shape as a goal contribution: a committed monthly outflow toward the user's future. Deduct it from STS. Keep the investing-vs-non-investing distinction at presentation — investing reads as savings, not cost — but the math sees them identically.
+
+**Three sites updated** (linear consistency invariant — one formula, three implementations that must agree):
+
+1. `src/lib/safeToSpend.ts` — canonical frontend formula. Removed the `.filter(c => c.category !== 'Investing' && c.category !== 'Investment')`; all fixed commitments now subtract.
+2. `supabase/functions/chat-respond/prompt_builder.ts` — `computedSTS = incomeNet − totalNonInvesting − totalInvesting − totalGoalContrib`; canonical decomposition block rewritten as four lines (non-investing + investing + goals + STS = income) summing exactly to net; NUMBER DISCIPLINE flipped from "SIPs NOT subtracted" to "SIPs ARE subtracted as savings."
+3. `supabase/functions/ritual-close-out/index.ts` — `safeToSpendBudget` baseline (the close-out's "what was your discretionary budget this month?" anchor) now matches. Linear consistency is what protects the close-out math from telling a different story than the chat / home / hero.
+
+**Pre-existing bug fixed inline** (required for Spec 1 verification): chat-respond's ritual query was `.order('created_at', { ascending: false }).limit(1)` — with all four seeded ritual rows sharing a `created_at` after Stream 0.5x's dynamic seed, Postgres returned an arbitrary completed row whose `safe_to_spend_locked` (₹41,500-₹41,700) was passed verbatim to the prompt, bypassing `computedSTS` entirely. Hence the deployed function kept showing ₹41,532 after the Spec 1 edits landed. Filter changed to `.eq('status', 'pending').limit(1)` — matches the dynamic-month seed's M-1 = pending convention. Banked here because the bug only mattered once the formula changed; before D.64, the locked value and `computedSTS` happened to agree.
+
+**Demo re-baseline.** Priya's headline numbers shifted:
+- Safe-to-spend: **₹41,532 → ₹26,532** (= ₹98,000 − ₹47,468 − ₹15,000 − ₹9,000).
+- Daily safe-to-spend: **₹1,384 → ₹884** (= ₹26,532 ÷ 30 on June 1).
+- Decomposition stated in prose: now four lines instead of three.
+
+D.47 calibration check (per the spec): variable commitment budgets total ₹17K/month (₹567/day), leaving ₹317/day of truly-free discretionary spend. For an ₹98K-net earner in Tier 1/2 cities, that reads realistic-but-tight — exactly the "in-between-income" narrative. **No income or SIP rebalance needed.** The locked STS values on the completed-ritual rows in the seed (Jan ₹41,500 / Feb ₹41,000 / Mar ₹41,700) remain unchanged — they are historical records and shifting them would rewrite the deficit-demo narrative for past months; the close-out preview's *budget* line is now ₹26,532 going forward, which is the only place the new formula affects past-month narratives.
+
+**Verification (per CLAUDE.md gates):**
+- `npx tsc -b`: 0 errors.
+- `vitest tests/unit/safeToSpend.test.ts`: 3/3 pass (test updated to assert ₹26,532).
+- `npm run divergence-tests` (post-deploy): STS ₹26,532 and daily ₹884 appear verbatim across every verdict in the run; canonical decomposition described identically in both prose answers (₹47,468 non-investing + ₹15,000 investing + ₹9,000 goals + ₹26,532 STS); Turn 3 cumulative-context still works (₹1,08,000 − ₹26,532 = ₹81,468 deficit, RED).
+- `test-chat-7cases.mjs`: 9/9 pass; Case 5 prose explicitly states "₹47,468 non-investing" (not ₹62,468 or other lumped variants); Cases 8/9 impulse-wait boundary discipline unaffected; verified=true on every case.
+
+**Companion specs (not done in this commit):**
+- **Spec 2 / D.65** — savings model + cushion + profile "Your finances" display. Builds the unearmarked-liquid concept on top of the corrected STS.
+- **Spec 3 / D.66** — buffer-aware verdicts (cushion enters as a RED→YELLOW tradeoff, never GREEN).
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs
