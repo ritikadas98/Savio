@@ -11,6 +11,8 @@ import { DEMO_MODE_MESSAGE } from '../lib/copy';
 import { logoutFromPriya } from '../lib/auth';
 import { getUserRules, formatSafetyNet, formatImpulseWait } from '../lib/user-rules';
 import { getSavingsState } from '../lib/savings';
+import { computeStsBreakdown } from '../lib/safeToSpend';
+import { getPreviousMonthFirstDate } from '../lib/dates';
 
 // Stream 0.5n — Profile identity hero reads the same localStorage avatar
 // hint as ProfilePill (Phase C4). DB stays authoritative for chat behavior
@@ -136,7 +138,10 @@ function ProfileSectionHeader({ title }: { title: string }) {
 }
 
 type ProfileFieldRowProps = {
-  label: string;
+  // D.65 Spec 2.2 — label widened to ReactNode so flow rows can carry a
+  // small sublabel (e.g. "Investing — savings") inline. Plain strings
+  // still work; existing callers unchanged.
+  label: React.ReactNode;
   value: React.ReactNode;
   onClick?: () => void;
   isLast?: boolean;
@@ -182,10 +187,15 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [commitments, setCommitments] = useState<FixedCommitment[]>([]);
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [carryForward, setCarryForward] = useState<number>(0);
   // D.37 (Stream 0.5r piece #5) — commitments default collapsed. Total
   // card itself is the affordance — single tappable element, no separate
   // expand button. Per-session state; resets on navigation away.
-  const [commitmentsExpanded, setCommitmentsExpanded] = useState(false);
+  // D.65 Spec 2.2 — split into two independent toggles: fixed costs +
+  // investing. They expand independently so a user looking at one
+  // detail doesn't have to scroll past the other.
+  const [fixedCostsExpanded, setFixedCostsExpanded] = useState(false);
+  const [investingExpanded, setInvestingExpanded] = useState(false);
   const [snackMessage, setSnackMessage] = useState<string | null>(null);
 
   // Stream 0.5n — localStorage avatar hint, read once on mount (matches
@@ -253,11 +263,48 @@ export function ProfilePage() {
           })),
         );
       }
+
+      // D.65 Spec 2.2 — carry-forward must match Home/chat (gate #4: same STS
+      // across all three surfaces). Same query Home runs (HomePage.tsx:113).
+      const { data: cfRows } = await supabase
+        .from('rollover_allocations')
+        .select('total_amount')
+        .eq('user_id', profileId)
+        .eq('ritual_month', getPreviousMonthFirstDate())
+        .eq('destination_kind', 'carry_forward');
+      if (!cancelled && cfRows) {
+        setCarryForward((cfRows as Array<{ total_amount: number }>).reduce((s, r) => s + Number(r.total_amount || 0), 0));
+      }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const commitmentTotal = commitments.reduce((sum, c) => sum + c.amount, 0);
+  // D.65 (Spec 2.2) — canonical decomposition from the shared module.
+  // Same source the chat grounding and Home read, so the figures shown
+  // here are byte-identical to what those surfaces use (gate #4). The
+  // investing/non-investing split is preserved at presentation time per
+  // D.64: investing renders as savings, not a cost.
+  const stsBreakdown = computeStsBreakdown(
+    profile?.monthly_income_net ?? 0,
+    // Pass full commitments shape — the module's own filter handles
+    // variable-vs-fixed and investing classification.
+    commitments.map(c => ({ amount: c.amount, category: c.category, kind: 'fixed' as const })),
+    goals,
+    carryForward,
+  );
+  // D.65 (Spec 2.2) — split the commitments display by investing
+  // category. Replaces the lumped "Fixed commitments ₹62,468" with two
+  // canonical groups (fixed costs ₹47,468 + investing ₹15,000).
+  const fixedCostCommitments = commitments.filter(c => {
+    const cat = (c.category ?? '').toLowerCase();
+    return cat !== 'investing' && cat !== 'investment';
+  });
+  const investingCommitments = commitments.filter(c => {
+    const cat = (c.category ?? '').toLowerCase();
+    return cat === 'investing' || cat === 'investment';
+  });
+  const fixedCostTotal = fixedCostCommitments.reduce((s, c) => s + c.amount, 0);
+  const investingTotal = investingCommitments.reduce((s, c) => s + c.amount, 0);
 
   // D.49 (Stream 0.5t piece #5) — pull rule values via the helper so the
   // displayed strings come from the same getUserRules() path the Edge
@@ -270,7 +317,10 @@ export function ProfilePage() {
   // status surfaced here is byte-identical to what the LLM sees.
   const savings = getSavingsState(profile, goals);
 
-  const income = profile?.monthly_income_net ?? 98000;
+  // D.65 Spec 2.2 — income now read inside the "This month" flow card
+  // via stsBreakdown.incomeNet (one canonical source). Standalone
+  // `income` variable retired to avoid drift between rendered figure
+  // and decomposition source.
   const anchorDay = profile?.anchor_day_of_month ?? 1;
   const bank = profile?.primary_bank ?? 'HDFC';
   const ackDateRaw = profile?.disclaimer_acknowledged_at ?? FALLBACK_ACK_DATE;
@@ -336,44 +386,95 @@ export function ProfilePage() {
           </div>
         </div>
 
-        {/* Your finances */}
-        <ProfileSectionHeader title="Your finances" />
+        {/* D.65 Spec 2.2 — "This month" flow. Canonical decomposition
+            from computeStsBreakdown (the SAME source Home + chat read),
+            so every figure here is byte-identical across surfaces.
+            Investing renders here as savings (sublabel), not a fixed
+            cost — re-blurring D.64's split would defeat its point.
+            Income → Fixed costs → Investing → Goals → Safe to spend.
+            Tap targets retained on Income (editable stub) and the
+            three derived rows non-clickable. */}
+        <ProfileSectionHeader title="This month" />
         <Card className="!p-0">
           <ProfileFieldRow
-            label="Monthly income"
-            value={`${formatRupeesIndian(income)} net`}
+            label="Income"
+            value={`${formatRupeesIndian(stsBreakdown.incomeNet)} net`}
             onClick={showStub}
           />
           <ProfileFieldRow
-            label="Anchor date"
-            value={`${ordinalSuffix(anchorDay)} of month`}
-            onClick={showStub}
+            label="Fixed costs"
+            value={<span style={{ color: '#1A1A1A' }}>−{formatRupeesIndian(stsBreakdown.totalNonInvesting)}</span>}
           />
           <ProfileFieldRow
-            label="Primary bank"
-            value={bank}
-            onClick={showStub}
+            label={
+              <span>
+                Investing
+                <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>savings</span>
+              </span>
+            }
+            value={<span style={{ color: '#1A1A1A' }}>−{formatRupeesIndian(stsBreakdown.totalInvesting)}</span>}
           />
-          {/* D.65 (Spec 2) — Safety net + cushion. The safety net is a
-              rule (the floor); the cushion is the spendable buffer above
-              it. Framing: reserve, not balance-to-spend. When the floor
-              isn't covered (rare for Priya — EF currently above ₹1L),
-              the second row flips to a rebuild gap rather than showing
-              a negative cushion. */}
+          <ProfileFieldRow
+            label={
+              <span>
+                Goals
+                <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>savings</span>
+              </span>
+            }
+            value={<span style={{ color: '#1A1A1A' }}>−{formatRupeesIndian(stsBreakdown.totalGoalContrib)}</span>}
+          />
+          {stsBreakdown.carryForward > 0 && (
+            <ProfileFieldRow
+              label={
+                <span>
+                  Carry-forward
+                  <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>from last month</span>
+                </span>
+              }
+              value={<span style={{ color: '#1A1A1A' }}>+{formatRupeesIndian(stsBreakdown.carryForward)}</span>}
+            />
+          )}
+          {/* Bottom-line row — visually emphasised as the derived
+              result. Slightly heavier divider + bold value so it reads
+              as the "= " of the flow. */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              padding: '16px 16px',
+              borderTop: '1px solid rgba(0,0,0,0.10)',
+            }}
+          >
+            <span style={{ fontSize: 14, color: '#1A1A1A', flex: 1, fontWeight: 500 }}>Safe to spend</span>
+            <span style={{ fontSize: 18, color: '#1A1A1A', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+              {formatRupeesIndian(stsBreakdown.safeToSpend)}
+            </span>
+          </div>
+        </Card>
+
+        {/* D.65 Spec 2.2 — "Savings position" stock card. Separated
+            from "This month" because a balance is a different thing
+            than a flow. Safety-net AMOUNT lives in Your rules
+            (editable); this row is STATUS only (no duplicate ₹1L
+            editable affordance). Cushion + rebuild-gap framing
+            preserved from Spec 2. */}
+        <ProfileSectionHeader title="Savings position" />
+        <Card className="!p-0">
           <ProfileFieldRow
             label="Safety net"
             value={
               savings.floorCovered ? (
-                <span>
-                  {formatRupeesIndian(savings.safetyNet)}
+                <span style={{ color: '#1A1A1A' }}>
+                  Covered ✓
                   {savings.backerLabel && (
                     <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>
-                      covered by {savings.backerLabel}
+                      by {savings.backerLabel}
                     </span>
                   )}
                 </span>
               ) : (
-                <span>{formatRupeesIndian(savings.safetyNet)}</span>
+                <span style={{ color: '#A8533F' }}>Not yet covered</span>
               )
             }
           />
@@ -407,21 +508,36 @@ export function ProfilePage() {
           )}
         </Card>
 
-        {/* D.31 + D.37 (Streams 0.5q + 0.5r) — Your commitments.
-            Default collapsed: only the Monthly total card visible, which
-            is itself the tap target (no separate expand button — single
-            affordance pattern). Chevron rotates 180° on expand. List
-            renders below the total when expanded. Fixed-only filter;
-            variable categories surface on the close-out + ritual flow. */}
-        {commitments.length > 0 && (
+        {/* D.65 Spec 2.2 — Account details (formerly part of "Your
+            finances"). Anchor day + primary bank are profile metadata,
+            not flow or stock; they belong in their own group. */}
+        <ProfileSectionHeader title="Account details" />
+        <Card className="!p-0">
+          <ProfileFieldRow
+            label="Anchor date"
+            value={`${ordinalSuffix(anchorDay)} of month`}
+            onClick={showStub}
+          />
+          <ProfileFieldRow
+            label="Primary bank"
+            value={bank}
+            onClick={showStub}
+            isLast
+          />
+        </Card>
+
+        {/* D.65 Spec 2.2 — Your fixed costs (non-investing commitments
+            only — D.64 distinction preserved). Default collapsed; total
+            row is the tap target. */}
+        {fixedCostCommitments.length > 0 && (
           <>
-            <ProfileSectionHeader title="Your fixed commitments" />
+            <ProfileSectionHeader title="Your fixed costs" />
             <Card className="!p-0">
               <button
                 type="button"
-                onClick={() => setCommitmentsExpanded(e => !e)}
-                aria-expanded={commitmentsExpanded}
-                aria-controls="commitments-list"
+                onClick={() => setFixedCostsExpanded(e => !e)}
+                aria-expanded={fixedCostsExpanded}
+                aria-controls="fixed-costs-list"
                 className="hover:bg-black/[0.02] transition-colors"
                 style={{
                   display: 'flex',
@@ -433,29 +549,29 @@ export function ProfilePage() {
                   cursor: 'pointer',
                   textAlign: 'left',
                   fontFamily: 'inherit',
-                  borderBottom: commitmentsExpanded ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                  borderBottom: fixedCostsExpanded ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
                 }}
               >
                 <span style={{ flex: 1, fontSize: 13, color: '#5F5E5A', fontWeight: 400 }}>
                   Monthly total
                 </span>
                 <span style={{ fontSize: 16, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginRight: 10 }}>
-                  {formatRupeesIndian(commitmentTotal)}
+                  {formatRupeesIndian(fixedCostTotal)}
                 </span>
                 <ChevronDown
                   size={20}
                   color="#5A6B5F"
                   style={{
-                    transform: commitmentsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transform: fixedCostsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
                     transition: 'transform 200ms ease',
                     flexShrink: 0,
                   }}
                   aria-hidden
                 />
               </button>
-              {commitmentsExpanded && (
-                <div id="commitments-list">
-                  {commitments.map((c, i) => (
+              {fixedCostsExpanded && (
+                <div id="fixed-costs-list">
+                  {fixedCostCommitments.map((c, i) => (
                     <div
                       key={c.id}
                       style={{
@@ -463,7 +579,86 @@ export function ProfilePage() {
                         alignItems: 'center',
                         width: '100%',
                         padding: '12px 16px',
-                        borderBottom: i < commitments.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                        borderBottom: i < fixedCostCommitments.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, lineHeight: 1.3 }}>
+                          {c.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888780', marginTop: 2, lineHeight: 1.3 }}>
+                          {[c.category, c.frequency].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 14, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                        {formatRupeesIndian(c.amount)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </>
+        )}
+
+        {/* D.65 Spec 2.2 — Your investing. SIPs / RDs / PPF rendered as
+            a SAVINGS group (not a cost). Same expandable pattern as
+            fixed costs. Independent toggle state. */}
+        {investingCommitments.length > 0 && (
+          <>
+            <ProfileSectionHeader title="Your investing" />
+            <Card className="!p-0">
+              <button
+                type="button"
+                onClick={() => setInvestingExpanded(e => !e)}
+                aria-expanded={investingExpanded}
+                aria-controls="investing-list"
+                className="hover:bg-black/[0.02] transition-colors"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  width: '100%',
+                  padding: '14px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: 'inherit',
+                  borderBottom: investingExpanded ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
+                }}
+              >
+                <span style={{ flex: 1, fontSize: 13, color: '#5F5E5A', fontWeight: 400 }}>
+                  Monthly total
+                  <span style={{ color: '#888780', fontSize: 11, marginLeft: 6 }}>
+                    savings, auto-debited
+                  </span>
+                </span>
+                <span style={{ fontSize: 16, color: '#1A1A1A', fontWeight: 500, fontVariantNumeric: 'tabular-nums', marginRight: 10 }}>
+                  {formatRupeesIndian(investingTotal)}
+                </span>
+                <ChevronDown
+                  size={20}
+                  color="#5A6B5F"
+                  style={{
+                    transform: investingExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 200ms ease',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden
+                />
+              </button>
+              {investingExpanded && (
+                <div id="investing-list">
+                  {investingCommitments.map((c, i) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        width: '100%',
+                        padding: '12px 16px',
+                        borderBottom: i < investingCommitments.length - 1 ? '0.5px solid rgba(0,0,0,0.07)' : 'none',
                         textAlign: 'left',
                       }}
                     >
