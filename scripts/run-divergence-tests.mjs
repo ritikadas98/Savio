@@ -129,7 +129,9 @@ async function callVanillaGemini(history, token, projectId) {
     `/locations/${cfg.region}/publishers/google/models/${cfg.model}:generateContent`;
   const body = {
     contents: history.map((h) => ({ role: h.role, parts: [{ text: h.text }] })),
-    generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+    // Modest cap keeps the side-by-side readable; truncation is labelled below
+    // so a trimmed vanilla answer never reads as unfair cropping.
+    generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
   };
   const res = await fetch(url, {
     method: "POST",
@@ -138,7 +140,13 @@ async function callVanillaGemini(history, token, projectId) {
   });
   if (!res.ok) return `⟨vanilla call failed: ${res.status} ${await res.text()}⟩`;
   const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "⟨empty vanilla response⟩";
+  const cand = data?.candidates?.[0];
+  const text = cand?.content?.parts?.map((p) => p.text).join("") ?? "⟨empty vanilla response⟩";
+  // Gemini sets finishReason to something other than "STOP" when it didn't
+  // finish naturally (e.g. MAX_TOKENS). Make that explicit rather than letting
+  // the answer end mid-word.
+  const truncated = cand?.finishReason && cand.finishReason !== "STOP";
+  return truncated ? `${text} [… truncated for length — finishReason: ${cand.finishReason}]` : text;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,17 +233,33 @@ function normalizeSavioResponse(data) {
 
 // ---------------------------------------------------------------------------
 // Cheap, factual signals (no editorializing).
+//
+// HONEST GUARD WORDING — per PM_DECISIONS E.3 the hallucination guard runs
+// against `verdict_line` ONLY, not the body, tradeoffs, or prose. We never
+// claim "verified the numbers" wholesale; we say exactly what's true.
 // ---------------------------------------------------------------------------
 function signalsLine(savio, vanillaText) {
-  const s = [];
-  s.push(`Savio response kind: \`${savio.kind}\``);
-  if (savio.structured?.verdict_color) s.push(`Savio returned a verdict signal (\`${savio.structured.verdict_color}\`)`);
-  if (savio.meta?.scope_filter_triggered) s.push(`Savio invoked scope refusal (family: ${savio.meta.scope_filter_triggered})`);
-  if (savio.meta?.verified) s.push("Savio's hallucination guard verified the numbers");
-  if (savio.meta?.fallback_used) s.push("Savio fell back to deterministic copy after guard");
+  const s = [`Savio response kind: \`${savio.kind}\``];
+  const color = savio.structured?.verdict_color;
+
+  if (savio.structured?.verdict_line) {
+    s.push(`Savio returned a verdict${color ? ` (\`${color}\`)` : ""}`);
+    if (savio.meta?.verified) {
+      s.push("verdict line guard-verified; body/tradeoff figures grounded but not separately guard-verified (E.3)");
+    }
+    if (savio.meta?.fallback_used) {
+      s.push("Savio fell back to deterministic copy after guard");
+    }
+  } else if (savio.meta?.scope_filter_triggered ||
+             /SEBI|outside what i can help|not.*advice|i help you understand/i.test(savio.text)) {
+    s.push(`Savio invoked a scope refusal${savio.meta?.scope_filter_triggered ? ` (family: ${savio.meta.scope_filter_triggered})` : ""} — no numbers to verify`);
+  } else {
+    s.push("numbers grounded in Priya's data, not separately guard-verified (E.3)");
+  }
+
   if (/₹\s?[\d,]+/.test(vanillaText)) s.push("vanilla stated a ₹ figure it has no source for");
   if (/mutual fund|invest in|stock|SIP|portfolio|allocat/i.test(vanillaText)) s.push("vanilla gave investment/instrument guidance");
-  return s.length ? s.join("; ") : "none detected";
+  return s.join("; ");
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,29 @@ function daysUntilNextAnchor(anchorDay: number): number {
   return Math.ceil((next.getTime() - t.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// D.63 (Stream 0.5y) — deterministic "days remaining in current month" for
+// the daily-SPS divisor. Calendar days from today through month-end,
+// INCLUSIVE — so on the 1st of a 30-day month this returns 30. Convention
+// matches what a user would intuitively count off on a calendar.
+//
+// Read via Intl with Asia/Kolkata so the day-of-month interpretation tracks
+// the same IST anchor that computeDemoToday() uses. Last-day-of-month
+// computed via Date.UTC(year, monthIndex + 1, 0) — the day-0-of-next-month
+// trick is timezone-agnostic since we only consume the integer day value.
+function daysRemainingInMonth(): number {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(DEMO_TODAY);
+  const year = Number(parts.find(p => p.type === 'year')!.value);
+  const monthIndex = Number(parts.find(p => p.type === 'month')!.value) - 1;
+  const day = Number(parts.find(p => p.type === 'day')!.value);
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return lastDay - day + 1;
+}
+
 export const buildIdentityLayer = (): string => {
   return `You are Savio, an AI decision-support companion for earning Indians.
 You help users translate raw financial data into felt consequences to prime their decision-making.
@@ -60,8 +83,11 @@ NUMBER DISCIPLINE:
 - Use only numbers present in the Grounding Context or in the user's message, or arithmetic derived from them (sum, difference, percentage). Do NOT invent figures.
 - When the user asks about safe-to-spend, affordability, or budget remaining:
   - USE the pre-computed "Safe-to-spend this month" figure from Derived Figures.
-  - Do NOT recompute it from raw commitments — the derived figure is the authoritative value.
-  - Investing commitments (SIPs, PPF, NPS, mutual funds) are NOT subtracted from safe-to-spend — they are savings, not outflow.
+  - USE the pre-computed "Days remaining in current month" verbatim. Do NOT recompute the day count. Every response in a session must use the same day count — it's a calendar fact, not a per-question estimate.
+  - USE the pre-computed "Daily safe-to-spend (today through month-end)" figure verbatim. Do NOT recompute it from safe-to-spend / day count.
+  - When describing where the user's income goes, use the "Canonical income decomposition" block verbatim. Do NOT introduce alternative groupings (e.g., "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", or "₹62,468 fixed commitments" with SIPs lumped in) — those break the safe-to-spend math.
+  - Do NOT recompute safe-to-spend from raw commitments — the derived figure is the authoritative value.
+  - Investing commitments (SIPs, PPF, NPS, mutual funds) are NOT subtracted from safe-to-spend — they sit inside it as savings.
 - For affordability checks ("Can I afford ₹X?"), compute remaining = safe-to-spend − X and reason from that.
 
 FORMATTING:
@@ -343,12 +369,38 @@ export const buildGroundingContext = (
   }
   lines.push('');
 
-  lines.push('### Derived figures (use these — do not recompute)');
+  // D.63 (Stream 0.5y) — days_remaining_in_month + daily_sps now injected as
+  // deterministic facts the model must use verbatim. The first divergence-test
+  // run surfaced day counts drifting between 29 / 30 / 31 across answers in
+  // the same session (June has 30; 31 is impossible). Per D.40, cut the LLM
+  // surface rather than guard it: precompute, inject, and mandate verbatim use
+  // via the NUMBER DISCIPLINE block.
+  const daysRemaining = daysRemainingInMonth();
+  const dailySps = Math.round(safeToSpend / daysRemaining);
+
+  lines.push('### Derived figures (use these verbatim — do not recompute)');
   lines.push(`- **Safe-to-spend this month: ₹${INR(safeToSpend)}**`);
   lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
-  lines.push(`- Days until next salary: ${daysUntilSalary}`);
-  if (daysUntilSalary > 0) {
-    lines.push(`- Daily safe-to-spend (informational): ₹${INR(Math.floor(safeToSpend / daysUntilSalary))}`);
+  lines.push(`- **Days remaining in current month (today through month-end, inclusive): ${daysRemaining}**`);
+  lines.push(`- **Daily safe-to-spend (today through month-end): ₹${INR(dailySps)}** (= ₹${INR(safeToSpend)} ÷ ${daysRemaining})`);
+  lines.push(`- Days until next salary: ${daysUntilSalary} (separate from days-remaining-in-month; use days-remaining for daily SPS, not this)`);
+  lines.push('');
+
+  // D.63 — canonical income decomposition. The model previously described
+  // Priya's ₹98K decomposition inconsistently across answers (sometimes
+  // "₹38,500 fixed + ₹15,000 SIP + ₹9,000 goals", sometimes lumping SIPs
+  // into fixed commitments). Lock the breakdown to the one that matches
+  // the safe-to-spend math already in use (income − non_investing_fixed −
+  // goals = STS), state SIP placement explicitly, and mandate verbatim use.
+  const checksum = totalNonInvesting + totalGoalContrib + safeToSpend;
+  lines.push('### Canonical income decomposition (use this verbatim — do not rearrange)');
+  lines.push(`Net monthly income ₹${INR(incomeNet)} decomposes as:`);
+  lines.push(`- Fixed commitments (outflow, excludes SIPs): ₹${INR(totalNonInvesting)}`);
+  lines.push(`- Goal contributions: ₹${INR(totalGoalContrib)}`);
+  lines.push(`- Safe-to-spend: ₹${INR(safeToSpend)}`);
+  lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(safeToSpend)} = ₹${INR(checksum)}`);
+  if (totalInvesting > 0) {
+    lines.push(`- Investing SIPs ₹${INR(totalInvesting)} sit INSIDE safe-to-spend as planned savings — NOT a separate bucket, NOT subtracted from safe-to-spend.`);
   }
   lines.push('');
 
