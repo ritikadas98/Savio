@@ -183,12 +183,26 @@ export function MonthlyRitualCloseOut() {
             Stream 0.5x — month pair derived dynamically so the toggle
             survives calendar-month rollovers. */}
         {(() => {
-          const positiveMonth = defaultPendingMonth();
-          const deficitMonth = getDeficitDemoMonth();
-          if (month !== positiveMonth && month !== deficitMonth) return null;
-          const isPositive = month === positiveMonth;
-          const otherMonth = isPositive ? deficitMonth : positiveMonth;
+          const m1Month = defaultPendingMonth();
+          const m2Month = getDeficitDemoMonth();
+          if (month !== m1Month && month !== m2Month) return null;
+          // D.66 Spec 3 follow-up — read the label from the actual
+          // close-out leftover (outer `isPositive`), not from the route
+          // position. Pre-Spec 1 the M-1/M-2 pair reliably mapped to
+          // positive/deficit; after Spec 1 deducted investing from STS,
+          // M-1's leftover shifted from a small positive to a small
+          // deficit for some configurations. Hardcoding "positive
+          // month" by route would lie in those cases. The OTHER side's
+          // state isn't known here without fetching, so drop the
+          // prediction — just name the destination month.
+          const viewingM1 = month === m1Month;
+          const otherMonth = viewingM1 ? m2Month : m1Month;
           const otherName = formatMonthName(otherMonth).split(' ')[0];
+          const currentStateLabel = isPositive
+            ? 'positive month'
+            : isExact
+              ? 'close to even'
+              : 'deficit month';
           return (
             <button
               type="button"
@@ -210,9 +224,7 @@ export function MonthlyRitualCloseOut() {
               }}
             >
               <ArrowLeftRight size={11} strokeWidth={2} />
-              {isPositive
-                ? `Demo: positive month · switch to ${otherName} deficit`
-                : `Demo: deficit month · switch to ${otherName} positive`}
+              Demo: {currentStateLabel} · switch to {otherName}
             </button>
           );
         })()}
