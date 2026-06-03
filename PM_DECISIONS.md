@@ -1133,6 +1133,45 @@ Not exercised in the live demo today (Priya's pending ritual has `safe_to_spend_
 
 **Move-it-into-resolved.** The "Things noticed but not fixed" item in D.65 that flagged this is now struck through above, pointing here. Spec 2.1 closes that loop.
 
+#### D.65 follow-up (Spec 2.2) — Profile "Your finances" coherence
+
+Discovered during live Spec 3 review: the Profile finances surface didn't get updated when Spec 1 split investing out and Spec 2 added the cushion. Three issues all on the same screen:
+
+1. **"Fixed commitments ₹62,468" lumped the ₹15,000 investing back in** with the ₹47,468 non-investing costs — re-blurring D.64's investing-vs-cost distinction on a surface that should have inherited it. Chat treated investing as separate savings; the Profile still filed it as a fixed commitment. Same money, two labels across two surfaces — a Linear-consistency family violation.
+2. **The safety net amount (₹1,00,000) showed twice** — once in the finances block from Spec 2's "place beside the safety net" instruction, once under "Your rules" as the editable canonical. Two rows displaying the same number, one editable, one not.
+3. **Flow and stock were mixed and the decomposition was invisible.** Income (a monthly flow) sat next to Safety net (a balance/floor) with no separator, and the derived `Safe to spend ₹26,532` — the most consumed number on the app — wasn't on the Profile at all. A user staring at the Profile couldn't see *where the ₹26,532 came from*.
+
+**Restructure — three named groups instead of one undifferentiated card:**
+
+| Group | Card content | Purpose |
+|---|---|---|
+| **This month** | Income ₹98,000 → Fixed costs ₹47,468 → Investing ₹15,000 *(savings)* → Goals ₹9,000 *(savings)* → **Safe to spend ₹26,532** | The flow. Bottom-line STS visually emphasised (thicker top border, larger weight) so it reads as the "= " of the decomposition. |
+| **Savings position** | Safety net: "Covered ✓ by Emergency fund" *(status, no amount)* · Cushion ₹50,000 *(reserve, not for spending)* | The stock. Below-floor case still flips to a rust-toned rebuild gap per Spec 2. |
+| **Account details** | Anchor date · Primary bank | Profile metadata. Not flow, not stock — its own group so it doesn't muddy the canonical decomposition. |
+
+Below those, the **fixed-commitments list** itself splits into two collapsed sections:
+
+- **Your fixed costs** — total ₹47,468 over 11 non-investing items (rent, EMIs, utilities, family support, etc.).
+- **Your investing** — total ₹15,000 over 2 SIPs, labelled *"savings, auto-debited"* in the total row so the user reads it as savings shape, not cost shape. Independent expand toggle from the costs section.
+
+**De-duplication.** The safety-net amount (₹1,00,000) now appears exactly **once** as an editable rule, in "Your rules." The "Savings position" row references coverage **status** ("Covered ✓ by Emergency fund") without re-stating the amount — the user looks up at the rule for the value and down at the position for whether it's met.
+
+**Single source enforcement.** The flow card reads from `computeStsBreakdown()` — the same shared module Home + chat-respond + ritual-close-out all call (D.65). The carry-forward row appears conditionally when non-zero, matching Home's behaviour. STS on the Profile is guaranteed identical to STS on Home and chat by construction.
+
+**Code touchpoints (one file):** `src/pages/ProfilePage.tsx` — restructured the "Your finances" + "Your fixed commitments" blocks; added per-section toggle state for fixed costs vs investing; widened `ProfileFieldRow.label` to `ReactNode` so flow rows can carry inline sublabels ("Investing — savings"); added a `rollover_allocations` carry-forward query (same shape as Home's). No backend or schema change — Spec 2.2 is entirely a presentation rationalisation.
+
+**Verification (per CLAUDE.md gates):**
+- `npx tsc -b`: 0 errors.
+- `vitest run`: 55/55 pass (no test changes — Profile is unit-tested via the shared `computeStsBreakdown` already in `sts-parity.test.ts`).
+- Flow row arithmetic for Priya: ₹47,468 + ₹15,000 + ₹9,000 + ₹26,532 = ₹98,000 ✓ (sum matches `incomeNet`).
+- Investing rendered as its own line with "savings" sublabel — no lumped "₹62,468" total anywhere.
+- Safety net editable amount appears exactly once (in Your rules); Savings position shows status only.
+- STS on Profile == STS on Home (both read `computeStsBreakdown` + carry-forward via `rollover_allocations`).
+
+**Why this surfaced after Spec 3 rather than during Spec 2:** Spec 2's verification gate said *"the cushion value shown in 'Your finances' is byte-identical to the value injected into the prompt."* It validated the cushion specifically — both numbers were the same, both rendered. It didn't validate the *shape* of the surrounding section. Spec 1's investing-vs-cost split also wasn't enforced as a Profile-display invariant. Both gates passed individually; the cross-surface labeling inconsistency only became visible when someone looked at the live Profile screen with the Spec 1 + 2 + 3 changes already shipped. The lesson banked: *visual coherence is a separate gate from arithmetic correctness; the surface needs its own review even after the math is right.*
+
+---
+
 #### D.66 Buffer-aware verdicts — Spec 3
 
 Stream 0.5z Spec 3. The cushion that D.65 established now enters verdict logic. **Principle: tradeoff, never permission.** A purchase that exceeds STS but fits within the cushion moves the verdict from RED toward YELLOW with a named rebuild cost — it never moves to GREEN. This protects the book-ending / impulse-wait thesis from the "I have savings, so it's fine" reflex.
