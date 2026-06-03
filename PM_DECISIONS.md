@@ -980,6 +980,36 @@ The expanded body copy is the strongest single quality lift in the build's prose
 
 **(d) Heading: "What you can do now" → "Where we can help next".** Real-user feedback flagged the original heading as positioning the user alone with the problem — "what YOU can do" implies Savio handed off the deficit and walked away. Reframed to "Where we can help next": the "we" implicates Savio as the co-pilot reading the user's data and offering the constructive path, not a coach standing on the sideline issuing assignments. Pairs with the broader voice-discipline thread (C.16 three-step labels, C.26 verdict action language, D.27 "Reflect on your spending", D.34 "Show my reflections"): each of these resists framings where the AI talks AT the user, in favor of framings where the AI is implicated in the user's next decision. The body copy itself stays user-centric for the action verbs ("Open the Reflect tab", "Consider tightening your impulse-wait threshold") because those ARE the user's calls — Savio's job is the analysis + lever surfacing, the user's job is the choice. Heading + body together: Savio's read, user's decision, joint problem.
 
+#### D.63 Deterministic grounding injection for derived figures + canonical income decomposition
+
+Stream 0.5y. Surfaced by `docs/divergence-tests.md`'s first run (2026-06-03). Two issues in `chat-respond`'s prose/body output, both in numbers the LLM was *deriving* that it should not have been:
+
+1. **Day-count drift.** "Days remaining this month" — the divisor for daily safe-to-spend — appeared as **29** (₹3,500 watch), **30** (₹5,000 watch), and **31** (₹12,000 Goa) across answers in the same run. June has 30 days; 31 is a fabrication. The model was inventing the count rather than reading one.
+
+2. **SIP-accounting inconsistency.** Two prose answers described Priya's ₹98,000 decomposition differently — once with the ₹15,000 SIP appearing *inside* the ₹47,468 fixed commitments, once as an *additional* ₹24,000 (₹15,000 + ₹9,000) on top. The arithmetic only reconciles in the canonical version. The grounding context exposed overlapping buckets without locking the model to one non-overlapping decomposition.
+
+Headline numbers (safe-to-spend ₹41,532, deficit math, verdict colors, rule citations) were all correct. Only the derived/described figures drifted. Per **E.3** the hallucination guard covers `verdict_line` only, so nothing catches body drift.
+
+**Fix per D.40 principle — cut the LLM surface, don't guard it.** These are deterministic facts; the model shouldn't compute them. Three concrete changes in `supabase/functions/chat-respond/prompt_builder.ts`:
+
+1. New `daysRemainingInMonth()` helper. Convention: *calendar days from today through month-end, inclusive* (so on the 1st of a 30-day month → 30). Read via `Intl.DateTimeFormat({ timeZone: 'Asia/Kolkata' })` so it tracks the same IST anchor as `computeDemoToday()`. Last-day-of-month via `Date.UTC(year, monthIndex + 1, 0)` — timezone-agnostic since we only consume the integer.
+
+2. Injected `Daily safe-to-spend (today through month-end)` = `Math.round(safe_to_spend / days_remaining_in_month)` into the "Derived figures" block. Previously the prompt divided by `daysUntilSalary`, which is **0** for Priya on the 1st (anchor day = 1st) — so the field was omitted entirely and the model fabricated a daily SPS.
+
+3. New "Canonical income decomposition" block stating the breakdown that matches the safe-to-spend math (`income − non-investing fixed − goals = STS`), explicitly placing SIPs INSIDE safe-to-spend as "planned savings — NOT a separate bucket, NOT subtracted from safe-to-spend." Names the wrong groupings the model had been producing ("₹38,500 fixed + ₹15,000 SIP", "₹62,468 fixed commitments") and forbids them by example.
+
+4. NUMBER DISCIPLINE section in `buildIdentityLayer` extended with verbatim-use mandate: model must use injected days-remaining, daily-SPS, and decomposition figures without recomputing. "Leaves you with" (STS − purchase price) stays a model computation per the spec — it depends on query price and already sits inside the `verdict_line` guard's ±2% tolerance.
+
+**Verified on the deployed function (re-run 2026-06-03):**
+- Day count: **30** across every verdict in the run. Was 29 / 30 / 31 before.
+- Daily SPS: **₹1,384** as the baseline in every verdict (= ₹41,532 / 30). Was varying.
+- Income decomposition: identical across both prose answers — ₹47,468 fixed + ₹9,000 goals + ₹41,532 STS, with "₹15,000 in SIPs are planned within this safe-to-spend amount." Was inconsistent before.
+- 9-case audit: all pass; Case 7 prose explicitly uses "30 days of June" and "₹1,384 daily safe-to-spend"; Cases 8 / 9 impulse-wait boundary discipline unaffected.
+
+**Things noticed but not fixed (C.3):** the model still freely composes the daily-SPS-after-purchase number ("would adjust from ₹1,384 to ₹1,268"). That's `(STS − price) / days_remaining`, which is grounded arithmetic on already-injected facts — it's not a candidate for the same cut-the-surface treatment unless drift recurs there. Tracked mentally; not banked.
+
+Companion to the divergence-test artifact (C.23) — D.63 is the FIRST fix the artifact's results drove, validating the artifact as a quality-discovery surface rather than a one-off case-study illustration.
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs
@@ -988,6 +1018,8 @@ These are NOT decisions to litigate — they are documented known states of the 
 
 #### E.3 Hallucination guard scope limited to verdict_line
 Chat C3 verdict cards: guard runs against `verdict_line` only. `body`, `tradeoffs`, `best_next_step` are NOT separately verified. Grounded context (real Priya state) makes hallucination less likely, but the guard doesn't catch all of it. V2 hardening: extend guard to all four fields.
+
+**Amended (D.63, 2026-06-03):** the specific drifts that motivated this V2 item — daily-safe-to-spend day count and the income decomposition — are now deterministic facts injected into the prompt, mandated for verbatim use, and validated by the divergence-test artifact's re-run. The general body-field guard (covering arbitrary derived numbers like goal progress percentages, projected timelines, etc.) remains V2. D.40 principle wherever the surface can be cut; guard extension for what truly needs to stay LLM-derived.
 
 #### E.4 Verdict query "right now" trips timing filter
 Acceptable per scope_filter charter. "Right now" matches timing-deflection regex and routes to SEBI handoff for some borderline cases. Not a bug — the filter is intentionally cautious. V2: smarter timing intent classifier.
