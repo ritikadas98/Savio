@@ -1043,6 +1043,75 @@ D.47 calibration check (per the spec): variable commitment budgets total ₹17K/
 - **Spec 2 / D.65** — savings model + cushion + profile "Your finances" display. Builds the unearmarked-liquid concept on top of the corrected STS.
 - **Spec 3 / D.66** — buffer-aware verdicts (cushion enters as a RED→YELLOW tradeoff, never GREEN).
 
+#### D.65 Savings model + cushion + profile "Your finances" — Spec 2
+
+Stream 0.5z Spec 2. Builds the data model the verdict layer (Spec 3) needs, and fixes a linear-consistency drift surfaced *during* Spec 1: chat-respond's STS computation didn't read carry-forward at all, while Home did. Invisible for Priya today (₹0 rollover) but a real divergence in waiting.
+
+**Three loaded principles** (the spec's "one line, several pots"):
+
+| Concept | What it is |
+|---|---|
+| **Safety net** | A *rule*, not money. "Never let accessible liquid drop below ₹X." Default ₹1,00,000. Lives on `profiles` (D.49). |
+| **Earmarked savings** | Money committed to goals — including the emergency fund's climb to ₹3,00,000. Not free. |
+| **Unearmarked liquid** | Stated balance not promised to any goal. The ONLY spendable cushion. New column `profiles.unearmarked_liquid` (V1: stated; V2: bank-fetched). |
+| **Cushion** | Derived. `max(0, unearmarked − max(0, safety_net − emergency_fund_balance))`. |
+
+**Why cushion isn't simply `unearmarked − safety_net`.** Naïve subtraction overcounts the floor: if the EF already covers the safety-net amount, the user's unearmarked is fully spendable above the floor — the EF is what's "holding the line." For Priya: EF ₹1,84,000 > safety_net ₹1,00,000 → cushion = unearmarked = ₹50,000. With ₹50k seeded liquid, Spec 3 has a non-zero buffer to demo. Without it, cushion = ₹0 and Spec 3's buffer logic stays dormant.
+
+**Why the EF is *flagged* not inferred** (`goals.backs_safety_net boolean`). D.62 proxied "current_savings" as the Emergency-fund goal's `current_amount` via a hardcoded assumption. That's fine while there's exactly one fund called "Emergency fund," but the moment Priya renames it or adds a second safety-net-backing pot, the proxy silently breaks. Migration 0022 adds the explicit flag + a partial unique index (`goals_one_safety_net_backer`) so at most one row per user can carry it. D.62's proxy still works; D.65 makes the model explicit.
+
+**Schema (migration 0022 — supabase/migrations/0022_savings_model.sql):**
+- `ALTER TABLE profiles ADD COLUMN unearmarked_liquid numeric NOT NULL DEFAULT 0;`
+- `ALTER TABLE goals ADD COLUMN backs_safety_net boolean NOT NULL DEFAULT false;`
+- Partial unique index on `(user_id) WHERE backs_safety_net = true`.
+- Priya backfill at the end of 0022: `unearmarked_liquid = 50000`, Emergency-fund goal `backs_safety_net = true`.
+
+**Twin module pattern (D.49 lineage).** Cushion derivation lives in `src/lib/savings.ts` (browser) and `supabase/functions/_shared/savings.ts` (Deno mirror). Same shape as `user-rules.ts`: two runtimes that can't share a module, two files that must agree. A new parity test (`tests/unit/savings-parity.test.ts`) feeds both implementations identical fixtures and asserts equal outputs — six cases including Priya canonical, below-floor, no-backer, and a null-profile defensive case.
+
+**One canonical STS — three sites, one formula.** The spec called for "one canonical current-month STS" because Spec 1 surfaced that the formula was *implemented three times* — `src/lib/safeToSpend.ts` (Home + ritual lock-in), inlined in `chat-respond/prompt_builder.ts`, and inlined again in `ritual-close-out/index.ts`. D.65 extracts the formula into a shared module with both runtime copies:
+- `src/lib/safeToSpend.ts` — adds `computeStsBreakdown()` returning the full decomposition. Existing `calculateSafeToSpend()` is now a thin wrapper around it (no caller-visible change).
+- `supabase/functions/_shared/safeToSpend.ts` — Deno mirror.
+- `chat-respond/prompt_builder.ts` and `ritual-close-out/index.ts` both call `computeStsBreakdown()` instead of re-implementing the math.
+- A new parity test (`tests/unit/sts-parity.test.ts`) asserts the two runtimes return identical results across five fixtures, including a non-zero carry-forward case. **This is the test that would have caught the carry-forward drift in CI rather than in a live deployment**, and it's the structural guard against future drift.
+
+**Carry-forward fix in chat-respond** (`supabase/functions/chat-respond/index.ts`):
+- New query alongside the parallel grounding fetches: `rollover_allocations` WHERE `user_id = profileId` AND `destination_kind = 'carry_forward'` AND `ritual_month = prevMonthFirst`. Mirrors `HomePage.tsx:113`.
+- Sum threaded through `buildSystemPrompt(... carryForward)` → `buildGroundingContext(... carryForward)` → added in BOTH the locked-ritual branch (`safe_to_spend_locked + carryForward`) AND the fresh-compute branch (passed into `computeStsBreakdown`). Previously chat ignored carry-forward entirely.
+- Verified live: seeded `₹5,000 carry-forward` for `ritual_month='2026-05-01'`, hit chat, got STS = `₹31,532` (= ₹26,532 + ₹5,000), daily SPS = `₹1,051` (= 31,532 / 30), and the prose explicitly said "includes a ₹5,000 carry-forward from last month."
+
+**Cushion ≠ carry-forward (the spec's #9).** They behave differently:
+- **Carry-forward** *adds to STS* — spendable this month. The rollover from last close-out the user said "keep for next month."
+- **Cushion** is *parked above the safety net* — a reserve, never folded into STS. Spec 3 will surface it as a tradeoff when affordability questions exceed STS, never as a green-light addition.
+
+The grounding context block explicitly tells the model this: "*The cushion is NOT part of safe-to-spend. It is PARKED money above the floor.*" V2's "keep as spare" feature (banked in the V2 backlog) is the future path that grows the cushion via month-close rollover — distinct from this carry-forward path.
+
+**Cushion injection in chat grounding.** New "Savings + safety net status" block in the prompt:
+- Safety net rule with slug.
+- Backer goal label + current balance (e.g. "Emergency fund covers the floor when ≥ ₹1,00,000: ₹1,84,000").
+- Unearmarked liquid balance.
+- Floor coverage status (COVERED / SHORT BY ₹X).
+- Spendable cushion (or ₹0 with rebuild-gap framing).
+- Explicit note that the cushion is parked, not part of STS.
+
+**Profile "Your finances" UI** (`src/pages/ProfilePage.tsx`):
+- Two new rows in the existing "Your finances" card: "Safety net" + "Cushion above it" (or "Rebuild gap" when below floor).
+- Both rows render `getSavingsState()` output — the *same module* the prompt grounding reads. Byte-identical figures by construction.
+- Below-floor case uses the `deficit_breached` rust tone (`#A8533F`), reusing D.62's framing for "this is something to rebuild, not a negative number to anxiety-scan."
+- The full canonical decomposition in "Your finances" (the spec's optional item #6) is **deferred** — the current rows already establish the safety-net-and-cushion relationship visually, and the income decomposition lives in the chat prose where it has more natural narrative room.
+
+**Spec 3 territory leak observed** — worth noting now, will be sharpened in D.66. The Spec 2 grounding gives the model awareness of the cushion. A ₹50,000-laptop verdict (purchase > STS) post-deploy now says: *"would reduce your unearmarked liquid funds of ₹50,000, impacting your overall financial cushion"* — the model is informally pre-empting buffer-aware logic. The verdict stayed RED (correct — purchase > STS), but the body's "would require dipping into your safety net" is technically imprecise (EF backs the floor; unearmarked liquid sits above it). Spec 3 will define the rebuild-cost RED→YELLOW transition formally, so the body copy gets the lever instead of the model improvising.
+
+**Verification (per CLAUDE.md gates):**
+- `npx tsc -b`: 0 errors.
+- `vitest run`: **28/28 tests pass** — original safeToSpend tests (3) + STS parity (12: 5 breakdown fixtures × 2 + 2 specific assertions) + savings parity (13: 6 fixtures × 2 + 1 negative-guard assertion).
+- `npm run divergence-tests` (post-deploy): STS ₹26,532 / daily ₹884 still verbatim everywhere; the new "Savings + safety net" grounding lands and the model references "Emergency fund well-covered at ₹1,84,000, comfortably above your ₹1,00,000 safety net rule" naturally in prose.
+- `test-chat-7cases.mjs`: 9/9 verified=true.
+- **Carry-forward parity live check**: seeded ₹5,000 rollover, chat said STS ₹31,532 with explicit "includes a ₹5,000 carry-forward from last month." Cleaned up after.
+
+**Things noticed but not fixed (C.3):**
+- The `ritual.safe_to_spend_locked` branch in the prompt builder now ADDS `carryForward` to the locked value. That matches Home's behaviour but assumes the locked value was stored *without* carry-forward baked in. The Phase 3 `complete_monthly_setup` RPC writes `safe_to_spend_locked` as the lock-in screen's computed STS — which uses `calculateSafeToSpend` with carry-forward already included. So a locked ritual that already includes carry-forward + Spec 2 adding carry-forward again could double-count. Not exercised today (the pending ritual has `safe_to_spend_locked = null`, so the fresh-compute path runs), but a real bug-in-waiting once a user completes their first monthly setup. Flagged for follow-up; not fixed in Spec 2 because it's out of scope for the savings model, and the verification gates didn't surface it.
+- The optional Spec 2 item #6 (full canonical decomposition in Profile "Your finances") is deferred. The chat prose carries the income decomposition naturally; replicating it in the Profile UI would be redundant for this iteration.
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs

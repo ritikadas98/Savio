@@ -18,6 +18,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getUserRulesFromProfile } from '../_shared/user-rules.ts';
+import { computeStsBreakdown } from '../_shared/safeToSpend.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -279,21 +280,18 @@ serve(async (req) => {
     commitment_overruns.sort((a, b) => b.overrun - a.overrun);
 
     // ── Discretionary leftover ──
-    // safe_to_spend (budgeted discretionary)
-    //   = income − fixed_non_investing_commits − fixed_investing_commits − active_goal_contribs
-    //
-    // D.64 (Spec 1, revises D.63): investing commitments now deduct from
-    // STS — same shape as goal contributions (auto-debit, not spendable).
-    // Linear consistency invariant: same formula as src/lib/safeToSpend.ts
-    // and the chat-respond prompt builder; one canonical computation
-    // shape across all three sites.
-    const fixedCommits = comms.filter((c: any) => (c.kind ?? 'fixed') !== 'variable');
-    const fixedNonInvesting = fixedCommits.filter((c: any) => !isInvestingCategory(c.category));
-    const fixedInvesting    = fixedCommits.filter((c: any) =>  isInvestingCategory(c.category));
-    const totalFixedNonInvesting = fixedNonInvesting.reduce((s: number, c: any) => s + num(c.amount), 0);
-    const totalFixedInvesting    = fixedInvesting.reduce((s: number, c: any) => s + num(c.amount), 0);
-    const totalGoalContrib = (goals || []).reduce((s: number, g: any) => s + num(g.monthly_contribution), 0);
-    const safeToSpendBudget = num(profile.monthly_income_net) - totalFixedNonInvesting - totalFixedInvesting - totalGoalContrib;
+    // D.65 (Spec 2): STS now derived from the shared `_shared/safeToSpend.ts`
+    // module, the same one chat-respond's prompt builder calls. One formula,
+    // three sites (Home in src/lib, chat grounding here, close-out here).
+    // Carry-forward intentionally NOT passed here — the close-out is
+    // computing "what was your discretionary BUDGET this month?", which is
+    // the baseline before any rollover from the previous close-out.
+    // (Carry-forward additions belong to the in-month STS the user actually
+    // had to spend; close-out math measures the *month's own* discretion.)
+    const stsBreakdown = computeStsBreakdown(num(profile.monthly_income_net), comms || [], goals || [], 0);
+    const safeToSpendBudget = stsBreakdown.safeToSpend;
+    const totalFixedNonInvesting = stsBreakdown.totalNonInvesting; // retained for response payload
+    const totalGoalContrib = stsBreakdown.totalGoalContrib;        // retained for response payload
     const discretionary_leftover = Number((safeToSpendBudget - nullCommitmentDebitTotal).toFixed(2));
 
     // ── Net total leftover ──

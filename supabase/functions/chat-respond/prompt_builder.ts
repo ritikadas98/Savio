@@ -1,5 +1,7 @@
 // Edge function uses Deno
 import { getUserRulesFromProfile, type UserRules } from '../_shared/user-rules.ts';
+import { computeStsBreakdown } from '../_shared/safeToSpend.ts';
+import { getSavingsState } from '../_shared/savings.ts';
 
 // DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
 // 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
@@ -278,37 +280,29 @@ export const buildGroundingContext = (
   commitments: any[],
   _transactions: any[],
   ritual: any,
-  merchantStats: any[]
+  merchantStats: any[],
+  carryForward: number = 0,
 ): string => {
-  const incomeNet = Number(profile.monthly_income_net || 0);
   const activeGoals = (goals || []).filter(g => g.status === 'active');
 
-  // Phase 3: commitments now have a `kind` field. Fixed = mini-accounts where
-  // actual == budgeted (subtract from safe-to-spend formula). Variable = soft
-  // budgets within the discretionary bucket (NOT subtracted from safe-to-spend;
-  // their buffer/overrun is surfaced separately).
-  const isFixed = (c: any) => (c.kind ?? 'fixed') !== 'variable';
+  // D.65 (Spec 2) — STS now derived from the shared module (mirror of
+  // src/lib/safeToSpend.ts), so all three sites (Home, chat grounding,
+  // close-out) compute identical results. Carry-forward is added in BOTH
+  // branches per the spec: previously chat ignored it entirely while Home
+  // added it — a linear-consistency drift that the parity test now blocks.
+  const breakdown = computeStsBreakdown(profile.monthly_income_net, commitments || [], goals || [], carryForward);
+  const { incomeNet, totalNonInvesting, totalInvesting, totalVariable, totalGoalContrib } = breakdown;
+  const computedSTS = breakdown.safeToSpend;
+  const safeToSpend = ritual?.safe_to_spend_locked != null
+    ? Number(ritual.safe_to_spend_locked) + carryForward
+    : computedSTS;
 
+  // Keep the partitioned commitment lists for the presentation blocks below.
+  const isFixed = (c: any) => (c.kind ?? 'fixed') !== 'variable';
   const fixedCommitments    = (commitments || []).filter(isFixed);
   const variableCommitments = (commitments || []).filter((c: any) => !isFixed(c));
-
   const nonInvestingCommitments = fixedCommitments.filter((c: any) => !isInvestingCategory(c.category));
   const investingCommitments    = fixedCommitments.filter((c: any) =>  isInvestingCategory(c.category));
-
-  const totalNonInvesting = nonInvestingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
-  const totalInvesting    = investingCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
-  const totalVariable     = variableCommitments.reduce((s, c) => s + Number(c.amount || 0), 0);
-  const totalGoalContrib  = activeGoals.reduce((s, g) => s + Number(g.monthly_contribution || 0), 0);
-
-  // Authoritative safe-to-spend (post-D.64 — Spec 1, revises D.63):
-  // ALL fixed commitments deduct, including investing SIPs/RDs. The
-  // investing/non-investing distinction is preserved at presentation
-  // time (investing labelled as savings, not cost) but the STS math
-  // sees them identically. Mirrors src/lib/safeToSpend.ts.
-  const computedSTS = incomeNet - totalNonInvesting - totalInvesting - totalGoalContrib;
-  const safeToSpend = ritual?.safe_to_spend_locked != null
-    ? Number(ritual.safe_to_spend_locked)
-    : computedSTS;
 
   const anchorDay = Number(profile.anchor_day_of_month || 1);
   const daysUntilSalary = daysUntilNextAnchor(anchorDay);
@@ -384,7 +378,11 @@ export const buildGroundingContext = (
 
   lines.push('### Derived figures (use these verbatim — do not recompute)');
   lines.push(`- **Safe-to-spend this month: ₹${INR(safeToSpend)}**`);
-  lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − investing commitments ₹${INR(totalInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
+  if (carryForward > 0) {
+    lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing ₹${INR(totalNonInvesting)} − investing ₹${INR(totalInvesting)} − goals ₹${INR(totalGoalContrib)} + carry-forward ₹${INR(carryForward)} = ₹${INR(computedSTS)})`);
+  } else {
+    lines.push(`  (Formula: net income ₹${INR(incomeNet)} − non-investing commitments ₹${INR(totalNonInvesting)} − investing commitments ₹${INR(totalInvesting)} − goal contributions ₹${INR(totalGoalContrib)} = ₹${INR(computedSTS)})`);
+  }
   lines.push(`- **Days remaining in current month (today through month-end, inclusive): ${daysRemaining}**`);
   lines.push(`- **Daily safe-to-spend (today through month-end): ₹${INR(dailySps)}** (= ₹${INR(safeToSpend)} ÷ ${daysRemaining})`);
   lines.push(`- Days until next salary: ${daysUntilSalary} (separate from days-remaining-in-month; use days-remaining for daily SPS, not this)`);
@@ -397,15 +395,46 @@ export const buildGroundingContext = (
   // is locked here and the NUMBER DISCIPLINE block mandates verbatim use,
   // so prose answers can't drift between groupings ("₹38,500 fixed +
   // ₹15,000 SIP", "₹62,468 fixed commitments lumped together", etc.).
-  const checksum = totalNonInvesting + totalInvesting + totalGoalContrib + safeToSpend;
+  // Decomposition shape: when carry_forward > 0 the four buckets no longer
+  // sum to income (income + carry = sum of buckets including STS). State
+  // both the source breakdown and a "STS already includes carry-forward"
+  // note so the model doesn't try to reconcile a missing rupee.
+  const stsExcludingCarry = safeToSpend - carryForward;
   lines.push('### Canonical income decomposition (use this verbatim — do not rearrange)');
   lines.push(`Net monthly income ₹${INR(incomeNet)} decomposes as:`);
   lines.push(`- Non-investing commitments (cost — rent, EMIs, utilities, family support): ₹${INR(totalNonInvesting)}`);
   lines.push(`- Investing commitments (savings — SIPs / RDs / PPF / NPS, auto-debit toward future): ₹${INR(totalInvesting)}`);
   lines.push(`- Goal contributions (savings — earmarked toward specific goals): ₹${INR(totalGoalContrib)}`);
   lines.push(`- Safe-to-spend (discretionary — what's left for variable spending this month): ₹${INR(safeToSpend)}`);
-  lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(safeToSpend)} = ₹${INR(checksum)}`);
+  if (carryForward > 0) {
+    lines.push(`- Of which carry-forward from last month's ritual: ₹${INR(carryForward)} (added to this month's STS — STS would have been ₹${INR(stsExcludingCarry)} without it)`);
+    lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(stsExcludingCarry)} = ₹${INR(incomeNet)} ✓ (carry-forward ₹${INR(carryForward)} adds on top)`);
+  } else {
+    const checksum = totalNonInvesting + totalInvesting + totalGoalContrib + safeToSpend;
+    lines.push(`- Sum check: ₹${INR(totalNonInvesting)} + ₹${INR(totalInvesting)} + ₹${INR(totalGoalContrib)} + ₹${INR(safeToSpend)} = ₹${INR(checksum)}`);
+  }
   lines.push(`- Presentation: investing commitments and goal contributions are SAVINGS, not COST. Describe them that way. They still subtract from safe-to-spend because they are committed outflows the user can't redirect this month.`);
+  lines.push('');
+
+  // D.65 (Spec 2) — savings + cushion grounding. The numbers come from the
+  // shared savings module (mirror of src/lib/savings.ts), the same source
+  // the Profile "Your finances" UI reads. Spec 3's buffer-aware verdicts
+  // consume `cushion` from this block.
+  const savings = getSavingsState(profile, goals);
+  lines.push('### Savings + safety net status (cushion is the ONLY spendable buffer above the safety-net rule)');
+  lines.push(`- Safety net rule (slug: "safety_net"): ₹${INR(savings.safetyNet)}`);
+  if (savings.backerLabel) {
+    lines.push(`- ${savings.backerLabel} (backs the safety net — current balance covers the floor when ≥ ₹${INR(savings.safetyNet)}): ₹${INR(savings.backerBalance)}`);
+  }
+  lines.push(`- Unearmarked liquid (stated balance, not committed to any goal): ₹${INR(savings.unearmarkedLiquid)}`);
+  if (savings.floorCovered) {
+    lines.push(`- Floor coverage: COVERED (${savings.backerLabel ? `${savings.backerLabel} balance ₹${INR(savings.backerBalance)} ≥ ₹${INR(savings.safetyNet)}` : `unearmarked ₹${INR(savings.unearmarkedLiquid)} ≥ ₹${INR(savings.safetyNet)}`}).`);
+    lines.push(`- **Spendable cushion above the safety net: ₹${INR(savings.cushion)}**`);
+  } else {
+    lines.push(`- Floor coverage: SHORT by ₹${INR(savings.rebuildGap)} (accessible liquid ₹${INR(savings.backerBalance + savings.unearmarkedLiquid)} < ₹${INR(savings.safetyNet)} safety net). No spendable cushion; the priority is rebuilding the floor.`);
+    lines.push(`- Spendable cushion above the safety net: ₹0`);
+  }
+  lines.push(`- The cushion is NOT part of safe-to-spend. It is PARKED money above the floor. Mention it only when relevant to an affordability question (Spec 3 verdict logic will use it once shipped); for general "how am I doing" responses, the cushion + floor status reads as a reserve note, not a spend allowance.`);
   lines.push('');
 
   // D.49 + D.51 (Stream 0.5t pieces #5 + #7) — user rules now read from
@@ -452,12 +481,13 @@ export const buildSystemPrompt = (
   commitments: any[],
   transactions: any[],
   ritual: any,
-  merchantStats: any[]
+  merchantStats: any[],
+  carryForward: number = 0,
 ): string => {
   const rules = getUserRulesFromProfile(profile);
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
-  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats);
+  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward);
   const layer4 = buildVerdictLayer(rules);
   const layer5 = buildProseStructureLayer();
 

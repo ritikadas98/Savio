@@ -10,6 +10,7 @@ import { formatRupeesIndian, ordinalSuffix, formatDateLong } from '../lib/format
 import { DEMO_MODE_MESSAGE } from '../lib/copy';
 import { logoutFromPriya } from '../lib/auth';
 import { getUserRules, formatSafetyNet, formatImpulseWait } from '../lib/user-rules';
+import { getSavingsState } from '../lib/savings';
 
 // Stream 0.5n — Profile identity hero reads the same localStorage avatar
 // hint as ProfilePill (Phase C4). DB stays authoritative for chat behavior
@@ -62,6 +63,7 @@ type ProfileRow = {
   primary_bank: string | null;
   disclaimer_acknowledged_at: string | null;
   // D.49 (Stream 0.5t piece #4) — user rules columns
+  unearmarked_liquid?: number | null;
   safety_net: number | null;
   impulse_wait_threshold: number | null;
   impulse_wait_hours: number | null;
@@ -80,6 +82,16 @@ type FixedCommitment = {
   amount: number;
   frequency: string | null;
   category: string | null;
+};
+
+// D.65 (Spec 2) — minimal goal shape for the savings-state derivation.
+// Only the columns getSavingsState() reads.
+type GoalRow = {
+  id: string;
+  label: string;
+  current_amount: number | null;
+  backs_safety_net: boolean | null;
+  status: string | null;
 };
 
 // Stream 0.5n+ — formatLifeStage helper retired in favor of LIFE_STAGE_LABELS
@@ -169,6 +181,7 @@ export function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [commitments, setCommitments] = useState<FixedCommitment[]>([]);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
   // D.37 (Stream 0.5r piece #5) — commitments default collapsed. Total
   // card itself is the affordance — single tappable element, no separate
   // expand button. Per-session state; resets on navigation away.
@@ -202,11 +215,23 @@ export function ProfilePage() {
       if (!user) return;
       const { data: profileRow } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at, safety_net, impulse_wait_threshold, impulse_wait_hours, daily_sps_floor')
+        .select('id, full_name, avatar, life_stage, monthly_income_net, anchor_day_of_month, primary_bank, disclaimer_acknowledged_at, safety_net, impulse_wait_threshold, impulse_wait_hours, daily_sps_floor, unearmarked_liquid')
         .eq('auth_user_id', user.id)
         .single();
       if (cancelled || !profileRow) return;
       setProfile(profileRow as ProfileRow);
+
+      // D.65 (Spec 2) — goals needed for the savings-state derivation
+      // (which goal backs the safety net + its current_amount). Fetched
+      // in parallel with commitments.
+      const profileId = (profileRow as { id: string }).id;
+      const { data: goalRows } = await supabase
+        .from('goals')
+        .select('id, label, current_amount, backs_safety_net, status')
+        .eq('user_id', profileId);
+      if (!cancelled && goalRows) {
+        setGoals(goalRows as GoalRow[]);
+      }
 
       // D.31 — pull fixed commitments for the "Your commitments" section.
       // Variable rows (Groceries / Eating out / Transport) intentionally
@@ -238,6 +263,12 @@ export function ProfilePage() {
   // displayed strings come from the same getUserRules() path the Edge
   // Function's prompt_builder will also use (drift impossible by design).
   const userRules = getUserRules(profile);
+
+  // D.65 (Spec 2) — savings state from the shared module. Same derivation
+  // the chat grounding context reads (supabase/functions/_shared/savings.ts
+  // is the Deno mirror of src/lib/savings.ts), so the cushion + floor
+  // status surfaced here is byte-identical to what the LLM sees.
+  const savings = getSavingsState(profile, goals);
 
   const income = profile?.monthly_income_net ?? 98000;
   const anchorDay = profile?.anchor_day_of_month ?? 1;
@@ -322,8 +353,58 @@ export function ProfilePage() {
             label="Primary bank"
             value={bank}
             onClick={showStub}
-            isLast
           />
+          {/* D.65 (Spec 2) — Safety net + cushion. The safety net is a
+              rule (the floor); the cushion is the spendable buffer above
+              it. Framing: reserve, not balance-to-spend. When the floor
+              isn't covered (rare for Priya — EF currently above ₹1L),
+              the second row flips to a rebuild gap rather than showing
+              a negative cushion. */}
+          <ProfileFieldRow
+            label="Safety net"
+            value={
+              savings.floorCovered ? (
+                <span>
+                  {formatRupeesIndian(savings.safetyNet)}
+                  {savings.backerLabel && (
+                    <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>
+                      covered by {savings.backerLabel}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <span>{formatRupeesIndian(savings.safetyNet)}</span>
+              )
+            }
+          />
+          {savings.floorCovered ? (
+            <ProfileFieldRow
+              label="Cushion above it"
+              value={
+                savings.cushion > 0 ? (
+                  <span>
+                    {formatRupeesIndian(savings.cushion)}
+                    <span style={{ color: '#888780', fontSize: 12, marginLeft: 6 }}>
+                      reserve, not for spending
+                    </span>
+                  </span>
+                ) : (
+                  <span style={{ color: '#888780' }}>none beyond the floor</span>
+                )
+              }
+              isLast
+            />
+          ) : (
+            <ProfileFieldRow
+              label="Rebuild gap"
+              value={
+                <span style={{ color: '#A8533F' /* deficit_breached tone */ }}>
+                  {formatRupeesIndian(savings.rebuildGap)} to reach the floor
+                </span>
+              }
+              isLast
+            />
+          )}
         </Card>
 
         {/* D.31 + D.37 (Streams 0.5q + 0.5r) — Your commitments.

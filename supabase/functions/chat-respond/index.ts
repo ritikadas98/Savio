@@ -70,6 +70,22 @@ serve(async (req) => {
 
     const profileId = profile.id;
 
+    // D.65 (Spec 2) — compute last month's date string for the carry-forward
+    // rollover lookup. Mirrors src/lib/dates.ts:getPreviousMonthFirstDate so
+    // Home and chat agree on which ritual_month to read carry-forward from.
+    // Reads DEMO_TODAY in IST via Intl so the answer matches the frontend
+    // regardless of host timezone.
+    const istParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+    }).formatToParts(new Date());
+    const istYear = Number(istParts.find(p => p.type === 'year')!.value);
+    const istMonth0 = Number(istParts.find(p => p.type === 'month')!.value) - 1; // 0-11
+    const prevY = istMonth0 === 0 ? istYear - 1 : istYear;
+    const prevM = istMonth0 === 0 ? 12 : istMonth0; // 1-12
+    const prevMonthFirst = `${prevY}-${String(prevM).padStart(2, '0')}-01`;
+
     // Step 2: Fetch grounding context using profile.id for all child tables
     const [
       { data: goals },
@@ -77,7 +93,8 @@ serve(async (req) => {
       { data: transactions },
       { data: ritual },
       { data: merchantStats },
-      { data: historyData }
+      { data: historyData },
+      { data: carryForwardRows },
     ] = await Promise.all([
       supabase.from('goals').select('*').eq('user_id', profileId),
       supabase.from('commitments').select('*').eq('user_id', profileId),
@@ -91,8 +108,17 @@ serve(async (req) => {
       // safe_to_spend_locked=null until close-out → computedSTS wins.
       supabase.from('monthly_rituals').select('*').eq('user_id', profileId).eq('status', 'pending').limit(1).maybeSingle(),
       supabase.from('merchant_stats').select('*').eq('user_id', profileId),
-      supabase.from('chat_messages').select('role, content').eq('user_id', profileId).order('created_at', { ascending: false }).limit(6)
+      supabase.from('chat_messages').select('role, content').eq('user_id', profileId).order('created_at', { ascending: false }).limit(6),
+      // D.65 (Spec 2) — carry-forward parity with Home (HomePage.tsx:113).
+      // Prior to this, Home added carry-forward to STS but chat did not;
+      // for Priya right now this is ₹0 so the drift was invisible, but it
+      // was a linear-consistency invariant violation in waiting. Sum
+      // happens client-side after the query.
+      supabase.from('rollover_allocations').select('total_amount').eq('user_id', profileId).eq('ritual_month', prevMonthFirst).eq('destination_kind', 'carry_forward'),
     ]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const carryForward = (carryForwardRows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
 
     const systemPrompt = buildSystemPrompt(
       profile,
@@ -100,7 +126,8 @@ serve(async (req) => {
       commitments || [],
       transactions || [],
       ritual || null,
-      merchantStats || []
+      merchantStats || [],
+      carryForward,
     );
 
     // Call Gemini via Vertex AI
