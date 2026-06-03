@@ -86,12 +86,14 @@ type FixedCommitment = {
   category: string | null;
 };
 
-// D.65 (Spec 2) — minimal goal shape for the savings-state derivation.
-// Only the columns getSavingsState() reads.
+// D.65 (Spec 2 + 2.2) — goal shape covering both derivations on the
+// Profile surface: savings-state (current_amount + backs_safety_net)
+// AND STS breakdown (monthly_contribution + status).
 type GoalRow = {
   id: string;
   label: string;
   current_amount: number | null;
+  monthly_contribution: number | null;
   backs_safety_net: boolean | null;
   status: string | null;
 };
@@ -235,9 +237,16 @@ export function ProfilePage() {
       // (which goal backs the safety net + its current_amount). Fetched
       // in parallel with commitments.
       const profileId = (profileRow as { id: string }).id;
+      // D.65 (Spec 2 + 2.2) — goals feed TWO derivations on this surface:
+      //   - getSavingsState reads current_amount + backs_safety_net (cushion)
+      //   - computeStsBreakdown reads monthly_contribution (the goals row in
+      //     the "This month" flow)
+      // Spec 2 originally only selected the first set; Spec 2.2 surfaced
+      // the omission as a "Goals −₹0" / inflated-STS display bug. Both
+      // sets fetched in one query so the surface stays coherent.
       const { data: goalRows } = await supabase
         .from('goals')
-        .select('id, label, current_amount, backs_safety_net, status')
+        .select('id, label, current_amount, monthly_contribution, backs_safety_net, status')
         .eq('user_id', profileId);
       if (!cancelled && goalRows) {
         setGoals(goalRows as GoalRow[]);
