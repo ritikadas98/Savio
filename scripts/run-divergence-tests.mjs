@@ -11,7 +11,8 @@
  * product layer: grounding, structure, scope filter, hallucination guard,
  * cumulative context.
  *
- *   node --env-file=.env.local scripts/run-divergence-tests.mjs
+ *   npm run divergence-tests
+ *   (or: node --env-file=.env.local scripts/run-divergence-tests.mjs)
  *
  * NB: chat-respond reads conversation history from the `chat_messages` table
  * (the frontend writes each turn there before calling the function). To make

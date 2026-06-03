@@ -9,7 +9,8 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",
-    "apply-migrations": "node scripts/apply-migrations.js"
+    "apply-migrations": "node scripts/apply-migrations.js",
+    "divergence-tests": "node --env-file=.env.local scripts/run-divergence-tests.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
