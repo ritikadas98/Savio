@@ -52,7 +52,14 @@ export function MonthlyRitualLockIn() {
   const followingMonthName = getNextMonthName(newMonth);
   const dim = daysInMonth(newMonth);
 
-  const [safeToSpend, setSafeToSpend] = useState<number | null>(null);
+  // D.65 follow-up (Spec 2.1) — base STS gets WRITTEN to
+  // safe_to_spend_locked; the user-facing number on this lock-in screen
+  // adds carry-forward on top. Single home for carry-forward is the
+  // read path (Home + chat both do `locked + cf` already), matching the
+  // "don't cache derived values" invariant.
+  const [baseSts, setBaseSts] = useState<number | null>(null);
+  const [carryForward, setCarryForward] = useState<number>(0);
+  const safeToSpend = baseSts != null ? baseSts + carryForward : null;
   const [income, setIncome] = useState<number>(0);
   const [focusGoalLabel, setFocusGoalLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,16 +89,20 @@ export function MonthlyRitualLockIn() {
           : Promise.resolve({ data: null }),
       ]);
 
-      const carryForward = (cfRows ?? []).reduce((s: number, r: { total_amount: number }) => s + Number(r.total_amount || 0), 0);
-      const sts = calculateSafeToSpend(
+      const cf = (cfRows ?? []).reduce((s: number, r: { total_amount: number }) => s + Number(r.total_amount || 0), 0);
+      // D.65 follow-up (Spec 2.1) — write the BASE (carryForward=0), let
+      // the read path add carry-forward. Display still adds it via the
+      // `safeToSpend = baseSts + carryForward` derivation above.
+      const base = calculateSafeToSpend(
         Number(profile.monthly_income_net ?? 0),
         commitments ?? [],
         goals ?? [],
-        carryForward,
+        0,
       );
 
       if (cancelled) return;
-      setSafeToSpend(sts);
+      setBaseSts(base);
+      setCarryForward(cf);
       setIncome(Number(profile.monthly_income_net ?? 0));
       const fg = (focusGoalRes as { data: { label: string } | null }).data;
       setFocusGoalLabel(fg?.label ?? null);
@@ -101,12 +112,16 @@ export function MonthlyRitualLockIn() {
   }, [month, focusGoalId]);
 
   const handleLockIn = async () => {
-    if (safeToSpend == null || submitting) return;
+    if (baseSts == null || submitting) return;
     setSubmitting(true);
+    // D.65 follow-up (Spec 2.1) — write the BASE STS. The read path
+    // (Home + chat-respond/prompt_builder) both add carry-forward on
+    // read. Writing `safeToSpend` (= base + cf) would double-count at
+    // read time.
     const { error } = await supabase.rpc('complete_monthly_setup', {
       p_month_year: newMonth,
       p_focus_goal_id: focusGoalId,
-      p_safe_to_spend_locked: safeToSpend,
+      p_safe_to_spend_locked: baseSts,
       p_confirmed_income: income,
     });
     if (error) {

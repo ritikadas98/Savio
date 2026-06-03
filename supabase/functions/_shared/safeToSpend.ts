@@ -8,6 +8,15 @@
 // tests/unit/safeToSpend-parity.test.ts asserts this for every input in
 // a shared fixture — that test is what would have caught the
 // carry-forward drift D.65 fixed (Home added it, chat didn't).
+//
+// CARRY-FORWARD CONTRACT (D.65 Spec 2.1):
+//   Single home for carry-forward is the READ path. The locked column
+//   `monthly_rituals.safe_to_spend_locked` stores the BASE STS only.
+//   This module is called on the read side; chat-respond's prompt
+//   builder adds carry-forward both for the locked-ritual branch
+//   (`locked + cf`) and for the fresh-compute branch (passed in to
+//   computeStsBreakdown). For lock-in writes, callers pass
+//   carryForwardFromLastMonth = 0 so the stored value stays base-only.
 
 export type Commitment = {
   amount: number;

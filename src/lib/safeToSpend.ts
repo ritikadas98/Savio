@@ -43,6 +43,23 @@ export type Goal = {
  * tests/unit/safeToSpend-parity.test.ts asserts this for every input in
  * a shared fixture — that test is what would have caught the
  * carry-forward drift D.65 fixed (Home added it, chat didn't).
+ *
+ * CARRY-FORWARD CONTRACT (D.65 Spec 2.1):
+ *   Single home for carry-forward is the READ path. The locked column
+ *   `monthly_rituals.safe_to_spend_locked` stores the BASE STS only
+ *   (income − non-investing − investing − goals, carryForward=0). Both
+ *   read sites (HomePage.tsx + chat-respond/prompt_builder.ts) add
+ *   carry-forward on read via the rollover_allocations query.
+ *
+ *   Why: carry-forward is data that's independently queryable and could
+ *   change after lock-in (e.g. a windfall reallocation). Reading fresh
+ *   on each surface beats caching a value that could drift, and matches
+ *   the "don't cache derived values" invariant.
+ *
+ *   If you're calling this function for a WRITE (e.g. lock-in screen
+ *   storing safe_to_spend_locked), pass carryForwardFromLastMonth = 0.
+ *   If you're calling it for a DISPLAY or a READ-time recompute,
+ *   pass the real carry-forward total.
  */
 
 /**
