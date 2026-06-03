@@ -1109,8 +1109,29 @@ The grounding context block explicitly tells the model this: "*The cushion is NO
 - **Carry-forward parity live check**: seeded ₹5,000 rollover, chat said STS ₹31,532 with explicit "includes a ₹5,000 carry-forward from last month." Cleaned up after.
 
 **Things noticed but not fixed (C.3):**
-- The `ritual.safe_to_spend_locked` branch in the prompt builder now ADDS `carryForward` to the locked value. That matches Home's behaviour but assumes the locked value was stored *without* carry-forward baked in. The Phase 3 `complete_monthly_setup` RPC writes `safe_to_spend_locked` as the lock-in screen's computed STS — which uses `calculateSafeToSpend` with carry-forward already included. So a locked ritual that already includes carry-forward + Spec 2 adding carry-forward again could double-count. Not exercised today (the pending ritual has `safe_to_spend_locked = null`, so the fresh-compute path runs), but a real bug-in-waiting once a user completes their first monthly setup. Flagged for follow-up; not fixed in Spec 2 because it's out of scope for the savings model, and the verification gates didn't surface it.
+- ~~The `ritual.safe_to_spend_locked` branch in the prompt builder now ADDS `carryForward` to the locked value...~~ **Resolved in D.65 follow-up (Spec 2.1) below.**
 - The optional Spec 2 item #6 (full canonical decomposition in Profile "Your finances") is deferred. The chat prose carries the income decomposition naturally; replicating it in the Profile UI would be redundant for this iteration.
+
+#### D.65 follow-up (Spec 2.1) — Locked-ritual carry-forward single home
+
+Standalone follow-up to Spec 2. Spec 2's read paths (Home + chat-respond) both add carry-forward to `safe_to_spend_locked`. But `MonthlyRitualLockIn` was computing the locked value as `calculateSafeToSpend(..., carryForward)` — i.e., with carry-forward already baked in. Net effect once any user completed a monthly setup: `base + 2 × CF` at read time.
+
+Not exercised in the live demo today (Priya's pending ritual has `safe_to_spend_locked = null`, so the fresh-compute branch always runs), but a real bug-in-waiting the moment the lock-in flow is exercised end-to-end.
+
+**Why Spec 2's parity test didn't catch this.** The cross-runtime parity suite asserts that the two STS implementations (browser vs Deno) return the same answer for the same input. Both sides double-counted identically, so parity stayed green while the answer was wrong. **Parity guards against drift; correctness needs a different test.**
+
+**Fix — single home for carry-forward is the READ path.** The locked column `monthly_rituals.safe_to_spend_locked` now stores the **base** STS only (income − non-investing − investing − goals, with `carryForwardFromLastMonth = 0`). Both read sites continue to add carry-forward via the rollover_allocations query, unchanged. This matches the "don't cache derived values" invariant and means carry-forward stays readable to changes (e.g. a windfall reallocation that mutates the rollover after lock-in).
+
+**Changes:**
+- `src/components/ritual/MonthlyRitualLockIn.tsx` — state split into `baseSts` (the value written) and `carryForward` (independently fetched). The display number is the derived `baseSts + carryForward`; the RPC write uses `baseSts` only. Comments inline mark this as the single-home convention.
+- `src/lib/safeToSpend.ts` + `supabase/functions/_shared/safeToSpend.ts` — both files gain a "CARRY-FORWARD CONTRACT" doc block stating the convention explicitly so a future caller doesn't reintroduce the bug by accident: lock-in callers pass `carryForward = 0`; display/read callers pass the real total.
+- `tests/unit/lockin-no-double-count.test.ts` — correctness regression with four cases including an explicit "if lock-in ever writes with carry-forward, this fails" guard. The test reads like documentation of the contract.
+
+**Verification:**
+- `vitest run`: 32/32 pass (previous 28 + 4 new correctness cases).
+- Live check: seeded `safe_to_spend_locked = ₹26,532` (base) AND a ₹5,000 carry-forward rollover row for the same user. Chat-respond returned STS **₹31,532** (= 26,532 + 5,000) — single count. Pre-2.1 code would have returned ₹36,532. Body prose even said "It also includes a ₹5,000 carry-forward from last month." Cleaned up after.
+
+**Move-it-into-resolved.** The "Things noticed but not fixed" item in D.65 that flagged this is now struck through above, pointing here. Spec 2.1 closes that loop.
 
 ---
 
