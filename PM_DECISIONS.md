@@ -1133,6 +1133,65 @@ Not exercised in the live demo today (Priya's pending ritual has `safe_to_spend_
 
 **Move-it-into-resolved.** The "Things noticed but not fixed" item in D.65 that flagged this is now struck through above, pointing here. Spec 2.1 closes that loop.
 
+#### D.66 Buffer-aware verdicts — Spec 3
+
+Stream 0.5z Spec 3. The cushion that D.65 established now enters verdict logic. **Principle: tradeoff, never permission.** A purchase that exceeds STS but fits within the cushion moves the verdict from RED toward YELLOW with a named rebuild cost — it never moves to GREEN. This protects the book-ending / impulse-wait thesis from the "I have savings, so it's fine" reflex.
+
+**Three classification tiers** (computed deterministically in `_shared/bufferAware.ts::classifyBuffer`):
+
+| Tier | Trigger | Verdict | Cushion mentioned? |
+|---|---|---|---|
+| `within_sts` | price ≤ STS | GREEN/YELLOW per existing logic | No — cushion stays parked |
+| `within_cushion` | STS < price ≤ STS + cushion | **YELLOW** + rebuild copy | Yes, as the lever |
+| `breaches_floor` | price > STS + cushion | **RED** naming the safety net | Yes, as exhaustion |
+| `cushion_unavailable` | cushion = 0 (Spec 1 dormant) | **RED** (Spec 1 behaviour, no buffer softening) | No — feature dormant |
+
+**D.40 / D.63 pattern applied — deterministic injection, not narration.** Server-side extracts the price from the user message (`extractPrice` handles ₹35,000, ₹8k, ₹1.5L, Indian comma grouping), classifies against `(STS_base, cushion, safety_net)`, and injects a "Verdict guidance for this query" block into the prompt with the lever figures pre-computed:
+
+```
+- Drops your cushion from ₹50,000 to ₹41,532 (drawdown of ₹8,468).
+- Rebuilding takes ~1 month at your ₹26,532/month safe-to-spend rate.
+```
+
+These two phrases live in `tradeoffs[]` of the structured verdict, where the model already obeys "use these numbers verbatim." Earlier iteration of the prompt tried to put them in `body`; the model fabricated ₹15K (bleeding from the SIP grounding) — moving the lever to `tradeoffs` solved it. (The body is for the narrative *shape* of the verdict; tradeoffs is for the numerical commentary.)
+
+**Forbidden phrasing — applies to ALL responses (not just buffer-aware classifications):**
+> "The cushion sits ABOVE the safety net. The Emergency fund BACKS the safety net.
+> FORBIDDEN: 'dipping into your safety net' when the cushion is the path being drawn down.
+> FORBIDDEN: framing the cushion as a green light."
+
+This block fires every time, regardless of which classification triggered. It catches the Spec 2 leak (the ₹50K-laptop body had said *"would require dipping into your safety net"* when the cushion sits above the floor) — that improvisation no longer happens because the geometry is stated, not hand-rolled.
+
+**Rebuild rate.** `monthsToRebuild = max(1, ceil(drawdown / STS_base))` — an optimistic upper bound that assumes the user saves their entire STS in subsequent months. The verdict copy makes the assumption transparent ("at your ₹26,532/month STS rebuild rate") so the user isn't sold a false floor.
+
+**Files:**
+- `supabase/functions/_shared/bufferAware.ts` — `extractPrice` (₹X / ₹Xk / ₹XL handling) + `classifyBuffer` (4-tier discriminated union with all lever figures computed).
+- `supabase/functions/chat-respond/index.ts` — passes `message` through to `buildSystemPrompt`.
+- `supabase/functions/chat-respond/prompt_builder.ts` — calls `classifyBuffer` inside `buildGroundingContext`, emits per-query guidance block + the always-on cushion/floor language rules.
+- `tests/unit/buffer-aware.test.ts` — 23 cases: 13 price-extraction fixtures (numeric, k, L, mixed), 10 classifier cases covering all four tiers + boundary conditions + cushion=0 dormancy.
+
+**Verification — five gates, all green:**
+1. `npx tsc -b`: 0 errors.
+2. `vitest run`: **55/55 pass** (D.64 baseline + STS parity + savings parity + lock-in no-double-count + new buffer-aware suite).
+3. **Three live tiers**:
+   - `₹3,500 watch` → YELLOW (impulse-wait), cushion not mentioned.
+   - `₹35,000 laptop` → YELLOW with `tradeoffs` containing the exact lever: *"Drops your cushion from ₹50,000 to ₹41,532 (drawdown of ₹8,468)"* + *"Rebuilding takes ~1 month at your ₹26,532/month safe-to-spend rate"*.
+   - `₹85,000 laptop` → RED, names safety net, `rule_citations` includes `safety_net`.
+4. **Cushion=0 dormancy** — temporarily set Priya's `unearmarked_liquid = 0`, asked about ₹35K laptop → RED with no cushion mention, no "but you have savings" softening. Restored after.
+5. **Test-chat-7cases.mjs (now 11 cases)**: 11/11 verified=true; cases 10-11 are the new buffer-tier additions; cases 8-9 impulse-wait boundary discipline preserved.
+6. **Divergence test**: STS ₹26,532 / daily ₹884 still verbatim; the ₹50K laptop verdict (previously RED in Spec 1) now lands as YELLOW with the lever — a visible Spec 3 shift in the artifact.
+
+**Spec 1 leak observation from D.65 — resolved.** D.65 noted that the model was already informally referencing the cushion in ₹50K-laptop verdicts. With Spec 3's injected lever + forbidden-phrase rules, that improvisation is now structured: the cushion drawdown and rebuild months appear as exact figures, and the safety-net relationship is stated correctly (cushion sits above the floor; EF backs it).
+
+**Things noticed but not fixed (C.3):**
+- **`breaches_floor` body still improvises some math.** The ₹85K laptop's tradeoff said the EF would go from ₹1,84,000 to ₹99,132 — that's a model computation (subtracting full price from EF instead of just the post-cushion remainder). The verdict (RED) and main figures are correct; the EF-balance-after math is off. Tightening this would need an additional injected figure (`ef_balance_after_breach`); not done in V1 since the user-facing classification stays correct.
+- **Single-purchase price extraction.** Multi-price messages ("₹8k watch and ₹1L Apple Watch") use the FIRST price for classification. The model handles the cumulative case via chat history (Turn 3 still lands correct RED). A more sophisticated multi-price aggregator is V2.
+- **Optimistic rebuild rate.** `monthsToRebuild` uses the user's full STS as the savings rate — clearly stated in the copy ("at your ₹26,532/month STS rebuild rate") so the user reads it as an upper bound. A more realistic rate (e.g. historical actual-savings ratio) is V2.
+
+**V2 carry-overs from this spec**: liquidity-aware levers (pause a pausable SIP); generalising the hallucination guard to body fields (E.3 V2); "keep as spare" cushion accumulation via rollover/windfall (separate from the in-month carry-forward this spec uses).
+
+The three-spec stack is complete: D.64 deducts investing from STS (Spec 1) → D.65 builds the savings/cushion model on the corrected number (Spec 2) → D.65-follow-up fixes the locked-ritual carry-forward double-count (Spec 2.1) → D.66 uses the cushion in verdicts (Spec 3). Each landed as a separate commit with its own verification gates per C.4.
+
 ---
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs

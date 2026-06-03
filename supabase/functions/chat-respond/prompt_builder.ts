@@ -2,6 +2,7 @@
 import { getUserRulesFromProfile, type UserRules } from '../_shared/user-rules.ts';
 import { computeStsBreakdown } from '../_shared/safeToSpend.ts';
 import { getSavingsState } from '../_shared/savings.ts';
+import { extractPrice, classifyBuffer, type BufferAware } from '../_shared/bufferAware.ts';
 
 // DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
 // 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
@@ -282,6 +283,7 @@ export const buildGroundingContext = (
   ritual: any,
   merchantStats: any[],
   carryForward: number = 0,
+  userMessage: string = '',
 ): string => {
   const activeGoals = (goals || []).filter(g => g.status === 'active');
 
@@ -434,7 +436,70 @@ export const buildGroundingContext = (
     lines.push(`- Floor coverage: SHORT by ₹${INR(savings.rebuildGap)} (accessible liquid ₹${INR(savings.backerBalance + savings.unearmarkedLiquid)} < ₹${INR(savings.safetyNet)} safety net). No spendable cushion; the priority is rebuilding the floor.`);
     lines.push(`- Spendable cushion above the safety net: ₹0`);
   }
-  lines.push(`- The cushion is NOT part of safe-to-spend. It is PARKED money above the floor. Mention it only when relevant to an affordability question (Spec 3 verdict logic will use it once shipped); for general "how am I doing" responses, the cushion + floor status reads as a reserve note, not a spend allowance.`);
+  lines.push(`- The cushion is NOT part of safe-to-spend. It is PARKED money above the floor. For general "how am I doing" responses, the cushion + floor status reads as a reserve note, not a spend allowance.`);
+  lines.push('');
+
+  // D.66 (Spec 3) — buffer-aware verdict guidance for THIS QUERY.
+  // Server-side pre-classification of the user's price (if any) against
+  // STS + cushion + safety net. The block injects deterministic figures
+  // — buffer-after, months-to-rebuild — that the model must use verbatim
+  // (D.40 / D.63 pattern: cut the LLM surface, don't guard it). The
+  // block also FORBIDS the kind of free-narration the Spec 2 leak
+  // surfaced ("dipping into your safety net" when the cushion sits
+  // above the floor).
+  //
+  // Why classify in the prompt rather than in chat-respond/index.ts:
+  // the prompt builder already has STS + cushion + safetyNet derived
+  // from profile/goals/commitments. Doing the extraction here keeps the
+  // chat-respond entrypoint thin and the parity test simple.
+  const buffer: BufferAware = classifyBuffer(
+    extractPrice(userMessage),
+    computedSTS,           // base STS, no carry-forward (the rebuild rate the user has every month)
+    savings.cushion,
+    savings.safetyNet,
+  );
+  if (buffer.kind !== 'no_price') {
+    lines.push('### Verdict guidance for this query (D.66 — buffer-aware)');
+  }
+  if (buffer.kind === 'within_sts') {
+    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- Classification: WITHIN safe-to-spend. After this purchase, ₹${INR(buffer.stsRemaining)} would remain of this month's STS.`);
+    lines.push(`- Standard verdict applies (GREEN if rules untouched, YELLOW if impulse-wait or other rule fires). DO NOT mention the cushion — it is parked, not a tradeoff for in-STS purchases.`);
+    lines.push('');
+  } else if (buffer.kind === 'within_cushion') {
+    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- Classification: EXCEEDS safe-to-spend by ₹${INR(buffer.drawdown)}, but FITS within the cushion (₹${INR(buffer.bufferBefore)}). This is the buffer-aware YELLOW case.`);
+    lines.push(`- **Use verdict_color = "YELLOW"**. Do NOT use GREEN; the cushion is a tradeoff with a rebuild cost, not permission.`);
+    lines.push(`- **verdict_line** opens with "Think twice — " (action language) and names the cushion drawdown succinctly. Example shape: "Think twice — this ₹${INR(buffer.price)} laptop draws ₹${INR(buffer.drawdown)} from your cushion."`);
+    lines.push(`- **body** is short (30-50 words): state that the purchase exceeds STS by ₹${INR(buffer.drawdown)} and draws from the cushion. DO NOT fabricate buffer-after numbers in the body — leave the precise numbers to tradeoffs[].`);
+    lines.push(`- **tradeoffs[]** carries the lever — MUST include these TWO items with the figures verbatim (do NOT recompute):`);
+    lines.push(`  1. "Drops your cushion from ₹${INR(buffer.bufferBefore)} to ₹${INR(buffer.bufferAfter)} (drawdown of ₹${INR(buffer.drawdown)})."`);
+    lines.push(`  2. "Rebuilding takes ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'} at your ₹${INR(computedSTS)}/month STS rate."`);
+    lines.push(`  These two phrases are the LEVER. Paraphrase only minimally; the figures (₹${INR(buffer.bufferBefore)}, ₹${INR(buffer.bufferAfter)}, ₹${INR(buffer.drawdown)}, ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'}, ₹${INR(computedSTS)}/month) MUST appear exactly as given.`);
+    lines.push(`- The cushion sits ABOVE the safety net (₹${INR(savings.safetyNet)}) which the ${savings.backerLabel ?? 'emergency fund'} backs. This purchase does NOT touch the safety net — do NOT say "dipping into safety net" or similar.`);
+    lines.push('');
+  } else if (buffer.kind === 'breaches_floor') {
+    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- Classification: EXCEEDS spendable-above-floor (STS ₹${INR(computedSTS)} + cushion ₹${INR(savings.cushion)} = ₹${INR(buffer.spendableAboveFloor)}) by ₹${INR(buffer.overBy)}. Floor-breach case.`);
+    lines.push(`- **Use verdict_color = "RED"**. Name the safety net (₹${INR(buffer.safetyNet)}) — this purchase would exhaust the cushion AND require dipping into the floor that the ${savings.backerLabel ?? 'emergency fund'} backs.`);
+    lines.push(`- DO NOT say the purchase "dips into safety net" loosely — be specific: it exhausts STS + cushion (₹${INR(buffer.spendableAboveFloor)} together) and pushes against the ₹${INR(buffer.safetyNet)} floor.`);
+    lines.push(`- rule_citations[] must include "safety_net".`);
+    lines.push('');
+  } else if (buffer.kind === 'cushion_unavailable') {
+    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- Classification: EXCEEDS safe-to-spend by ₹${INR(buffer.stsExceedBy)}; no spendable cushion exists (cushion = ₹0). Buffer-aware logic is DORMANT — verdict logic falls back to Spec 1 (RED with no "but you have savings" softening).`);
+    lines.push(`- **Use verdict_color = "RED"**. Do not invoke buffer language; the user has no cushion to draw on.`);
+    lines.push('');
+  }
+
+  // D.66 — forbidden phrasing for the cushion/floor relationship,
+  // regardless of which classification fires. The Spec 2 leak said
+  // "dipping into your safety net" when the cushion is ABOVE the floor;
+  // make that wrong specifically.
+  lines.push('### Cushion/floor language rules (D.66 — applies to ALL responses)');
+  lines.push(`- The cushion (₹${INR(savings.cushion)}) sits ABOVE the safety net (₹${INR(savings.safetyNet)}). The ${savings.backerLabel ?? 'emergency fund'} BACKS the safety net.`);
+  lines.push(`- FORBIDDEN: "dipping into your safety net" / "would dip into the floor" when the cushion is the path being drawn down. The correct phrasing is "drops your cushion from ₹X to ₹Y" — the safety net is only touched when the purchase exceeds STS + cushion together.`);
+  lines.push(`- FORBIDDEN: framing the cushion as a green light ("you have savings, so it's fine"). The cushion is a tradeoff with a rebuild cost — never permission.`);
   lines.push('');
 
   // D.49 + D.51 (Stream 0.5t pieces #5 + #7) — user rules now read from
@@ -483,11 +548,12 @@ export const buildSystemPrompt = (
   ritual: any,
   merchantStats: any[],
   carryForward: number = 0,
+  userMessage: string = '',
 ): string => {
   const rules = getUserRulesFromProfile(profile);
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
-  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward);
+  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward, userMessage);
   const layer4 = buildVerdictLayer(rules);
   const layer5 = buildProseStructureLayer();
 

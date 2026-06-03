@@ -120,6 +120,12 @@ serve(async (req) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const carryForward = (carryForwardRows ?? []).reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0);
 
+    // D.66 (Spec 3) — `message` passed into buildSystemPrompt so the
+    // prompt builder can extract the price and pre-classify against STS
+    // + cushion + safety net. The injected guidance block tells the
+    // model to use the lever (buffer-after, months-to-rebuild) verbatim
+    // rather than improvising cushion/floor language. Per the D.40 /
+    // D.63 pattern: cut the LLM surface, don't guard it.
     const systemPrompt = buildSystemPrompt(
       profile,
       goals || [],
@@ -128,6 +134,7 @@ serve(async (req) => {
       ritual || null,
       merchantStats || [],
       carryForward,
+      message,
     );
 
     // Call Gemini via Vertex AI
