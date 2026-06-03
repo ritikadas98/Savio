@@ -47,6 +47,9 @@ const CASES = [
   // violations on amounts that don't actually cross the threshold.
   { n: 8, q: 'Can I afford a ₹2,500 watch?',                expect: 'Below ₹3,000 impulse-wait threshold; rule_citations: []; verdict_line does NOT cite impulse-wait; Verified' },
   { n: 9, q: 'Can I afford a ₹3,500 watch?',                expect: 'Above ₹3,000 impulse-wait threshold; rule_citations includes "impulse_wait"; verdict_line cites threshold + body restates 48-hour rule; Verified' },
+  // D.66 (Spec 3) — buffer-aware verdict tiers. Cushion = ₹50K, STS = ₹26,532, safety_net = ₹1,00,000.
+  { n: 10, q: 'Can I afford a ₹35,000 laptop?',             expect: 'Within-cushion YELLOW: verdict + tradeoffs name the drawdown + rebuild (₹50,000 → ₹41,532, ~1 month at ₹26,532/month) verbatim from the injected lever; never says "dipping into safety net"' },
+  { n: 11, q: 'Can I afford an ₹85,000 laptop?',            expect: 'Beyond-cushion RED: verdict names ₹1,00,000 safety net; rule_citations includes "safety_net"; body explains STS+cushion exhausted (₹76,532 total) before the floor is reached' },
 ];
 
 for (const c of CASES) {
