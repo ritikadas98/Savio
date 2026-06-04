@@ -10,13 +10,37 @@ updates:
     open-pull-requests-limit: 5
     groups:
       # Cluster non-major bumps into one PR per group so the inbox doesn't
-      # explode. Major version bumps still come as individual PRs.
+      # explode. Major version bumps still come as individual PRs (when
+      # not ignored — see below).
       production-dependencies:
         dependency-type: "production"
         update-types: ["minor", "patch"]
       development-dependencies:
         dependency-type: "development"
         update-types: ["minor", "patch"]
+    ignore:
+      # Major-version bumps for breaking-prone deps. Each is a real
+      # migration project; let them surface as a decision when the
+      # portfolio comes out of maintenance mode, not as weekly Dependabot
+      # noise that fails Netlify previews. Minor + patch on these still
+      # come through as normal.
+      #
+      # 2026-06-04: PR #4 attempted tailwindcss 3.4.19 → 4.3.0 and broke
+      # `vite build` (v4 dropped the PostCSS plugin path + tailwind.config.ts
+      # in favour of CSS-first config + a Vite plugin; tailwindcss-animate
+      # also doesn't support v4). Closed; ignored going forward.
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     labels:
       - "dependencies"
     commit-message:
