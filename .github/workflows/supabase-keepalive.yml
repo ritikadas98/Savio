@@ -1,0 +1,60 @@
+# Supabase free-tier projects pause after 7 days of database inactivity. This
+# workflow hits the REST API on a schedule so the project stays warm and a
+# reviewer opening the live demo never lands on a paused project.
+#
+# Cron: Mondays + Thursdays at 03:00 UTC (~08:30 IST). Twice-weekly cadence
+# means the longest gap between pings is ~4 days, well inside the 7-day
+# pause window with a 3-day buffer for missed runs.
+#
+# Activity counter: the GET issues a SELECT through PostgREST. Even if RLS
+# returns zero rows (the anon key can't read profiles), the SELECT itself
+# registers as database activity — which is what Supabase counts.
+#
+# Cost: ~3 seconds of GitHub Actions runtime per ping; well under free-tier
+# limits even at 100+ runs/year.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '0 3 * * 1,4'
+  workflow_dispatch:  # also allow manual runs from the Actions tab
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Supabase REST
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::warning::SUPABASE_URL or SUPABASE_ANON_KEY repo secret missing — skipping. Add them at Settings → Secrets and variables → Actions."
+            exit 0
+          fi
+
+          # GET /rest/v1/profiles?select=id&limit=1 — minimal payload, triggers
+          # a SELECT regardless of RLS. Response body is empty array when RLS
+          # filters, which is fine for the keep-alive intent.
+          status=$(curl -sS -o /tmp/body.json -w "%{http_code}" \
+            --max-time 30 \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1")
+
+          echo "HTTP $status"
+          echo "Body (truncated to 400 chars):"
+          head -c 400 /tmp/body.json
+          echo ""
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Keep-alive ping returned HTTP $status (expected 200). Project may be paused or credentials may be wrong."
+            exit 1
+          fi
+
+          echo "Project warm. Next scheduled ping per cron."
