@@ -12,12 +12,17 @@
 #
 # Cost: ~3 seconds of GitHub Actions runtime per ping; well under free-tier
 # limits even at 100+ runs/year.
+# Cron: daily at 03:00 UTC (~08:30 IST). Supabase evaluates *sufficient*
+# activity over the trailing 7 days and expects roughly daily requests —
+# a single ping every 3–4 days reads as insufficient and the project pauses
+# anyway. Daily cadence keeps it warm and absorbs the occasional missed/
+# delayed GitHub cron tick.
 
 name: Supabase keep-alive
 
 on:
   schedule:
-    - cron: '0 3 * * 1,4'
+  - cron: '0 3 * * *'
   workflow_dispatch:  # also allow manual runs from the Actions tab
 
 permissions:
