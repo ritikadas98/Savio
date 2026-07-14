@@ -234,9 +234,14 @@ function normalizeSavioResponse(data) {
 // ---------------------------------------------------------------------------
 // Cheap, factual signals (no editorializing).
 //
-// HONEST GUARD WORDING — per PM_DECISIONS E.3 the hallucination guard runs
-// against `verdict_line` ONLY, not the body, tradeoffs, or prose. We never
-// claim "verified the numbers" wholesale; we say exactly what's true.
+// GUARD WORDING — post-D.18 the hallucination guard runs against every
+// text-bearing field (verdict_line, body, best_next_step, tradeoffs[]) for
+// structured responses, and against the full message for prose. `verified`
+// is true only when every field passed. State exactly that; claim no more.
+// E.3 previously disclosed "verdict_line only" scope — that scope is closed
+// as of D.18 (see PM_DECISIONS §E.3). What remains open is semantic
+// verification (claim correctness, not just arithmetic derivability) —
+// a different problem than field coverage.
 // ---------------------------------------------------------------------------
 function signalsLine(savio, vanillaText) {
   const s = [`Savio response kind: \`${savio.kind}\``];
@@ -245,7 +250,7 @@ function signalsLine(savio, vanillaText) {
   if (savio.structured?.verdict_line) {
     s.push(`Savio returned a verdict${color ? ` (\`${color}\`)` : ""}`);
     if (savio.meta?.verified) {
-      s.push("verdict line guard-verified; body/tradeoff figures grounded but not separately guard-verified (E.3)");
+      s.push("all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step)");
     }
     if (savio.meta?.fallback_used) {
       s.push("Savio fell back to deterministic copy after guard");
@@ -254,7 +259,7 @@ function signalsLine(savio, vanillaText) {
              /SEBI|outside what i can help|not.*advice|i help you understand/i.test(savio.text)) {
     s.push(`Savio invoked a scope refusal${savio.meta?.scope_filter_triggered ? ` (family: ${savio.meta.scope_filter_triggered})` : ""} — no numbers to verify`);
   } else {
-    s.push("numbers grounded in Priya's data, not separately guard-verified (E.3)");
+    s.push("prose numbers guard-verified against Priya's grounding context");
   }
 
   if (/₹\s?[\d,]+/.test(vanillaText)) s.push("vanilla stated a ₹ figure it has no source for");

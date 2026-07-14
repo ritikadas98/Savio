@@ -988,7 +988,7 @@ Stream 0.5y. Surfaced by `docs/divergence-tests.md`'s first run (2026-06-03). Tw
 
 2. **SIP-accounting inconsistency.** Two prose answers described Priya's ₹98,000 decomposition differently — once with the ₹15,000 SIP appearing *inside* the ₹47,468 fixed commitments, once as an *additional* ₹24,000 (₹15,000 + ₹9,000) on top. The arithmetic only reconciles in the canonical version. The grounding context exposed overlapping buckets without locking the model to one non-overlapping decomposition.
 
-Headline numbers (safe-to-spend ₹41,532, deficit math, verdict colors, rule citations) were all correct. Only the derived/described figures drifted. Per **E.3** the hallucination guard covers `verdict_line` only, so nothing catches body drift.
+Headline numbers (safe-to-spend ₹41,532, deficit math, verdict colors, rule citations) were all correct. Only the derived/described figures drifted. The hallucination guard runs field-wide since D.18 but is **arithmetic-only** — it verifies rupee/percentage values are derivable from grounded inputs via `isDerivable()`. Neither drift here is an arithmetic hallucination: the day count is a fabricated calendar fact, and the decomposition drift is a choice between grouping labels. Extending the guard wouldn't have caught either. Deterministic injection is the right shape.
 
 **Fix per D.40 principle — cut the LLM surface, don't guard it.** These are deterministic facts; the model shouldn't compute them. Three concrete changes in `supabase/functions/chat-respond/prompt_builder.ts`:
 
@@ -1235,15 +1235,29 @@ The three-spec stack is complete: D.64 deducts investing from STS (Spec 1) → D
 
 ### Section E — Phase 3 Disclosures + V2 Carry-overs
 
-These are NOT decisions to litigate — they are documented known states of the Phase 3 build that V2 work would address. Listed for case-study honesty, reviewer transparency, and future maintainers.
+These are NOT decisions to litigate — they are documented known states of the Phase 3 build. Listed for case-study honesty, reviewer transparency, and future maintainers.
 
-#### E.3 Hallucination guard scope limited to verdict_line
-Chat C3 verdict cards: guard runs against `verdict_line` only. `body`, `tradeoffs`, `best_next_step` are NOT separately verified. Grounded context (real Priya state) makes hallucination less likely, but the guard doesn't catch all of it. V2 hardening: extend guard to all four fields.
+**Reading key** (added 2026-06-16, Spec S6 follow-through). Each entry below is one of three shapes; assume the shape from the wording, and where later work changed it, the entry says so explicitly:
 
-**Amended (D.63, 2026-06-03):** the specific drifts that motivated this V2 item — daily-safe-to-spend day count and the income decomposition — are now deterministic facts injected into the prompt, mandated for verbatim use, and validated by the divergence-test artifact's re-run. The general body-field guard (covering arbitrary derived numbers like goal progress percentages, projected timelines, etc.) remains V2. D.40 principle wherever the surface can be cut; guard extension for what truly needs to stay LLM-derived.
+- **RESOLVED (— by D.NN)** — later code closed the disclosure. Original text preserved above the resolution note so the pre-fix state stays auditable.
+- **EXPLAINED-NOT-BUILT** — the disclosure *is* the answer. Not on the roadmap; the framing (charter, spec, tradeoff) already justifies why. These read as PM discipline (naming a bound), not tech debt.
+- **OPEN V2** — genuinely deferred code work for a future phase. These are the ones that would become tickets if the project resumed active build.
 
-#### E.4 Verdict query "right now" trips timing filter
-Acceptable per scope_filter charter. "Right now" matches timing-deflection regex and routes to SEBI handoff for some borderline cases. Not a bug — the filter is intentionally cautious. V2: smarter timing intent classifier.
+#### E.3 Hallucination guard scope limited to verdict_line — RESOLVED by D.18
+
+**Original disclosure (Phase 3 close):** guard ran against `verdict_line` only; `body`, `tradeoffs`, `best_next_step` were emitted with unverified numbers. Filed as V2 hardening.
+
+**Resolved (D.18, Stream 0.5o):** `hallucinationGuardStructured()` now runs the arithmetic guard against every text-bearing field of the structured verdict — `verdict_line`, `body`, `best_next_step`, and each item of `tradeoffs[]`. Field-tagged corrections land in `ai_metadata.corrections` so the audit trail tells you *where* an unverified number lived, not just that one existed. Any field failure triggers the prose fallback and drops the structured payload — same discipline as the original single-field path, broader coverage. D.18 was filed as closing E.1/C.7; E.3 was not updated at the time. Corrected 2026-06-16.
+
+**Corrective note on D.63's earlier amendment.** D.63 (deterministic injection of days-remaining + daily-SPS + canonical decomposition) previously justified itself by claiming *"guard covers `verdict_line` only, so nothing catches body drift."* That claim was already inaccurate when written — the structured guard was field-wide since D.18. The *correct* justification is that the guard is **arithmetic-only** (see below) and the specific drifts D.63 fixed — day-count fabrication, decomposition-bucket choice — aren't arithmetic derivations at all, so extending field coverage wouldn't have caught them. Deterministic injection remained the right fix; the reasoning cited the wrong open item.
+
+**What remains open (a different V2 item — semantic guard):**
+- The guard is **arithmetic-only**. `isDerivable()` accepts any value within ±2% of `a`, `a+b`, `a−b`, `a×b`, or `(a÷b)×100` across all ordered pairs of grounded inputs. It verifies numbers, not claims. A semantically wrong statement carrying arithmetically valid numbers passes ("your safety net will grow to ₹5L by December" — numbers plausible, claim unsupported).
+- `isDerivable()`'s pair-search precision degrades as grounding grows. With ~40 grounded numbers today, the combinatorial cross-product is ~1600 candidates; a fabricated figure happening to land within ±2% of any of them passes. V2: whitelist intended derivations rather than searching all pairs.
+- This is a semantic-guard problem, not a field-coverage problem, and doesn't overlap with the D.63-era work.
+
+#### E.4 Verdict query "right now" trips timing filter — EXPLAINED-NOT-BUILT
+Acceptable per scope_filter charter. "Right now" matches timing-deflection regex and routes to SEBI handoff for some borderline cases. Not a bug — the filter is intentionally cautious, and a false-positive on the SEBI-handoff side is safer than a false-negative on the timing-advice side. The wording *"smarter timing intent classifier"* remained on this entry from the Phase 3 close; leaving it there suggested build work. There is no plan to build it — the current charter is the answer.
 
 #### E.5 Cold-call latency on verdicts: 6-15s
 Vertex JWT mint pattern is slow on cold isolates. Same on onboarding synthesis (5-12s cold). V2: typing indicator copy + preload-on-input-focus.
@@ -1251,20 +1265,20 @@ Vertex JWT mint pattern is slow on cold isolates. Same on onboarding synthesis (
 #### E.6 Rapid-labeling residual race on Reflect patterns
 Stream 0.5j-fix solved the diagnosed case; 2-3 labels in quick succession may still fire 2-3 Vertex calls instead of 1. Eventually consistent (last-write-wins). Manual ↻ refresh is the user-facing escape hatch. V2: debounce on labels or skip-if-in-flight.
 
-#### E.7 forceResynthesizePatterns no spinner beyond "Running…" text
-Reviewer Console action. Acceptable for reviewer-tools surface. V2 polish.
+#### E.7 forceResynthesizePatterns no spinner beyond "Running…" text — EXPLAINED-NOT-BUILT
+Reviewer Console action. The reviewer-tools surface deliberately tolerates minimum polish — it's the operator's dashboard, not a user-facing surface. Documenting the choice, not planning a build.
 
-#### E.8 Ritual screen page title 30px is extrapolation
-JSX preview canonical type scale is home + chat only. Ritual screen titles at 30px applied uniformly per Stream 0 type scale. V2: explicit ritual-screen type scale OR accept 30px as the locked spec going forward.
+#### E.8 Ritual screen page title 30px is extrapolation — EXPLAINED-NOT-BUILT
+JSX preview canonical type scale covers home + chat only. Ritual screen titles at 30px applied uniformly per the Stream 0 type-scale extension. The Phase-3 disclosure asked "V2: explicit ritual-screen type scale OR accept 30px as locked" — the answer, from six weeks of using it, is **accept 30px as locked**. The extrapolation held.
 
 #### E.9 Onboarding doesn't auth-gate `/`
 Logged-in user navigating to `/` sees Welcome again (skip button still works to re-login). V2: session check that auto-routes to `/home` if session present.
 
-#### E.10 Edge Function `no-restricted-syntax` exempt via config
-The `new Date()` ban in `src/**` doesn't apply to Edge Functions (Deno can't import from `src/lib/dates.ts`). ESLint config now scopes the rule to `src/**`. Edge Functions still use `new Date()` freely where needed.
+#### E.10 Edge Function `no-restricted-syntax` exempt via config — EXPLAINED-NOT-BUILT
+The `new Date()` ban in `src/**` doesn't apply to Edge Functions (Deno can't import from `src/lib/dates.ts`). ESLint config scopes the rule to `src/**`. Edge Functions use `new Date()` freely where needed. This is a documented config choice, not a TODO.
 
-#### E.11 WindfallAllocate sub-copy already dynamic
-Pre-flight discovery — Stream 0.5k already made the sub-copy say `"the {buckets.length} buckets keep things..."`. Phase D spec listed this as a must-fix; it was already fixed. No action needed.
+#### E.11 WindfallAllocate sub-copy already dynamic — RESOLVED (pre-flight discovery)
+Stream 0.5k already made the sub-copy read `"the {buckets.length} buckets keep things..."`. Phase D spec listed this as a must-fix; it was already fixed. No further action.
 
 #### E.12 Cumulative test-script seed pollution pattern
 April reflection leftovers surfaced 3 times across Phase B/C verification. Phase D added try/finally to the main culprit (`phase05j-fix-race.mjs`). V2: add global "reset reflections to canonical" sanity check before each verification batch.
