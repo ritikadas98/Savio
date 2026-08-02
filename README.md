@@ -1,6 +1,6 @@
 # Savio
 
-> A conversational AI financial decision companion for in-between-income earning Indians (Tier 1/2 cities, ₹40K–1.2L/month). Built as a PM portfolio piece — a rebuild of a HelloPM cohort group project.
+> A conversational AI financial decision companion for in-between-income earning Indians (Tier 1/2 cities, ₹40K–1.2L/month). Built as a PM portfolio piece.
 
 **Live demo:** [savio-financial-app.netlify.app](https://savio-financial-app.netlify.app/)
 

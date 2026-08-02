@@ -2,7 +2,7 @@
 
 ## What this is
 
-Savio is a PM portfolio rebuild of a HelloPM cohort group project. It's a conversational AI financial decision companion for in-between-income earning Indians (Tier 1/2 cities, ₹40K–1.2L/month). The product helps users translate raw financial data into felt consequence at book-ending moments (monthly anchor, windfall arrival, post-purchase reflection) — NOT at the moment of decision.
+Savio is a PM portfolio project. It's a conversational AI financial decision companion for in-between-income earning Indians (Tier 1/2 cities, ₹40K–1.2L/month). The product helps users translate raw financial data into felt consequence at book-ending moments (monthly anchor, windfall arrival, post-purchase reflection) — NOT at the moment of decision.
 
 The owner (Ritika) is a PM in transition, not an engineer. She directs the agent; the agent does the actual code work. She values:
 - PM framing first (user impact, demo behavior, case-study story) before engineering depth
