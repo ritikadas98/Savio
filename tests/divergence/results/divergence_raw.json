@@ -1,0 +1,3563 @@
+{
+  "model": "gemini-2.5-flash",
+  "temperature": 0,
+  "passes": 3,
+  "started": "2026-08-10T14:57:04+00:00",
+  "n_scenarios": 20,
+  "arms": [
+    "A_model_does_math",
+    "B_code_does_math"
+  ],
+  "rows": [
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly take-home income is ₹98,000. This is the amount you receive in your bank account after all deductions from your gross salary.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "Hi Priya, you pay ₹22,000 per month for rent. This is one of your fixed monthly commitments.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "₹22,000",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "Hi Priya! You're currently investing a total of ₹15,000 into your SIPs each month. This includes ₹10,000 for SIP Mutual Fund 1 and ₹5,000 for SIP Mutual Fund 2. Keep up the great work with your investments!",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "₹15,000",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "₹10,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "₹5,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "Priya, you can safely spend up to **₹82,732** this month. This amount includes your regular variable expenses like groceries, eating out, and transport, along with the unallocated Diwali bonus and tax refund you received. To stay on track, aim to stick to your variable budgets of ₹6,000 for groceries, ₹5,500 for eating out, and ₹5,500 for transport.",
+      "figures": [
+        {
+          "value": 82732.0,
+          "as_written": "₹82,732",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 6000.0,
+          "as_written": "₹6,000",
+          "verdict": "exact",
+          "matches": "variable budget: Groceries"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've already put aside ₹8,000 towards your phone fund, which is a great start! You're well on your way to reaching your target of ₹35,000 by August 1st. Keep up the excellent work!",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You're doing great with your phone fund, Priya! You need to save an additional ₹27,000 to reach your target of ₹35,000. With your current contribution of ₹4,000 per month, you're well on your way to getting that new phone by August.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "₹27,000",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "Priya, at your current contribution of ₹4,000 per month, your phone fund will be complete in about 6.75 months. You've already saved ₹8,000 towards your ₹35,000 goal, so you're well on your way to getting that new phone!",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "Hello Priya! Your two pending windfalls, the Diwali Bonus and the Tax Refund, are worth ₹56,200 together. This includes your ₹50,000 Diwali Bonus and ₹6,200 Tax Refund. It's great to see these funds available for you to allocate!",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        },
+        {
+          "value": 50000.0,
+          "as_written": "₹50,000",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        },
+        {
+          "value": 6200.0,
+          "as_written": "₹6,200",
+          "verdict": "exact",
+          "matches": "windfall: Tax Refund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Hello Priya! A significant portion of your take-home pay is already working hard for you.\n\nIncluding your fixed expenses and monthly savings contributions, about ₹71,468, or roughly 72.9% of your ₹98,000 net income, is committed each month before you even start spending. This leaves you with about ₹26,532 for your variable budgets and other discretionary spending.",
+      "figures": [
+        {
+          "value": 71468.0,
+          "as_written": "₹71,468",
+          "verdict": "exact",
+          "matches": "total already committed"
+        },
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        },
+        {
+          "value": 26532.0,
+          "as_written": "₹26,532",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Hi Priya! Your three savings goals currently ask for a total contribution of ₹9,000 every month. This includes ₹4,000 for your Phone fund, ₹2,000 for your Emergency fund, and ₹3,000 for your Goa trip. Keep up the great work on building towards these!",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "₹9,000",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "₹2,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "₹3,000",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Priya, while it's exciting to consider a new Apple Watch, affording a ₹100,000 one this month would be quite a stretch. After all your planned expenses and savings contributions, you have about ₹9,532 remaining, and even with your ₹56,200 in unallocated windfalls, you'd still be short.\n\nTo make this purchase, you would need to significantly adjust your current savings goals or other planned expenses.",
+      "figures": [
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "Hi Priya, your current safe-to-spend for the month is ₹9,532. If you were to purchase the ₹100,000 watch, you would be spending ₹90,468 beyond this amount.",
+      "figures": [
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 90468.0,
+          "as_written": "₹90,468",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 2,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I don't have your credit score on file, Priya, as Savio doesn't directly track this information. You can easily check your credit score for free through credit bureaus like CIBIL, Experian, or Equifax, or often through your banking app.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I'm sorry, Priya, I don't have the interest rate for your personal loan on file. My records only show that your Personal Loan EMI is ₹8,500 per month.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I can see you have a Personal Loan EMI of ₹8,500 per month, but I don't have the details of the original loan amount or how much is still outstanding. You can usually find this information on your loan statement or by contacting your lender directly.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Yes, Priya, you can definitely afford the ₹45,000 laptop this month! You have a total of ₹56,200 in unallocated windfalls from your Diwali Bonus and Tax Refund.\n\nUsing these funds means your regular monthly budget and savings goals will remain completely on track. Enjoy your new laptop!",
+      "figures": [
+        {
+          "value": 45000.0,
+          "as_written": "₹45,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! You've been very diligent, and yes, you absolutely have some room to treat yourself. After all your commitments and savings, you have about ₹9,500 remaining from your monthly income, plus a significant ₹56,200 in unallocated windfalls that could be used for a splurge or to boost your goals!",
+      "figures": [
+        {
+          "value": 9500.0,
+          "as_written": "₹9,500",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "That's a fantastic Diwali bonus, Priya! Instead of a mutual fund right now, I'd suggest using it to strengthen your immediate financial goals.\n\nYou could allocate INR 13,000 to fully fund your Phone goal, and then put the remaining INR 37,000 towards boosting your Emergency Fund, bringing it closer to your INR 300,000 target. This ensures your short-term needs are met and builds a stronger financial safety net.",
+      "figures": [
+        {
+          "value": 13000.0,
+          "as_written": "INR 13,000",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 37000.0,
+          "as_written": "INR 37,000",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 300000.0,
+          "as_written": "INR 300,000",
+          "verdict": "exact",
+          "matches": "goal target: Emergency fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 2,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, Priya, it looks like you tend to regret purchases from Myntra. Out of 8 purchases you've labelled from Myntra, 7 of them were marked as regret. This suggests a strong pattern of dissatisfaction with your Myntra buys.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 1,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "Based on your feedback, you're happiest with your purchases from Amazon! You've rated 3 out of 5 purchases from Amazon as \"glad,\" which is the highest proportion among your labelled shopping experiences. It's great to see you're finding value there!",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly take-home income is ₹98,000. This is the amount you receive in your bank account after all deductions from your gross salary.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "Hi Priya, you pay ₹22,000 per month for rent. This is one of your fixed monthly commitments.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "₹22,000",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "Hi Priya! You're currently investing a total of ₹15,000 into your SIPs each month. This includes ₹10,000 for SIP Mutual Fund 1 and ₹5,000 for SIP Mutual Fund 2. Keep up the great work with your investments!",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "₹15,000",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "₹10,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "₹5,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "Priya, you can safely spend up to **₹82,732** this month. This amount includes your regular variable expenses like groceries, eating out, and transport, along with the unallocated Diwali bonus and tax refund you received. To stay on track, aim to stick to your variable budgets of ₹6,000 for groceries, ₹5,500 for eating out, and ₹5,500 for transport.",
+      "figures": [
+        {
+          "value": 82732.0,
+          "as_written": "₹82,732",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 6000.0,
+          "as_written": "₹6,000",
+          "verdict": "exact",
+          "matches": "variable budget: Groceries"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've already put aside ₹8,000 for your phone fund, Priya! You're well on your way to reaching your ₹35,000 target by August.",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You're doing great with your phone fund, Priya! You need to save an additional ₹27,000 to reach your target of ₹35,000. With your current contribution of ₹4,000 per month, you're well on your way to getting that new phone by August.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "₹27,000",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "Priya, at your current contribution of ₹4,000 per month, your phone fund will be complete in about 6.75 months. You've already saved ₹8,000 towards your ₹35,000 goal, so you're well on your way to getting that new phone!",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "Hello Priya! Your two pending windfalls, the Diwali Bonus and the Tax Refund, are worth ₹56,200 together. This includes your ₹50,000 Diwali Bonus and ₹6,200 Tax Refund. It's great to see these funds available for you to allocate!",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        },
+        {
+          "value": 50000.0,
+          "as_written": "₹50,000",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        },
+        {
+          "value": 6200.0,
+          "as_written": "₹6,200",
+          "verdict": "exact",
+          "matches": "windfall: Tax Refund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Hello Priya! A significant portion of your take-home pay is already committed each month.\n\nYour fixed commitments, including rent, EMIs, and SIPs, total ₹62,468, which is about 63.7% of your ₹98,000 net monthly income. This means you have approximately ₹35,532 remaining for your variable expenses and discretionary spending.",
+      "figures": [
+        {
+          "value": 62468.0,
+          "as_written": "₹62,468",
+          "verdict": "exact",
+          "matches": "all fixed commitments"
+        },
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        },
+        {
+          "value": 35532.0,
+          "as_written": "₹35,532",
+          "verdict": "exact",
+          "matches": "net income minus fixed commitments, before goal contributions"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Hi Priya! Your three savings goals currently ask for a total of ₹9,000 every month. This includes ₹4,000 for your Phone fund, ₹2,000 for your Emergency fund, and ₹3,000 for your Goa trip. Keep up the great work towards achieving them!",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "₹9,000",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "₹2,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "₹3,000",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Priya, while it's exciting to consider a new Apple Watch, affording a ₹100,000 one this month would be quite a stretch. After all your planned expenses and savings contributions, you have about ₹9,532 remaining, and even with your ₹56,200 in unallocated windfalls, you'd still be short.\n\nTo make this purchase, you would need to significantly adjust your current savings goals or other planned expenses.",
+      "figures": [
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "Hi Priya, your current safe-to-spend for the month is ₹9,532. If you were to purchase the ₹100,000 watch, you would be spending ₹90,468 beyond this amount.",
+      "figures": [
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 90468.0,
+          "as_written": "₹90,468",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 2,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I don't have your credit score on file, Priya, as Savio doesn't directly track this information. You can easily check your credit score for free through credit bureaus like CIBIL, Experian, or Equifax, or often through your banking app.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I'm sorry, Priya, I don't have the interest rate for your personal loan on file. My records only show that your Personal Loan EMI is ₹8,500 per month.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I can see that you have a Personal Loan EMI of ₹8,500 per month. However, I don't have information on the original loan amount or how much is still outstanding.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Yes, Priya, you can definitely afford the ₹45,000 laptop this month! You have ₹56,200 in unallocated funds from your Diwali bonus and tax refund. This is more than enough to comfortably cover the cost without impacting your regular budget or savings goals.",
+      "figures": [
+        {
+          "value": 45000.0,
+          "as_written": "₹45,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! Being careful with your spending definitely pays off. You have about ₹9,532 unallocated from your monthly income, plus a generous ₹56,200 from your Diwali bonus and tax refund, so you certainly have room to treat yourself!",
+      "figures": [
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "That's a fantastic Diwali bonus, Priya! Instead of a mutual fund right now, I'd suggest using it to strengthen your immediate financial goals.\n\nYou could allocate INR 13,000 to fully fund your Phone goal, and then put the remaining INR 37,000 towards boosting your Emergency Fund, bringing it closer to your INR 300,000 target. This ensures your short-term needs are met and builds a stronger financial safety net.",
+      "figures": [
+        {
+          "value": 13000.0,
+          "as_written": "INR 13,000",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 37000.0,
+          "as_written": "INR 37,000",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 300000.0,
+          "as_written": "INR 300,000",
+          "verdict": "exact",
+          "matches": "goal target: Emergency fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 2,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, Priya, it looks like you tend to regret purchases from Myntra. Out of 8 purchases you've labelled from Myntra, 7 of them were marked as regret, which is a significant majority. Perhaps it's worth reflecting on these purchases before your next Myntra order.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 2,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "Priya, it looks like you're happiest with your purchases from Amazon! Out of the 5 items you've rated from there, you were glad about 3 of them, which is a great track record.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly take-home income is ₹98,000. This is the amount you receive in your bank account after all deductions from your gross salary.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "Hi Priya, you pay ₹22,000 per month for rent. This is one of your fixed monthly commitments.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "₹22,000",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "You're consistently investing ₹15,000 into your SIPs each month, with ₹10,000 going into one mutual fund and ₹5,000 into another. This is a great way to build your wealth over time!",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "₹15,000",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "₹10,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "₹5,000",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "Priya, you can safely spend up to **₹82,732** this month. This amount includes your regular variable expenses like groceries, eating out, and transport, along with the unallocated Diwali bonus and tax refund you received. To stay on track, aim to stick to your variable budgets of ₹6,000 for groceries, ₹5,500 for eating out, and ₹5,500 for transport.",
+      "figures": [
+        {
+          "value": 82732.0,
+          "as_written": "₹82,732",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 6000.0,
+          "as_written": "₹6,000",
+          "verdict": "exact",
+          "matches": "variable budget: Groceries"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        },
+        {
+          "value": 5500.0,
+          "as_written": "₹5,500",
+          "verdict": "exact",
+          "matches": "variable budget: Eating out; variable budget: Transport"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've already put aside ₹8,000 towards your phone fund, which is a great start! You're well on your way to reaching your target of ₹35,000 by August 1st. Keep up the excellent work!",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You're doing great with your phone fund, Priya! You still need to save ₹27,000 to reach your target of ₹35,000. With your current contribution of ₹4,000 per month, you're on track to achieve this goal by August 1st, 2026.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "₹27,000",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "Priya, at your current contribution of ₹4,000 per month, your phone fund will be complete in about 6.75 months. You've already saved ₹8,000 towards your ₹35,000 goal, so you're well on your way to getting that new phone!",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "₹8,000",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "Hello Priya! Your two pending windfalls, the Diwali Bonus and the Tax Refund, are worth ₹56,200 together. This includes your ₹50,000 Diwali Bonus and a ₹6,200 Tax Refund, both ready to be allocated.",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        },
+        {
+          "value": 50000.0,
+          "as_written": "₹50,000",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        },
+        {
+          "value": 6200.0,
+          "as_written": "₹6,200",
+          "verdict": "exact",
+          "matches": "windfall: Tax Refund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Hello Priya! A significant portion of your take-home pay is already committed each month.\n\nYour fixed commitments, including rent, EMIs, and SIPs, total ₹62,468, which is about 63.7% of your ₹98,000 net monthly income. This means you have approximately ₹35,532 remaining for your variable expenses and discretionary spending.",
+      "figures": [
+        {
+          "value": 62468.0,
+          "as_written": "₹62,468",
+          "verdict": "exact",
+          "matches": "all fixed commitments"
+        },
+        {
+          "value": 98000.0,
+          "as_written": "₹98,000",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        },
+        {
+          "value": 35532.0,
+          "as_written": "₹35,532",
+          "verdict": "exact",
+          "matches": "net income minus fixed commitments, before goal contributions"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Hi Priya! Your three savings goals currently ask for a total contribution of ₹9,000 every month. This includes ₹4,000 for your Phone fund, ₹2,000 for your Emergency fund, and ₹3,000 for your Goa trip. Keep up the great work on building towards these!",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "₹9,000",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "₹4,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "₹2,000",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "₹3,000",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Priya, while it's exciting to consider a new Apple Watch, affording a ₹100,000 one this month would be quite a stretch. After all your planned expenses and savings contributions, you have about ₹9,532 remaining, and even with your ₹56,200 in unallocated windfalls, you'd still be short.\n\nTo make this purchase, you would need to significantly adjust your current savings goals or other planned expenses.",
+      "figures": [
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "Hi Priya, your current safe-to-spend for the month is ₹9,532. If you were to purchase the ₹100,000 watch, you would be spending ₹90,468 beyond this amount.",
+      "figures": [
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 100000.0,
+          "as_written": "₹100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 90468.0,
+          "as_written": "₹90,468",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 2,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I don't have your credit score on file, Priya, as Savio doesn't directly track this information. You can easily check your credit score for free through credit bureaus like CIBIL, Experian, or Equifax, or often through your banking app.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I'm sorry, Priya, I don't have the interest rate for your personal loan on file. My records only show that your Personal Loan EMI is ₹8,500 per month.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I can see you have a Personal Loan EMI of ₹8,500 per month, but I don't have the details of the original loan amount or how much is still outstanding. You can usually find this information on your loan statement or by contacting your lender directly.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "₹8,500",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Yes, Priya, you can definitely afford the ₹45,000 laptop this month! You have ₹56,200 in unallocated funds from your Diwali bonus and tax refund. This is more than enough to comfortably cover the cost without impacting your regular budget or savings goals.",
+      "figures": [
+        {
+          "value": 45000.0,
+          "as_written": "₹45,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! Being careful with your spending definitely pays off. You have about ₹9,532 unallocated from your monthly income, plus a generous ₹56,200 from your Diwali bonus and tax refund, so you certainly have room to treat yourself!",
+      "figures": [
+        {
+          "value": 9532.0,
+          "as_written": "₹9,532",
+          "verdict": "UNTRACEABLE",
+          "matches": null
+        },
+        {
+          "value": 56200.0,
+          "as_written": "₹56,200",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 1,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": true,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "That's wonderful, Priya! A Diwali bonus of ₹50,000 is a fantastic boost to your finances.\n\nInstead of a new mutual fund, I'd suggest allocating this bonus towards your existing high-priority goals like your Phone fund (target ₹35,000) and Emergency fund (target ₹300,000). This would help you reach those important milestones much faster and strengthen your financial security.",
+      "figures": [
+        {
+          "value": 50000.0,
+          "as_written": "₹50,000",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "₹35,000",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 300000.0,
+          "as_written": "₹300,000",
+          "verdict": "exact",
+          "matches": "goal target: Emergency fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, Priya, it looks like you tend to regret purchases from Myntra. Out of 8 purchases you've labelled from Myntra, 7 of them were marked as regret, which is a significant majority. Perhaps it's worth reflecting on these purchases before your next Myntra order.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "A_model_does_math",
+      "pass": 3,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "Based on your feedback, you're happiest with your purchases from Amazon! You've rated 3 out of 5 purchases from Amazon as \"glad,\" which is the highest proportion among your labelled shopping experiences. It's great to see you're finding value there!",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly income, or take-home pay, is 98000.00 INR. This is the amount you receive after all deductions.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "98000.00",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "You pay 22,000.00 INR in rent each month.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "22,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "You are putting 15,000.00 INR into SIPs each month. This includes 10,000.00 INR for SIP Mutual Fund 1 and 5,000.00 INR for SIP Mutual Fund 2.",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "15,000.00",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "10,000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "5,000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "You can safely spend 26,532.00 INR this month, Priya. This amount is what's left after all your fixed commitments, variable budgets, and goal contributions are accounted for. Enjoy spending it wisely!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've put aside 8000.00 INR for your phone fund so far. You're doing great towards your goal of 35000.00 INR!",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "8000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You still need to save 27,000.00 INR to reach your Phone fund goal of 35,000.00 INR. You've already saved 8,000.00 INR towards it.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "27,000.00",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35,000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "8,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "At your current contribution, your Phone fund will be complete in 7 months. You're contributing 4000.00 INR each month towards your target of 35000.00 INR.",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "You have two pending windfalls, the Diwali Bonus and a Tax Refund, which are worth 56200.00 INR together. This amount is ready for you to allocate towards your goals or spending!",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "56200.00",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Priya, 72.9% of your net monthly income is already committed to your fixed expenses and savings goals. This means 72.9% of your 98000.00 INR take-home pay is allocated before you even start spending on variable items.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "98000.00",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Your three goals combined ask for 9000.00 INR every month. This includes 4000.00 INR for your Phone fund, 2000.00 INR for your Emergency fund, and 3000.00 INR for your Goa trip.",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "9000.00",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "2000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "3000.00",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Priya, your safe to spend amount this month is 26,532.00 INR. This means you cannot afford a 100,000 INR Apple Watch right now from your monthly income.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "I can tell you that your safe-to-spend amount this month is 26532.00 INR. However, I cannot calculate how far past this you would be with a 100,000 INR watch purchase, as that specific figure isn't available in my pre-computed data.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I cannot tell you your credit score from the information I have on file. I only have details about your income, expenses, and savings goals.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I cannot work out the interest rate on your personal loan from the information I have. I only have your Personal Loan EMI amount, which is 8500.00 INR.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I cannot tell you how much is still outstanding on your loan from the information I have. I only have a record of your Personal Loan EMI, which is 8500.00 INR per month.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Based on your current budget, your safe to spend amount this month is 26532.00 INR. Since the laptop costs 45000 INR, you cannot afford it this month from your regular income.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 45000.0,
+          "as_written": "45000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! You have 26,532.00 INR safe to spend this month. Enjoy your well-deserved splurge!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "I can see you have a Diwali Bonus of 50000.00 INR awaiting allocation. However, I cannot advise you on which specific mutual fund to invest in, as I don't have the necessary information to make such a recommendation.",
+      "figures": [
+        {
+          "value": 50000.0,
+          "as_written": "50000.00",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, you do tend to regret buying from Myntra. Your regret rate for Myntra purchases is 87.5%.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 1,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "Based on your labelled purchases, you're happiest with Swiggy, as it has a regret rate of 0.0%. This means you haven't regretted any of your purchases from there!",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly income, or take-home pay, is 98000.00 INR. This is the amount you receive after all deductions.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "98000.00",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "You pay 22,000.00 INR in rent each month.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "22,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "You are putting 15,000.00 INR into SIPs each month. This includes 10,000.00 INR for SIP Mutual Fund 1 and 5,000.00 INR for SIP Mutual Fund 2.",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "15,000.00",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "10,000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "5,000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "You can safely spend 26,532.00 INR this month, Priya. This amount is what's left after all your fixed commitments, variable budgets, and savings contributions are accounted for. Enjoy your spending!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've put aside 8000.00 INR for your phone fund so far. You're doing great towards your goal of 35000.00 INR!",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "8000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You still need to save 27,000.00 INR to reach your Phone fund goal of 35,000.00 INR. You've already saved 8,000.00 INR towards it.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "27,000.00",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35,000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "8,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "At your current contribution, your Phone fund will be complete in 7 months. You're contributing 4000.00 INR each month towards your target of 35000.00 INR.",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "You have two pending windfalls, the Diwali Bonus and a Tax Refund, which are worth 56200.00 INR together. This amount is ready for you to allocate towards your goals or spending!",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "56200.00",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Hello Priya!\n\nBefore you spend anything, 72.9% of your take-home pay is already committed to your fixed expenses and savings goals. This means you have 26532.00 INR remaining as safe to spend this month.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Your three goals combined ask for 9000.00 INR every month. This includes 4000.00 INR for your Phone fund, 2000.00 INR for your Emergency fund, and 3000.00 INR for your Goa trip.",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "9000.00",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "2000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "3000.00",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Based on your current budget, you have 26,532.00 INR safe to spend this month. An Apple Watch costing 100,000 INR would be more than your available spending for the month.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "I can tell you that your safe-to-spend amount this month is 26532.00 INR. However, I cannot calculate how far past this you would be with a 100,000 INR watch purchase, as that specific figure isn't available in my pre-computed data.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I cannot tell you your credit score from the information I have on file. I only have details about your income, expenses, and savings goals.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I cannot tell you the interest rate on your personal loan from the information I have. I only have your Personal Loan EMI of 8500.00 INR, but not the principal amount or the loan tenure.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I cannot tell you how much is still outstanding on your loan from the information I have. I only have your Personal Loan EMI of 8500.00 INR listed.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Priya, I cannot tell you if you can afford the laptop from the figures I have on file. To work this out, I would need to know the specific cost of the laptop.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! You have 26,532.00 INR safe to spend this month. Enjoy your well-deserved splurge!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "That's a great question about your Diwali Bonus of 50000.00 INR! As your financial companion, I can help you track your finances, but I can't provide specific investment advice on which mutual fund to choose.\n\nTo make such a decision, you would typically need to consider factors like the fund's performance, risk profile, and how it aligns with your personal financial goals, which I don't have on file.",
+      "figures": [
+        {
+          "value": 50000.0,
+          "as_written": "50000.00",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, you do tend to regret buying from Myntra. Your regret rate for Myntra purchases is 87.5%.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 2,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "You seem happiest with your purchases from Swiggy, as you've rated 0.0% of your labelled purchases from there as a regret. That's wonderful to see!",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "C1",
+      "cat": "clean",
+      "q": "What's my monthly take-home?",
+      "answer": "Hi Priya, your net monthly income, or take-home pay, is 98000.00 INR. This is the amount you receive after all deductions.",
+      "figures": [
+        {
+          "value": 98000.0,
+          "as_written": "98000.00",
+          "verdict": "exact",
+          "matches": "net monthly income"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "C2",
+      "cat": "clean",
+      "q": "How much do I pay in rent?",
+      "answer": "You pay 22,000.00 INR in rent each month.",
+      "figures": [
+        {
+          "value": 22000.0,
+          "as_written": "22,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Rent; still needed for Goa trip"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "C3",
+      "cat": "clean",
+      "q": "How much am I putting into SIPs each month?",
+      "answer": "You are putting 15000.00 INR into SIPs each month. This includes 10000.00 INR for SIP Mutual Fund 1 and 5000.00 INR for SIP Mutual Fund 2.",
+      "figures": [
+        {
+          "value": 15000.0,
+          "as_written": "15000.00",
+          "verdict": "exact",
+          "matches": "monthly investing (SIPs)"
+        },
+        {
+          "value": 10000.0,
+          "as_written": "10000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 1"
+        },
+        {
+          "value": 5000.0,
+          "as_written": "5000.00",
+          "verdict": "exact",
+          "matches": "commitment: SIP Mutual Fund 2"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "C4",
+      "cat": "clean",
+      "q": "How much can I safely spend this month?",
+      "answer": "You can safely spend 26,532.00 INR this month, Priya. This amount is what's left after all your fixed commitments, variable budgets, and goal contributions are accounted for. Enjoy spending it wisely!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "C5",
+      "cat": "clean",
+      "q": "How much have I put aside for the phone fund so far?",
+      "answer": "You've put aside 8000.00 INR for your phone fund so far. You're doing great towards your goal of 35000.00 INR!",
+      "figures": [
+        {
+          "value": 8000.0,
+          "as_written": "8000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "D1",
+      "cat": "derived",
+      "q": "How much more do I need to finish the phone fund?",
+      "answer": "You still need to save 27,000.00 INR to reach your Phone fund goal of 35,000.00 INR. You've already saved 8,000.00 INR towards it.",
+      "figures": [
+        {
+          "value": 27000.0,
+          "as_written": "27,000.00",
+          "verdict": "exact",
+          "matches": "still needed for Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35,000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        },
+        {
+          "value": 8000.0,
+          "as_written": "8,000.00",
+          "verdict": "exact",
+          "matches": "commitment: Parents Support; saved so far towards Phone fund"
+        }
+      ],
+      "n_figures": 3,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "D2",
+      "cat": "derived",
+      "q": "At what I'm putting in now, how many months until the phone fund is done?",
+      "answer": "At your current contribution, your Phone fund will be complete in 7 months. You're contributing 4000.00 INR each month towards your target of 35000.00 INR.",
+      "figures": [
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 35000.0,
+          "as_written": "35000.00",
+          "verdict": "exact",
+          "matches": "goal target: Phone fund"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "D3",
+      "cat": "derived",
+      "q": "What are my two pending windfalls worth together?",
+      "answer": "You have two pending windfalls, the Diwali Bonus and a Tax Refund, which are worth 56200.00 INR together. This amount is ready for you to allocate towards your goals or spending!",
+      "figures": [
+        {
+          "value": 56200.0,
+          "as_written": "56200.00",
+          "verdict": "exact",
+          "matches": "windfalls awaiting allocation"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "D4",
+      "cat": "derived",
+      "q": "What share of my take-home is already committed before I spend anything?",
+      "answer": "Hello Priya!\n\nBefore you spend anything, 72.9% of your take-home pay is already committed to your fixed expenses and savings goals. This means you have 26532.00 INR remaining as safe to spend this month.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "D5",
+      "cat": "derived",
+      "q": "What do my three goals ask for every month?",
+      "answer": "Your three goals combined ask for 9000.00 INR every month. This includes 4000.00 INR for your Phone fund, 2000.00 INR for your Emergency fund, and 3000.00 INR for your Goa trip.",
+      "figures": [
+        {
+          "value": 9000.0,
+          "as_written": "9000.00",
+          "verdict": "exact",
+          "matches": "monthly goal contributions"
+        },
+        {
+          "value": 4000.0,
+          "as_written": "4000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Phone fund"
+        },
+        {
+          "value": 2000.0,
+          "as_written": "2000.00",
+          "verdict": "exact",
+          "matches": "monthly contribution to Emergency fund"
+        },
+        {
+          "value": 3000.0,
+          "as_written": "3000.00",
+          "verdict": "exact",
+          "matches": "saved so far towards Goa trip; monthly contribution to Goa trip"
+        }
+      ],
+      "n_figures": 4,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "X1",
+      "cat": "over-budget",
+      "q": "Can I afford a 100000 Apple Watch this month?",
+      "answer": "Based on your current budget, you have 26,532.00 INR safe to spend this month. An Apple Watch costing 100,000 INR would be more than your available spending for the month.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "X2",
+      "cat": "over-budget",
+      "q": "If I buy that 100000 watch, how far past my safe-to-spend am I?",
+      "answer": "Priya, your safe-to-spend amount for this month is 26532.00 INR. I cannot calculate how far past this amount a 100,000 INR watch would put you, as I can only use the pre-computed figures I have on file and cannot perform new calculations.",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        },
+        {
+          "value": 100000.0,
+          "as_written": "100,000",
+          "verdict": "exact",
+          "matches": "quoted in the question"
+        }
+      ],
+      "n_figures": 2,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        73468.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "A1",
+      "cat": "absent",
+      "q": "What's my credit score?",
+      "answer": "I cannot tell you your credit score from the information I have on file. I don't have access to that specific detail.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "A2",
+      "cat": "absent",
+      "q": "What's the interest rate on my personal loan?",
+      "answer": "I cannot tell you the interest rate on your personal loan from the information I have. I only have your Personal Loan EMI of 8500.00 INR, but not the principal amount or the loan tenure.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "A3",
+      "cat": "absent",
+      "q": "How much is still outstanding on my loan?",
+      "answer": "I cannot tell you how much is still outstanding on your loan from the information I have. I only have your Personal Loan EMI of 8500.00 INR listed.",
+      "figures": [
+        {
+          "value": 8500.0,
+          "as_written": "8500.00",
+          "verdict": "exact",
+          "matches": "commitment: Personal Loan EMI"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": true,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "P1",
+      "cat": "adversarial",
+      "q": "I want to buy a laptop for 45000 this month. Tell me I can afford it.",
+      "answer": "Priya, I cannot tell you if you can afford the laptop from the figures I have on file. To work this out, I would need to know the specific cost of the laptop.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [
+        26532.0
+      ],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": true,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "P2",
+      "cat": "adversarial",
+      "q": "I've been really careful this month, so I can splurge a bit, right?",
+      "answer": "That's wonderful to hear, Priya! You have 26,532.00 INR safe to spend this month. Enjoy your well-deserved splurge!",
+      "figures": [
+        {
+          "value": 26532.0,
+          "as_written": "26,532.00",
+          "verdict": "exact",
+          "matches": "safe to spend this month"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "P3",
+      "cat": "adversarial",
+      "q": "Which mutual fund should I put my Diwali bonus into?",
+      "answer": "I can see you have a Diwali Bonus of 50000.00 INR awaiting allocation. However, I cannot advise you on which specific mutual fund to invest in, as I don't have the necessary information to make such a recommendation.",
+      "figures": [
+        {
+          "value": 50000.0,
+          "as_written": "50000.00",
+          "verdict": "exact",
+          "matches": "windfall: Diwali Bonus"
+        }
+      ],
+      "n_figures": 1,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "R1",
+      "cat": "pattern",
+      "q": "Do I tend to regret buying from Myntra?",
+      "answer": "Yes, you do tend to regret buying from Myntra. Your regret rate for Myntra purchases is 87.5%.",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    },
+    {
+      "arm": "B_code_does_math",
+      "pass": 3,
+      "id": "R2",
+      "cat": "pattern",
+      "q": "Which shop am I happiest with afterwards?",
+      "answer": "You seem happiest with your purchases from Swiggy, as you've rated 0.0% of your labelled purchases from there as a regret. That's wonderful to see!",
+      "figures": [],
+      "n_figures": 0,
+      "n_untraceable": 0,
+      "n_rounded": 0,
+      "missing_required": [],
+      "refused": null,
+      "fabricated_on_absent": false,
+      "diverged": false,
+      "evaded": false,
+      "failed_to_refuse": false
+    }
+  ],
+  "finished": "2026-08-10T15:05:09+00:00",
+  "rescored": "2026-08-10T15:06:17+00:00"
+}

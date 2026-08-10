@@ -37,3 +37,6 @@ desktop.ini
 *.sln
 *.sw?
 *.gcp-sa.json
+# Python test harness
+__pycache__/
+*.pyc
