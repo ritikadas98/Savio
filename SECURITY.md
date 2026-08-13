@@ -3,7 +3,7 @@
 ## Scope
 
 Savio is a **PM portfolio demo**, not a production financial product. The
-codebase, the live demo at `savio-financial-app.netlify.app`, and the seeded
+codebase, the live demo at `savio.ritikadas.in`, and the seeded
 database state are intended for case-study viewing — not for handling real
 user financial data.
 

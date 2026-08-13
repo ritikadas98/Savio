@@ -36,7 +36,7 @@ She's not the poorest user Savio would serve. She's not the richest. She's the m
 
 ## The demo tour — five surfaces
 
-Open the [live demo](https://savio-financial-app.netlify.app/) and tap "Continue as Priya." You land in:
+Open the [live demo](https://savio.ritikadas.in/) and tap "Continue as Priya." You land in:
 
 1. **Home.** The number at the top says **₹26,532 safe to spend this month** — that's what's left after fixed costs, investing commitments, and goal contributions. Below it, the current month's ritual, upcoming bills, recent transactions, a card for the reflection loop.
 2. **Chat.** Ask "Can I afford a ₹3,500 watch?" and you get a *structured verdict* — a color (yellow/red/green), a one-line summary, a body that explains the math, 2–4 tradeoffs with actual numbers, and a next step. Not a paragraph of hedging. Not a generic "it depends."

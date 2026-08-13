@@ -2,7 +2,7 @@
 
 > A conversational AI financial decision companion for in-between-income earning Indians (Tier 1/2 cities, ₹40K–1.2L/month). Built as a PM portfolio piece.
 
-**Live demo:** [savio-financial-app.netlify.app](https://savio-financial-app.netlify.app/)
+**Live demo:** [savio.ritikadas.in](https://savio.ritikadas.in/)
 
 > This is a **PM portfolio demo**, not a real financial product. Priya
 > Sharma's financial state — income, commitments, goals, transactions,
@@ -29,7 +29,7 @@ The product translates raw financial data into **felt consequence**, not financi
 
 ## Quick links
 
-- 🔗 **[Live demo](https://savio-financial-app.netlify.app/)** — click "Continue as Priya," no registration needed
+- 🔗 **[Live demo](https://savio.ritikadas.in/)** — click "Continue as Priya," no registration needed
 - 📖 **[PM_DECISIONS.md](./PM_DECISIONS.md)** — every product decision documented (~100KB; the case-study source of truth)
 - 📋 **[docs/v2-inventory.md](./docs/v2-inventory.md)** — what's deferred to V2, what's a known limitation, what was rejected (the three-tier discipline)
 - 🛠️ **[CLAUDE.md](./CLAUDE.md)** — the engineering context document for the AI agent collaborating on this build
