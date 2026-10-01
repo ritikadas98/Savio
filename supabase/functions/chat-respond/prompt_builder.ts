@@ -2,7 +2,7 @@
 import { getUserRulesFromProfile, type UserRules } from '../_shared/user-rules.ts';
 import { computeStsBreakdown } from '../_shared/safeToSpend.ts';
 import { getSavingsState } from '../_shared/savings.ts';
-import { extractSpend, extractSpendInChat, classifyBuffer, decideVerdict, type BufferAware, type Verdict } from '../_shared/bufferAware.ts';
+import { extractSpend, extractSpendInChat, extractIncomeClaim, classifyBuffer, decideVerdict, type BufferAware, type Verdict } from '../_shared/bufferAware.ts';
 
 // DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
 // 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
@@ -73,62 +73,159 @@ function daysRemainingInMonth(): number {
 // `earlier` is the user's previous messages, newest first, so "add a ₹10,000
 // pair of earbuds to that" is judged on the running total.
 //
-// `written` is the card's body and tradeoffs, written here in code, for any
-// spend over safe-to-spend. The eval found the model ignoring code-supplied
-// figures on exactly these cards ("emergency fund drops to ₹1,07,467" when
-// code had said ₹1,83,999), and the number guard passed them because the
-// wrong figure was still a difference of two grounded numbers. These are the
-// cards that talk about emergency money, so code writes their numbers.
+// `written` holds the card lines code writes itself. The eval and the reply
+// review showed what the model gets wrong when left to it:
+//  - it ignored code-supplied figures on over-budget cards ("emergency fund
+//    drops to ₹1,07,467" when code said ₹1,83,999), and the number guard
+//    passed them because the wrong figure was a difference of two real ones;
+//  - it said "below your safety net" on 26 of 35 RED cards where the fund
+//    stayed above it;
+//  - it treated all of safe-to-spend as free, though the monthly budgets
+//    (groceries, eating out, transport) come out of it;
+//  - it never used the user's own goals or unassigned windfalls, skipped
+//    timing questions and stated income, and ended almost every card with
+//    "revisit to ensure it aligns with your priorities".
+// So code writes those facts; the model writes the rest.
+const TIMING_RE = /\b(next month|until payday|after payday|till payday|before payday|now or later|now or next)\b/i;
+const GOAL_STOPWORDS = new Set(['fund', 'trip', 'goal', 'savings', 'saving', 'the', 'for', 'new', 'and']);
+const dayMonth = (d: Date) =>
+  new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long' }).format(d);
+
+export type CodeLines = {
+  verdict_line?: string;
+  body?: string;
+  tradeoffs?: string[];        // replaces the model's tradeoffs
+  prepend?: string[];          // goes in front of the model's tradeoffs
+  best_next_step?: string;
+};
+
 export function verdictForMessage(
-  profile: any, goals: any[], commitments: any[], carryForward: number, message: string, earlier: string[] = [],
-): { buffer: BufferAware; verdict: Verdict | null; combined: boolean; written: { body: string; tradeoffs: string[] } | null } {
-  const sts = computeStsBreakdown(profile.monthly_income_net, commitments || [], goals || [], carryForward).safeToSpend;
+  profile: any, goals: any[], commitments: any[], carryForward: number, message: string,
+  earlier: string[] = [], windfalls: any[] = [],
+): { buffer: BufferAware; verdict: Verdict | null; combined: boolean; written: CodeLines | null } {
+  const breakdown = computeStsBreakdown(profile.monthly_income_net, commitments || [], goals || [], carryForward);
+  const sts = breakdown.safeToSpend;
+  const budgets = breakdown.totalVariable;
+  const freePerMonth = sts - budgets;
   const savings = getSavingsState(profile, goals);
   const rules = getUserRulesFromProfile(profile);
   const spend = extractSpendInChat(message, earlier);
   const buffer = classifyBuffer(spend, sts, savings.cushion, savings.safetyNet);
   const verdict = decideVerdict(buffer, rules, daysRemainingInMonth());
   const combined = spend !== null && spend !== extractSpend(message);
+  if (!verdict || buffer.kind === 'no_price') return { buffer, verdict, combined, written: null };
 
+  const price = buffer.price;
   const fund = savings.backerLabel ?? 'emergency fund';
-  const impulse = (p: number) => p > rules.impulse_wait_threshold
-    ? [`It is over your ₹${INR(rules.impulse_wait_threshold)} impulse-wait threshold, so your rule says wait ${rules.impulse_wait_hours} hours.`]
-    : [];
-  let written: { body: string; tradeoffs: string[] } | null = null;
+  const budgetNames = (commitments || []).filter((c: any) => c.kind === 'variable')
+    .map((c: any) => String(c.label).toLowerCase()).join(', ');
+  const pending = (windfalls || []).filter((w: any) => w.status === 'pending_allocation')
+    .reduce((t: number, w: any) => t + Number(w.amount || 0), 0);
+  const waitUntil = dayMonth(new Date(DEMO_TODAY.getTime() + rules.impulse_wait_hours * 3600_000));
+  const toPayday = daysUntilNextAnchor(Number(profile.anchor_day_of_month || 1));
+  const left = sts - price;                                 // negative when over safe-to-spend
+  const overImpulse = price > rules.impulse_wait_threshold;
+
+  // Facts from the user's own records that answer what they asked.
+  const facts: string[] = [];
+  const claimed = extractIncomeClaim(message);
+  const income = Number(profile.monthly_income_net);
+  if (claimed !== null && claimed !== income) {
+    facts.push(`Your records show ₹${INR(income)} take-home, not ₹${INR(claimed)}, so this answer uses ₹${INR(income)}. Update your profile if your income has changed.`);
+  }
+  if (TIMING_RE.test(message)) {
+    facts.push(`${toPayday === 0 ? 'Today is payday' : `Payday is in ${toPayday} days`}. Next month's safe-to-spend will be ₹${INR(sts)} again if nothing changes, so buying then keeps this month's budgets whole.`);
+  }
+  const words = [message, ...(combined ? earlier : [])].join(' ').toLowerCase();
+  const goal = (goals || []).find((g: any) => g.status === 'active' && !g.backs_safety_net
+    && String(g.label).toLowerCase().split(/[^a-z]+/)
+      .some((w: string) => w.length > 2 && !GOAL_STOPWORDS.has(w) && new RegExp(`\\b${w}\\b`).test(words)));
+  if (goal) {
+    facts.push(`Your ${goal.label} already has ₹${INR(Number(goal.current_amount))} saved (target ₹${INR(Number(goal.target_amount))}) for this.`);
+  }
+  if (left < budgets && pending > 0) {
+    facts.push(`You have ₹${INR(pending)} in windfalls not yet assigned. If this purchase matters, it could come from there instead of this month's budget.`);
+  }
+
+  // Rebuild time at what is actually free each month, not the whole of
+  // safe-to-spend: the monthly budgets come out of safe-to-spend first.
+  const rebuildLine = (amount: number) => freePerMonth > 0
+    ? `Rebuilding takes ~${Math.ceil(amount / freePerMonth)} month${Math.ceil(amount / freePerMonth) === 1 ? '' : 's'}, saving the ₹${INR(freePerMonth)} a month that is free after your monthly budgets.`
+    : `Your monthly budgets use all of your safe-to-spend, so there is nothing free each month to rebuild from.`;
+  const leftForBudgets =`leaving nothing for your ₹${INR(budgets)} of monthly budgets (${budgetNames}) until payday`;
+  const saveUp = freePerMonth > 0
+    ? `Saving ₹${INR(freePerMonth)} a month, what is free after your monthly budgets, would cover it in about ${Math.ceil(price / freePerMonth)} months.`
+    : `Your monthly budgets already use all of your safe-to-spend.`;
+
+  if (buffer.kind === 'within_sts') {
+    const free = left - budgets;
+    const essentials = free >= 0
+      ? `After your ₹${INR(budgets)} of monthly budgets (${budgetNames}), ₹${INR(free)} is free this month.`
+      : `This leaves ₹${INR(left)}, which is ₹${INR(-free)} short of your ₹${INR(budgets)} of monthly budgets (${budgetNames}).`;
+    const written: CodeLines = { prepend: [essentials, ...facts] };
+    if (verdict.color === 'YELLOW') {
+      const first = overImpulse ? `Wait ${rules.impulse_wait_hours} hours, until ${waitUntil}.` : 'Hold off for now.';
+      const then = free >= 0
+        ? ` If you still want it then, buy it: ₹${INR(free)} stays free after your monthly budgets.`
+        : pending > 0
+          ? ' If you still want it, pay from your unassigned windfalls so this month\'s budgets stay whole.'
+          : ' If you still want it, buy it after next payday, when safe-to-spend resets.';
+      written.best_next_step = first + then;
+    }
+    return { buffer, verdict, combined, written };
+  }
+
   if (buffer.kind === 'within_cushion') {
-    written = {
-      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.drawdown)} more than your ₹${INR(sts)} safe-to-spend this month. Your cushion covers the difference, so your ₹${INR(savings.safetyNet)} safety net stays untouched.`,
-      tradeoffs: [
-        `Drops your cushion from ₹${INR(buffer.bufferBefore)} to ₹${INR(buffer.bufferAfter)} (drawdown of ₹${INR(buffer.drawdown)}).`,
-        `Rebuilding takes ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'} at your ₹${INR(sts)}/month safe-to-spend rate.`,
-        `Uses all of this month's ₹${INR(sts)} safe-to-spend, so nothing is left for other spending until payday.`,
-        ...impulse(buffer.price),
-      ],
-    };
-  } else if (buffer.kind === 'breaches_floor') {
-    const fundAfter = savings.backerBalance - buffer.overBy;
-    written = {
-      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.overBy)} more than your safe-to-spend and cushion together (₹${INR(buffer.spendableAboveFloor)}). The rest would come out of your ${fund}, which backs your ₹${INR(savings.safetyNet)} safety net.`,
-      tradeoffs: [
-        `Uses all of this month's ₹${INR(sts)} safe-to-spend and your full ₹${INR(savings.cushion)} cushion.`,
-        `Your ${fund} falls from ₹${INR(savings.backerBalance)} to ₹${INR(fundAfter)}.`,
-        ...(fundAfter < savings.safetyNet
-          ? [`That leaves it ₹${INR(savings.safetyNet - fundAfter)} below your ₹${INR(savings.safetyNet)} safety net.`]
-          : [`Money set aside for emergencies would pay for a want.`]),
-        ...impulse(buffer.price),
-      ],
-    };
-  } else if (buffer.kind === 'cushion_unavailable') {
-    written = {
-      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.stsExceedBy)} more than your ₹${INR(sts)} safe-to-spend, and you have no cushion above your ₹${INR(savings.safetyNet)} safety net.`,
-      tradeoffs: [
-        `Uses all of this month's ₹${INR(sts)} safe-to-spend and still leaves ₹${INR(buffer.stsExceedBy)} to find.`,
-        `That ₹${INR(buffer.stsExceedBy)} would come from money that backs your safety net.`,
-        ...impulse(buffer.price),
-      ],
+    return {
+      buffer, verdict, combined, written: {
+        body: `This ₹${INR(price)} spend is ₹${INR(buffer.drawdown)} more than your ₹${INR(sts)} safe-to-spend this month. Your cushion covers the difference, so your ₹${INR(savings.safetyNet)} safety net stays untouched.`,
+        tradeoffs: [
+          ...facts,
+          `Drops your cushion from ₹${INR(buffer.bufferBefore)} to ₹${INR(buffer.bufferAfter)} (drawdown of ₹${INR(buffer.drawdown)}).`,
+          `Uses all of this month's ₹${INR(sts)} safe-to-spend, ${leftForBudgets}.`,
+          rebuildLine(buffer.drawdown),
+        ],
+        best_next_step: `Wait ${rules.impulse_wait_hours} hours, until ${waitUntil}. If you still want it, `
+          + (pending > 0
+            ? `pay from your ₹${INR(pending)} of unassigned windfalls rather than your cushion and this month's budgets.`
+            : `plan to rebuild your cushion by ₹${INR(buffer.drawdown)} from what is free after your monthly budgets.`),
+      },
     };
   }
-  return { buffer, verdict, combined, written };
+
+  if (buffer.kind === 'breaches_floor') {
+    const fundAfter = savings.backerBalance - buffer.overBy;
+    const below = fundAfter < savings.safetyNet;
+    return {
+      buffer, verdict, combined, written: {
+        verdict_line: below
+          ? `Step back — this would take your ${fund} ₹${INR(savings.safetyNet - fundAfter)} below your ₹${INR(savings.safetyNet)} safety net.`
+          : `Step back — this would take ₹${INR(buffer.overBy)} out of your ${fund}, money kept for emergencies.`,
+        body: `This ₹${INR(price)} spend is ₹${INR(buffer.overBy)} more than your safe-to-spend and cushion together (₹${INR(buffer.spendableAboveFloor)}). The rest would come out of your ${fund}, which backs your ₹${INR(savings.safetyNet)} safety net.`,
+        tradeoffs: [
+          ...facts,
+          `Uses all of this month's ₹${INR(sts)} safe-to-spend and your full ₹${INR(savings.cushion)} cushion, ${leftForBudgets}.`,
+          `Your ${fund} falls from ₹${INR(savings.backerBalance)} to ₹${INR(fundAfter)}.`,
+          ...(below ? [`That leaves it ₹${INR(savings.safetyNet - fundAfter)} below your ₹${INR(savings.safetyNet)} safety net.`] : []),
+        ],
+        best_next_step: `Skip this for now. ${saveUp}`,
+      },
+    };
+  }
+
+  // cushion_unavailable
+  return {
+    buffer, verdict, combined, written: {
+      verdict_line: `Step back — this is ₹${INR(buffer.stsExceedBy)} more than your safe-to-spend, and you have no cushion above your safety net.`,
+      body: `This ₹${INR(price)} spend is ₹${INR(buffer.stsExceedBy)} more than your ₹${INR(sts)} safe-to-spend, and you have no cushion above your ₹${INR(savings.safetyNet)} safety net.`,
+      tradeoffs: [
+        ...facts,
+        `Uses all of this month's ₹${INR(sts)} safe-to-spend, ${leftForBudgets}.`,
+        `The other ₹${INR(buffer.stsExceedBy)} would come from money that backs your safety net.`,
+      ],
+      best_next_step: `Skip this for now. ${saveUp}`,
+    },
+  };
 }
 
 export const buildIdentityLayer = (): string => {
@@ -320,6 +417,11 @@ PROSE CONSTRAINTS:
 - Each section is 1-3 sentences. Total response under 150 words.
 - Conversational tone — like a friend who happens to understand finance, not a financial advisor writing a report.
 - Cite specific numbers from the user's data when relevant; never invent figures.
+- Answer the exact question first. If they ask about timing (now or later, before or after payday), say which and why.
+- If the user states a fact that differs from their records (for example a different income), say what the records show and suggest updating their profile.
+- When asked where money goes, name the largest single items with their amounts (for example the biggest commitment), not only category totals. Do not suggest cutting rent, family support or loan EMIs.
+- Connect to their own plans when relevant: a goal that matches what they ask about, or windfalls not yet assigned.
+- "What you can do" must be specific: an amount, a date, a goal or a Savio screen. Never write "revisit" or "ensure it aligns with your priorities".
 `;
 };
 
@@ -349,6 +451,7 @@ export const buildGroundingContext = (
   carryForward: number = 0,
   userMessage: string = '',
   earlierUserMessages: string[] = [],
+  windfalls: any[] = [],
 ): string => {
   const activeGoals = (goals || []).filter(g => g.status === 'active');
 
@@ -517,7 +620,7 @@ export const buildGroundingContext = (
   // the prompt builder already has STS + cushion + safetyNet derived
   // from profile/goals/commitments. Doing the extraction here keeps the
   // chat-respond entrypoint thin and the parity test simple.
-  const { buffer, verdict, combined } = verdictForMessage(profile, goals, commitments, carryForward, userMessage, earlierUserMessages);
+  const { buffer, verdict, combined } = verdictForMessage(profile, goals, commitments, carryForward, userMessage, earlierUserMessages, windfalls);
   const priceLabel = combined
     ? 'Total spend being asked about (earlier items in this chat plus this message)'
     : 'Price extracted from user message';
@@ -539,8 +642,12 @@ export const buildGroundingContext = (
     lines.push(`- **body** is short (30-50 words): state that the purchase exceeds STS by ₹${INR(buffer.drawdown)} and draws from the cushion. DO NOT fabricate buffer-after numbers in the body — leave the precise numbers to tradeoffs[].`);
     lines.push(`- **tradeoffs[]** carries the lever — MUST include these TWO items with the figures verbatim (do NOT recompute):`);
     lines.push(`  1. "Drops your cushion from ₹${INR(buffer.bufferBefore)} to ₹${INR(buffer.bufferAfter)} (drawdown of ₹${INR(buffer.drawdown)})."`);
-    lines.push(`  2. "Rebuilding takes ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'} at your ₹${INR(computedSTS)}/month STS rate."`);
-    lines.push(`  These two phrases are the LEVER. Paraphrase only minimally; the figures (₹${INR(buffer.bufferBefore)}, ₹${INR(buffer.bufferAfter)}, ₹${INR(buffer.drawdown)}, ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'}, ₹${INR(computedSTS)}/month) MUST appear exactly as given.`);
+    const freeMonthly = computedSTS - totalVariable;
+    const rebuildMonths = freeMonthly > 0 ? Math.ceil(buffer.drawdown / freeMonthly) : null;
+    lines.push(rebuildMonths
+      ? `  2. "Rebuilding takes ~${rebuildMonths} month${rebuildMonths === 1 ? '' : 's'}, saving the ₹${INR(freeMonthly)} a month that is free after your monthly budgets."`
+      : `  2. "Your monthly budgets use all of your safe-to-spend, so there is nothing free each month to rebuild from."`);
+    lines.push(`  These two phrases are the LEVER. Paraphrase only minimally; the figures MUST appear exactly as given. Do NOT state a rebuild time based on the whole safe-to-spend.`);
     lines.push(`- The cushion sits ABOVE the safety net (₹${INR(savings.safetyNet)}) which the ${savings.backerLabel ?? 'emergency fund'} backs. This purchase does NOT touch the safety net — do NOT say "dipping into safety net" or similar.`);
     lines.push(`- This month's safe-to-spend is used up by this purchase. Do NOT state any daily safe-to-spend figure; say the daily budget for the rest of the month would be used up.`);
     lines.push('');
@@ -586,6 +693,14 @@ export const buildGroundingContext = (
   lines.push(`- Daily safe-to-spend floor (slug: "daily_sps_floor"): prefer to keep daily SPS above ₹${rules.daily_sps_floor.toLocaleString('en-IN')} for the remainder of the month`);
   lines.push('');
 
+  const pendingWindfalls = (windfalls || []).filter((w: any) => w.status === 'pending_allocation');
+  if (pendingWindfalls.length > 0) {
+    const total = pendingWindfalls.reduce((t: number, w: any) => t + Number(w.amount || 0), 0);
+    lines.push(`### Windfalls received but not yet assigned (total ₹${INR(total)})`);
+    pendingWindfalls.forEach((w: any) => lines.push(`- ₹${INR(Number(w.amount))}`));
+    lines.push('');
+  }
+
   if (merchantStats && merchantStats.length > 0) {
     lines.push('### Merchant reflection stats');
     merchantStats.forEach(s => {
@@ -618,11 +733,12 @@ export const buildSystemPrompt = (
   carryForward: number = 0,
   userMessage: string = '',
   earlierUserMessages: string[] = [],
+  windfalls: any[] = [],
 ): string => {
   const rules = getUserRulesFromProfile(profile);
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
-  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward, userMessage, earlierUserMessages);
+  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward, userMessage, earlierUserMessages, windfalls);
   const layer4 = buildVerdictLayer(rules);
   const layer5 = buildProseStructureLayer();
 

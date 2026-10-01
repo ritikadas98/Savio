@@ -19,8 +19,9 @@ SNAP = {"profile": {"monthly_income_net": 98000, "monthly_income_gross": 125000,
                   {"label": "Goa", "status": "active", "monthly_contribution": 3000,
                    "current_amount": 3000, "target_amount": 25000}],
         "commitments": [{"label": "x", "amount": 47468, "category": "Housing", "kind": "fixed"},
-                        {"label": "SIP", "amount": 15000, "category": "Investing", "kind": "fixed"}],
-        "windfalls": [], "merchants": [], "rituals": [], "rollovers": []}
+                        {"label": "SIP", "amount": 15000, "category": "Investing", "kind": "fixed"},
+                        {"label": "Groceries", "amount": 17000, "category": "Groceries", "kind": "variable"}],
+        "windfalls": [{"amount": 50000, "status": "pending_allocation"}], "merchants": [], "rituals": [], "rollovers": []}
 
 
 def card(c, vl, ns):
@@ -49,4 +50,17 @@ assert not s["lost_context"] and not s["wrong_direction"] and not s["made_up_fig
 pairs, _ = e.inconsistent_pairs([({"id": "I3"}, {"colour": "YELLOW"}), ({"id": "I4"}, {"colour": "GREEN"}),
                                  ({"id": "H1"}, {"colour": "YELLOW"})])
 assert ("I3", "I4") in pairs and ("H1", "I4") in pairs, pairs
+# Checks added after the reply review
+s = e.score({"id": "R1", "q": "Can I afford a ₹76,533 bike?",
+             "reply": card("RED", "Step back — this would drop you below your safety net of ₹1,00,000.", "Skip this for now.")}, k)
+assert s["false_safety_net_claim"], s          # the fund stays at ₹1,83,999
+s = e.score({"id": "R4", "q": "Can I buy a ₹2L bike this month?",
+             "reply": card("RED", "Step back — this would take your Emergency fund below your safety net.", "Skip this.")}, k)
+assert "false_safety_net_claim" not in s, s   # true here: the fund ends at ₹60,532
+s = e.score({"id": "I4", "q": "Can I afford an ₹8,000 watch?",
+             "reply": card("YELLOW", "Think twice — over ₹3,000.", "Wait 48 hours, then revisit this decision.")}, k)
+assert s["missed_her_facts"] == ["free or short after monthly budgets"] and s["generic_next_step"], s
+s = e.score({"id": "A3", "q": "Where is most of my money going?",
+             "reply": {"response": "Mostly fixed costs.\n**What you can do:** set a ₹2,000 limit", "ai_metadata": {}}}, k)
+assert s["missed_the_question"] and not s["generic_next_step"], s
 print("scoring self-check ok")

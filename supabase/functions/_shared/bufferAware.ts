@@ -72,6 +72,13 @@ function spendAmounts(msg: string): number[] {
     .map(a => a.n);
 }
 
+// "I earn ₹2,00,000 now" — an income the user states, so a reply can say what
+// the records show instead of silently using a different figure.
+export function extractIncomeClaim(msg: string): number | null {
+  const a = amounts(msg).find(x => INCOME_BEFORE_RE.test(msg.slice(Math.max(0, x.at - 30), x.at)));
+  return a ? a.n : null;
+}
+
 export function extractSpend(msg: string): number | null {
   const spend = spendAmounts(msg);
   if (CUMULATIVE_RE.test(msg)) return spend.length > 1 ? spend.reduce((a, b) => a + b, 0) : null;

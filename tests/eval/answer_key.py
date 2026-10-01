@@ -21,12 +21,14 @@ The product rules, as Savio states them to the user:
 import calendar
 import json
 import math
+import re
 import pathlib
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RANK = {"GREEN": 0, "YELLOW": 1, "RED": 2}       # higher = more cautious
+GOAL_STOP = {"fund", "trip", "goal", "savings", "saving", "the", "for", "new", "and"}
 
 
 def load_env() -> dict:
@@ -106,6 +108,9 @@ class Key:
         self.goals = [g for g in snap["goals"] if g["status"] == "active"]
         self.goal_contrib = sum(float(g["monthly_contribution"] or 0) for g in self.goals)
         self.sts = self.income - self.non_investing - self.investing - self.goal_contrib
+        # Monthly budgets (groceries, eating out, transport) sit inside safe-to-spend.
+        self.budgets = sum(float(c["amount"]) for c in snap["commitments"] if c["kind"] == "variable")
+        self.pending = sum(float(w["amount"]) for w in snap["windfalls"] if w["status"] == "pending_allocation")
 
         backer = next((g for g in snap["goals"] if g.get("backs_safety_net")), None)
         backer_bal = float(backer["current_amount"]) if backer else 0.0
@@ -124,6 +129,28 @@ class Key:
         if self.cushion <= 0 or price > self.sts + self.cushion:
             return "RED"
         return "YELLOW"
+
+    # ── facts from her records a good answer must use ──────────────────────────
+    def required_facts(self, price: float, chat_text: str) -> list:
+        """What fits Priya: what is free after her monthly budgets (in-budget spends),
+        the savings in a goal that matches what she asks about, and her unassigned
+        windfalls when the spend leaves less than her monthly budgets."""
+        out = []
+        if price <= self.sts:
+            out.append((abs(round(self.sts - price - self.budgets, 2)), "free or short after monthly budgets"))
+        t = chat_text.lower()
+        for g in self.snap["goals"]:
+            if g["status"] != "active" or g.get("backs_safety_net"):
+                continue
+            words = [w for w in re.split(r"[^a-z]+", g["label"].lower()) if len(w) > 2 and w not in GOAL_STOP]
+            if any(re.search(rf"\b{w}\b", t) for w in words):
+                out.append((float(g["current_amount"]), f"saved in {g['label']}"))
+        if self.sts - price < self.budgets and self.pending > 0:
+            out.append((self.pending, "windfalls not yet assigned"))
+        return out
+
+    def fund_after(self, price: float) -> float:
+        return self.backer_bal - max(0.0, price - self.sts - self.cushion)
 
     # ── figures a truthful answer may state ────────────────────────────────────
     def figure_bank(self) -> dict:
@@ -149,6 +176,7 @@ class Key:
         add(self.cushion, "cushion above the safety net")
         add(self.backer_bal, "balance of the fund backing the safety net")
         add(self.sts + self.cushion, "safe-to-spend plus cushion")
+        add(self.sts - self.budgets, "free each month after the monthly budgets")
         add(self.investing + self.goal_contrib, "saved each month (SIPs + goals)")
         add(self.backer_bal - self.safety_net + self.liquid, "all savings above the safety net")
         by_cat: dict = {}
@@ -178,6 +206,9 @@ class Key:
         """Figures that follow from a price the user named."""
         out = {price: "price in the question"}
         left = self.sts - price
+        out[abs(round(left - self.budgets, 2))] = "free (or short) after the monthly budgets"
+        if self.sts > self.budgets:
+            out[math.ceil(price / (self.sts - self.budgets))] = "months of saving what is free"
         out[abs(round(left / self.days))] = "daily budget after the purchase"
         out[abs(round(self.daily - left / self.days))] = "drop in daily budget"
         if price <= self.sts:

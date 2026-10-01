@@ -95,6 +95,7 @@ serve(async (req) => {
       { data: merchantStats },
       { data: historyData },
       { data: carryForwardRows },
+      { data: windfalls },
     ] = await Promise.all([
       supabase.from('goals').select('*').eq('user_id', profileId),
       supabase.from('commitments').select('*').eq('user_id', profileId),
@@ -115,6 +116,7 @@ serve(async (req) => {
       // was a linear-consistency invariant violation in waiting. Sum
       // happens client-side after the query.
       supabase.from('rollover_allocations').select('total_amount').eq('user_id', profileId).eq('ritual_month', prevMonthFirst).eq('destination_kind', 'carry_forward'),
+      supabase.from('windfalls').select('amount, status').eq('user_id', profileId),
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,6 +145,7 @@ serve(async (req) => {
       carryForward,
       message,
       earlierUserMessages,
+      windfalls || [],
     );
 
     // Call Gemini via Vertex AI
@@ -223,11 +226,15 @@ serve(async (req) => {
     // verdict_line opener to match. verdict_overridden lets the eval count how
     // often this happens. No code verdict (no price, or a total that depends on
     // earlier turns) leaves the model's colour as is.
-    const { verdict: decided, written } = verdictForMessage(profile, goals || [], commitments || [], carryForward, message, earlierUserMessages);
+    const { verdict: decided, written } = verdictForMessage(profile, goals || [], commitments || [], carryForward, message, earlierUserMessages, windfalls || []);
     let verdictOverridden = false;
     if (structured && written) {
-      structured.body = written.body;
-      structured.tradeoffs = written.tradeoffs;
+      if (written.verdict_line) structured.verdict_line = written.verdict_line;
+      if (written.body) structured.body = written.body;
+      if (written.tradeoffs) structured.tradeoffs = written.tradeoffs;
+      if (written.prepend) structured.tradeoffs = [...written.prepend, ...structured.tradeoffs].slice(0, 6);
+      if (written.best_next_step) structured.best_next_step = written.best_next_step;
+      assistantMessage = structured.verdict_line;
     }
     if (structured && decided && structured.verdict_color !== decided.color) {
       const opener = { GREEN: 'Go ahead — ', YELLOW: 'Think twice — ', RED: 'Step back — ' }[decided.color];
@@ -248,7 +255,8 @@ serve(async (req) => {
     // built on numbers we just rejected.
     let guardResult: { verified: boolean; fallback_used: boolean; corrections: any; finalResponse: string };
     if (structured) {
-      const sg = hallucinationGuardStructured(structured, systemPrompt, message);
+      const codeText = written ? Object.values(written).flat().join('\n') : '';
+      const sg = hallucinationGuardStructured(structured, `${systemPrompt}\n${codeText}`, message);
       guardResult = sg;
       if (sg.fallback_used) {
         assistantMessage = sg.finalResponse;

@@ -17,6 +17,14 @@ const commitments = [
   { label: 'Fixed', amount: 47468, category: 'Housing', kind: 'fixed' },
   { label: 'SIPs', amount: 15000, category: 'Investing', kind: 'fixed' },
 ];
+// Same totals, with the variable budgets split out (they sit inside safe-to-spend).
+const withBudgets = [
+  ...commitments,
+  { label: 'Groceries', amount: 6000, category: 'Groceries', kind: 'variable' },
+  { label: 'Eating out', amount: 5500, category: 'Food', kind: 'variable' },
+  { label: 'Transport', amount: 5500, category: 'Transport', kind: 'variable' },
+];
+const windfalls = [{ amount: 50000, status: 'pending_allocation' }, { amount: 6200, status: 'pending_allocation' }];
 const colour = (m: string) => verdictForMessage(profile, goals, commitments, 0, m).verdict?.color ?? null;
 
 describe('verdictForMessage on Priya', () => {
@@ -44,9 +52,31 @@ describe('card lines written by code', () => {
     const r = verdictForMessage(profile, goals, commitments, 0, 'Add a ₹10,000 pair of earbuds to that.', ['Can I afford a ₹20,000 phone?']);
     expect(r.verdict?.color).toBe('YELLOW');
     expect(r.combined).toBe(true);
-    expect(r.written?.tradeoffs[0]).toBe('Drops your cushion from ₹50,000 to ₹46,532 (drawdown of ₹3,468).');
+    expect(r.written?.tradeoffs).toContain('Drops your cushion from ₹50,000 to ₹46,532 (drawdown of ₹3,468).');
+    expect(r.written?.tradeoffs?.[0]).toBe('Your Phone fund already has ₹8,000 saved (target ₹35,000) for this.');
   });
-  it('within safe-to-spend: the model writes the lines', () => {
-    expect(verdictForMessage(profile, goals, commitments, 0, 'Can I afford a ₹5,000 watch?').written).toBeNull();
+  it('in budget: code adds what is free after the monthly budgets, and a dated next step', () => {
+    const w = verdictForMessage(profile, goals, withBudgets, 0, '₹8k watch: yes or no?').written!;
+    expect(w.prepend?.[0]).toBe('After your ₹17,000 of monthly budgets (groceries, eating out, transport), ₹1,532 is free this month.');
+    expect(w.best_next_step).toMatch(/^Wait 48 hours, until \d+ \w+\. If you still want it then, buy it: ₹1,532 stays free/);
+    expect(w.tradeoffs).toBeUndefined();          // the model's own lines stay, after the code ones
+  });
+  it('the bike ₹1 over: no false "below your safety net" claim', () => {
+    const w = verdictForMessage(profile, goals, commitments, 0, 'Can I afford a ₹76,533 bike?').written!;
+    expect(w.verdict_line).toBe('Step back — this would take ₹1 out of your Emergency fund, money kept for emergencies.');
+    expect(w.best_next_step).toMatch(/^Skip this for now\./);
+  });
+  it('a ₹2L bike really does go below it, and says so', () => {
+    const w = verdictForMessage(profile, goals, commitments, 0, 'Can I buy a ₹2L bike this month?').written!;
+    expect(w.verdict_line).toBe('Step back — this would take your Emergency fund ₹39,468 below your ₹1,00,000 safety net.');
+  });
+  it('states what the records show when the user claims another income', () => {
+    const w = verdictForMessage(profile, goals, commitments, 0, 'I earn ₹2,00,000 now. Can I afford a ₹50,000 laptop?', [], windfalls).written!;
+    expect(w.tradeoffs?.[0]).toMatch(/^Your records show ₹98,000 take-home, not ₹2,00,000/);
+    expect(w.tradeoffs?.join(' ')).toContain('₹56,200 in windfalls not yet assigned');
+  });
+  it('answers a payday question', () => {
+    const w = verdictForMessage(profile, goals, commitments, 0, 'Should I wait until payday to buy a ₹4,000 jacket?').written!;
+    expect(w.prepend?.join(' ')).toMatch(/Today is payday\. Next month's safe-to-spend will be ₹26,532 again/);
   });
 });
