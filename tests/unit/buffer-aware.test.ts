@@ -4,7 +4,7 @@
 // works" — same pattern as savings/safeToSpend mirror modules.
 
 import { describe, it, expect } from 'vitest';
-import { extractPrice, classifyBuffer } from '../../supabase/functions/_shared/bufferAware';
+import { extractPrice, extractSpend, extractSpendInChat, classifyBuffer, decideVerdict } from '../../supabase/functions/_shared/bufferAware';
 
 describe('extractPrice — D.66 Spec 3', () => {
   const cases: Array<[string, number | null]> = [
@@ -113,5 +113,84 @@ describe('classifyBuffer — D.66 Spec 3', () => {
     if (r.kind === 'within_cushion') {
       expect(r.monthsToRebuild).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+describe('extractSpend — how people actually type prices', () => {
+  const cases: Array<[string, number | null]> = [
+    ['8k ka watch le lu?', 8000],
+    ['Can I afford a watch for Rs 8000?', 8000],
+    ['Should I buy an 8000 rupee watch?', 8000],
+    ['₹8k watch: yes or no?', 8000],
+    ['Mujhe ₹50,000 ka laptop lena hai, le sakti hu?', 50000],
+    ['Can I get a 1 lakh Apple Watch?', 100000],
+    ['Can I buy a ₹2L bike this month?', 200000],
+    ['Can I afford a ₹500 lunch today?', 500],
+    // income is not the price
+    ['I earn ₹2,00,000 now. Can I afford a ₹50,000 laptop?', 50000],
+    // both items named: summed
+    ['On top of this ₹8k watch I also want a ₹1,00,000 Apple Watch.', 108000],
+    // adds to an earlier turn: total unknown from this message alone
+    ['And ₹6,000 for the hotel on top of that?', null],
+    // not prices
+    ['Wait 48 hours and 3 months later?', null],
+    ['How am I doing this month?', null],
+  ];
+  for (const [input, expected] of cases) {
+    it(`"${input}" → ${expected}`, () => expect(extractSpend(input)).toBe(expected));
+  }
+});
+
+describe('decideVerdict — code picks the colour', () => {
+  const STS = 26532, CUSHION = 50000, SN = 100000;
+  const rules = { impulse_wait_threshold: 3000, daily_sps_floor: 300 };
+  const colour = (p: number) => decideVerdict(classifyBuffer(p, STS, CUSHION, SN), rules, 31)?.color;
+
+  it('edges of each rule', () => {
+    expect([3000, 3001, 26532, 26533, 76532, 76533].map(colour))
+      .toEqual(['GREEN', 'YELLOW', 'YELLOW', 'YELLOW', 'YELLOW', 'RED']);
+  });
+  it('₹5,000 and ₹8,000 watches get the same colour (the bug that started this)', () => {
+    expect(colour(5000)).toBe(colour(8000));
+  });
+  it('a dearer item never gets a gentler colour', () => {
+    const order = { GREEN: 0, YELLOW: 1, RED: 2 } as const;
+    let prev = 0;
+    for (let p = 100; p <= 300000; p += 250) {
+      const r = order[colour(p)!];
+      expect(r).toBeGreaterThanOrEqual(prev);
+      prev = r;
+    }
+  });
+  it('daily floor alone makes it YELLOW', () => {
+    const v = decideVerdict(classifyBuffer(2000, 9000, CUSHION, SN), { impulse_wait_threshold: 3000, daily_sps_floor: 300 }, 31);
+    expect(v?.color).toBe('YELLOW');   // (9000 − 2000) / 31 = 225 < 300
+  });
+  it('no cushion: over safe-to-spend is RED', () => {
+    expect(decideVerdict(classifyBuffer(30000, STS, 0, SN), rules, 31)?.color).toBe('RED');
+  });
+  it('no price: no verdict', () => {
+    expect(decideVerdict(classifyBuffer(null, STS, CUSHION, SN), rules, 31)).toBeNull();
+  });
+});
+
+describe('extractSpendInChat — running total across turns', () => {
+  it('adds to the earlier price', () => {
+    expect(extractSpendInChat('Add a ₹10,000 pair of earbuds to that.', ['Can I afford a ₹20,000 phone?'])).toBe(30000);
+  });
+  it('chains: 12,000 → +6,000 → +70,000', () => {
+    const t1 = 'Can I afford a ₹12,000 Goa trip?';
+    const t2 = 'And ₹6,000 for the hotel on top of that?';
+    expect(extractSpendInChat(t2, [t1])).toBe(18000);
+    expect(extractSpendInChat('Plus ₹70,000 for a new laptop the same month?', [t2, t1])).toBe(88000);
+  });
+  it('"instead" replaces, it does not add', () => {
+    expect(extractSpendInChat('What about an ₹8k watch instead?', ['Can I afford a ₹5,000 watch?'])).toBe(8000);
+  });
+  it('no price in the message: the model decides', () => {
+    expect(extractSpendInChat('Actually, skip the earbuds. Just the phone?', ['Add a ₹10,000 pair of earbuds to that.'])).toBeNull();
+  });
+  it('add-on with nothing earlier: unknown', () => {
+    expect(extractSpendInChat('And ₹6,000 on top of that?', [])).toBeNull();
   });
 });

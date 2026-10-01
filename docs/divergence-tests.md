@@ -73,8 +73,16 @@ that causes it, so the artifact stays auditable against `PM_DECISIONS.md`.
 Each comparison block shows the question, Savio's answer, and vanilla's answer,
 plus a short **Signals** line of cheap, factual observations the script can
 detect automatically (e.g. "Savio returned a structured verdict and cited a
-rule by name; vanilla stated a ₹ figure it has no source for"). The Signals line
-reports only what's mechanically observable — it does not editorialize. The
+rule by name; vanilla stated a ₹ figure that is not in the question"). The
+Signals line reports only what's mechanically observable — it does not
+editorialize.
+
+**Correction.** An earlier version of the script flagged any ₹ sign in the
+vanilla answer. That counted vanilla repeating the question's own price (the
+₹50,000 laptop, the ₹12,000 Goa trip, the ₹5,000 and ₹8,000 watches) as a
+made-up figure. Every vanilla answer below is also cut off at the token limit
+after a few words. So this file does not show that vanilla invents numbers. The
+measurement of that is `tests/divergence/REPORT.md`. The
 interpretation is yours to write, or the reader's to draw.
 
 ---
@@ -177,7 +185,7 @@ Best next step: Wait 48 hours per your impulse rule, then revisit this decision 
 ₹50,000 is a very common and often excellent budget for [… truncated for length — finishReason: MAX_TOKENS]
 ```
 
-**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step); vanilla stated a ₹ figure it has no source for
+**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step)
 
 ---
 
@@ -204,7 +212,7 @@ Best next step: Wait 48 hours per your impulse rule, then revisit this decision 
 Okay, let's break down whether a ₹12,000 weekend [… truncated for length — finishReason: MAX_TOKENS]
 ```
 
-**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step); vanilla stated a ₹ figure it has no source for
+**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step)
 
 ---
 
@@ -316,7 +324,7 @@ Best next step: Wait 48 hours per your impulse rule, then revisit this purchase 
 Whether you can afford a ₹5,000 watch depends entirely on your personal financial situation, not [… truncated for length — finishReason: MAX_TOKENS]
 ```
 
-**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step); vanilla stated a ₹ figure it has no source for
+**Signals:** Savio response kind: `structured`; Savio returned a verdict (`YELLOW`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step)
 
 ---
 
@@ -342,7 +350,7 @@ Best next step: Go ahead and consider this purchase, but wait 48 hours per your 
 The same principles apply to an ₹8,000 watch as to a ₹5,0 [… truncated for length — finishReason: MAX_TOKENS]
 ```
 
-**Signals:** Savio response kind: `structured`; Savio returned a verdict (`GREEN`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step); vanilla stated a ₹ figure it has no source for
+**Signals:** Savio response kind: `structured`; Savio returned a verdict (`GREEN`); all verdict fields guard-verified (verdict_line, body, tradeoffs, best_next_step)
 
 ---
 

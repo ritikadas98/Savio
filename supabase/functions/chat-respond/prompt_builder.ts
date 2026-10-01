@@ -2,7 +2,7 @@
 import { getUserRulesFromProfile, type UserRules } from '../_shared/user-rules.ts';
 import { computeStsBreakdown } from '../_shared/safeToSpend.ts';
 import { getSavingsState } from '../_shared/savings.ts';
-import { extractPrice, classifyBuffer, type BufferAware } from '../_shared/bufferAware.ts';
+import { extractSpend, extractSpendInChat, classifyBuffer, decideVerdict, type BufferAware, type Verdict } from '../_shared/bufferAware.ts';
 
 // DEMO_TODAY mirrors src/lib/dates.ts: 1st of the current calendar month at
 // 9:00 AM IST, computed via Intl with Asia/Kolkata so the frontend and the
@@ -66,6 +66,69 @@ function daysRemainingInMonth(): number {
   const day = Number(parts.find(p => p.type === 'day')!.value);
   const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   return lastDay - day + 1;
+}
+
+// The verdict for this message, decided in code. index.ts calls this too and
+// enforces the colour on the card, so the prompt and the card cannot disagree.
+// `earlier` is the user's previous messages, newest first, so "add a ₹10,000
+// pair of earbuds to that" is judged on the running total.
+//
+// `written` is the card's body and tradeoffs, written here in code, for any
+// spend over safe-to-spend. The eval found the model ignoring code-supplied
+// figures on exactly these cards ("emergency fund drops to ₹1,07,467" when
+// code had said ₹1,83,999), and the number guard passed them because the
+// wrong figure was still a difference of two grounded numbers. These are the
+// cards that talk about emergency money, so code writes their numbers.
+export function verdictForMessage(
+  profile: any, goals: any[], commitments: any[], carryForward: number, message: string, earlier: string[] = [],
+): { buffer: BufferAware; verdict: Verdict | null; combined: boolean; written: { body: string; tradeoffs: string[] } | null } {
+  const sts = computeStsBreakdown(profile.monthly_income_net, commitments || [], goals || [], carryForward).safeToSpend;
+  const savings = getSavingsState(profile, goals);
+  const rules = getUserRulesFromProfile(profile);
+  const spend = extractSpendInChat(message, earlier);
+  const buffer = classifyBuffer(spend, sts, savings.cushion, savings.safetyNet);
+  const verdict = decideVerdict(buffer, rules, daysRemainingInMonth());
+  const combined = spend !== null && spend !== extractSpend(message);
+
+  const fund = savings.backerLabel ?? 'emergency fund';
+  const impulse = (p: number) => p > rules.impulse_wait_threshold
+    ? [`It is over your ₹${INR(rules.impulse_wait_threshold)} impulse-wait threshold, so your rule says wait ${rules.impulse_wait_hours} hours.`]
+    : [];
+  let written: { body: string; tradeoffs: string[] } | null = null;
+  if (buffer.kind === 'within_cushion') {
+    written = {
+      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.drawdown)} more than your ₹${INR(sts)} safe-to-spend this month. Your cushion covers the difference, so your ₹${INR(savings.safetyNet)} safety net stays untouched.`,
+      tradeoffs: [
+        `Drops your cushion from ₹${INR(buffer.bufferBefore)} to ₹${INR(buffer.bufferAfter)} (drawdown of ₹${INR(buffer.drawdown)}).`,
+        `Rebuilding takes ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'} at your ₹${INR(sts)}/month safe-to-spend rate.`,
+        `Uses all of this month's ₹${INR(sts)} safe-to-spend, so nothing is left for other spending until payday.`,
+        ...impulse(buffer.price),
+      ],
+    };
+  } else if (buffer.kind === 'breaches_floor') {
+    const fundAfter = savings.backerBalance - buffer.overBy;
+    written = {
+      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.overBy)} more than your safe-to-spend and cushion together (₹${INR(buffer.spendableAboveFloor)}). The rest would come out of your ${fund}, which backs your ₹${INR(savings.safetyNet)} safety net.`,
+      tradeoffs: [
+        `Uses all of this month's ₹${INR(sts)} safe-to-spend and your full ₹${INR(savings.cushion)} cushion.`,
+        `Your ${fund} falls from ₹${INR(savings.backerBalance)} to ₹${INR(fundAfter)}.`,
+        ...(fundAfter < savings.safetyNet
+          ? [`That leaves it ₹${INR(savings.safetyNet - fundAfter)} below your ₹${INR(savings.safetyNet)} safety net.`]
+          : [`Money set aside for emergencies would pay for a want.`]),
+        ...impulse(buffer.price),
+      ],
+    };
+  } else if (buffer.kind === 'cushion_unavailable') {
+    written = {
+      body: `This ₹${INR(buffer.price)} spend is ₹${INR(buffer.stsExceedBy)} more than your ₹${INR(sts)} safe-to-spend, and you have no cushion above your ₹${INR(savings.safetyNet)} safety net.`,
+      tradeoffs: [
+        `Uses all of this month's ₹${INR(sts)} safe-to-spend and still leaves ₹${INR(buffer.stsExceedBy)} to find.`,
+        `That ₹${INR(buffer.stsExceedBy)} would come from money that backs your safety net.`,
+        ...impulse(buffer.price),
+      ],
+    };
+  }
+  return { buffer, verdict, combined, written };
 }
 
 export const buildIdentityLayer = (): string => {
@@ -159,6 +222,7 @@ Everything else. Examples:
 - Open-ended worry: "I'm worried about money"
 
 VERDICT_COLOR LOGIC:
+When the grounding context says "Use verdict_color = X", X is decided in code and is final. The rules below explain what each colour means.
 - GREEN: spend fits, no rules touched, safety net stays above its floor, daily budget stays workable
 - YELLOW: spend works but has real tradeoffs — daily budget tight, focus-goal contribution at risk, eats most of the remaining month, OR the amount crosses the user's impulse-wait threshold
 - RED: spend would break a rule — push safety net below ₹${safetyNetINR}, push daily safe-to-spend negative, or exceed total safe-to-spend
@@ -284,6 +348,7 @@ export const buildGroundingContext = (
   merchantStats: any[],
   carryForward: number = 0,
   userMessage: string = '',
+  earlierUserMessages: string[] = [],
 ): string => {
   const activeGoals = (goals || []).filter(g => g.status === 'active');
 
@@ -452,22 +517,22 @@ export const buildGroundingContext = (
   // the prompt builder already has STS + cushion + safetyNet derived
   // from profile/goals/commitments. Doing the extraction here keeps the
   // chat-respond entrypoint thin and the parity test simple.
-  const buffer: BufferAware = classifyBuffer(
-    extractPrice(userMessage),
-    computedSTS,           // base STS, no carry-forward (the rebuild rate the user has every month)
-    savings.cushion,
-    savings.safetyNet,
-  );
+  const { buffer, verdict, combined } = verdictForMessage(profile, goals, commitments, carryForward, userMessage, earlierUserMessages);
+  const priceLabel = combined
+    ? 'Total spend being asked about (earlier items in this chat plus this message)'
+    : 'Price extracted from user message';
   if (buffer.kind !== 'no_price') {
     lines.push('### Verdict guidance for this query (D.66 — buffer-aware)');
   }
   if (buffer.kind === 'within_sts') {
-    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- ${priceLabel}: ₹${INR(buffer.price)}.`);
     lines.push(`- Classification: WITHIN safe-to-spend. After this purchase, ₹${INR(buffer.stsRemaining)} would remain of this month's STS.`);
-    lines.push(`- Standard verdict applies (GREEN if rules untouched, YELLOW if impulse-wait or other rule fires). DO NOT mention the cushion — it is parked, not a tradeoff for in-STS purchases.`);
+    lines.push(`- **Use verdict_color = "${verdict!.color}"** — decided in code (${verdict!.reason}). This colour is final; do not pick another. Open verdict_line and best_next_step with the matching action language.`);
+    lines.push(`- Daily safe-to-spend after this purchase: ₹${INR(Math.round(buffer.stsRemaining / daysRemaining))} (= ₹${INR(buffer.stsRemaining)} ÷ ${daysRemaining}). Use verbatim.`);
+    lines.push(`- DO NOT mention the cushion — it is parked, not a tradeoff for in-STS purchases.`);
     lines.push('');
   } else if (buffer.kind === 'within_cushion') {
-    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- ${priceLabel}: ₹${INR(buffer.price)}.`);
     lines.push(`- Classification: EXCEEDS safe-to-spend by ₹${INR(buffer.drawdown)}, but FITS within the cushion (₹${INR(buffer.bufferBefore)}). This is the buffer-aware YELLOW case.`);
     lines.push(`- **Use verdict_color = "YELLOW"**. Do NOT use GREEN; the cushion is a tradeoff with a rebuild cost, not permission.`);
     lines.push(`- **verdict_line** opens with "Think twice — " (action language) and names the cushion drawdown succinctly. Example shape: "Think twice — this ₹${INR(buffer.price)} laptop draws ₹${INR(buffer.drawdown)} from your cushion."`);
@@ -477,16 +542,19 @@ export const buildGroundingContext = (
     lines.push(`  2. "Rebuilding takes ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'} at your ₹${INR(computedSTS)}/month STS rate."`);
     lines.push(`  These two phrases are the LEVER. Paraphrase only minimally; the figures (₹${INR(buffer.bufferBefore)}, ₹${INR(buffer.bufferAfter)}, ₹${INR(buffer.drawdown)}, ~${buffer.monthsToRebuild} month${buffer.monthsToRebuild === 1 ? '' : 's'}, ₹${INR(computedSTS)}/month) MUST appear exactly as given.`);
     lines.push(`- The cushion sits ABOVE the safety net (₹${INR(savings.safetyNet)}) which the ${savings.backerLabel ?? 'emergency fund'} backs. This purchase does NOT touch the safety net — do NOT say "dipping into safety net" or similar.`);
+    lines.push(`- This month's safe-to-spend is used up by this purchase. Do NOT state any daily safe-to-spend figure; say the daily budget for the rest of the month would be used up.`);
     lines.push('');
   } else if (buffer.kind === 'breaches_floor') {
-    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- ${priceLabel}: ₹${INR(buffer.price)}.`);
     lines.push(`- Classification: EXCEEDS spendable-above-floor (STS ₹${INR(computedSTS)} + cushion ₹${INR(savings.cushion)} = ₹${INR(buffer.spendableAboveFloor)}) by ₹${INR(buffer.overBy)}. Floor-breach case.`);
     lines.push(`- **Use verdict_color = "RED"**. Name the safety net (₹${INR(buffer.safetyNet)}) — this purchase would exhaust the cushion AND require dipping into the floor that the ${savings.backerLabel ?? 'emergency fund'} backs.`);
     lines.push(`- DO NOT say the purchase "dips into safety net" loosely — be specific: it exhausts STS + cushion (₹${INR(buffer.spendableAboveFloor)} together) and pushes against the ₹${INR(buffer.safetyNet)} floor.`);
+    lines.push(`- ${savings.backerLabel ?? 'Safety-net fund'} would fall from ₹${INR(savings.backerBalance)} to ₹${INR(savings.backerBalance - buffer.overBy)}; that is ₹${INR(buffer.overBy)} below the cushion line. Use these figures verbatim; do not compute other balances.`);
+    lines.push(`- Do NOT state any daily safe-to-spend figure (it would be negative); say the month's budget would be used up.`);
     lines.push(`- rule_citations[] must include "safety_net".`);
     lines.push('');
   } else if (buffer.kind === 'cushion_unavailable') {
-    lines.push(`- Price extracted from user message: ₹${INR(buffer.price)}.`);
+    lines.push(`- ${priceLabel}: ₹${INR(buffer.price)}.`);
     lines.push(`- Classification: EXCEEDS safe-to-spend by ₹${INR(buffer.stsExceedBy)}; no spendable cushion exists (cushion = ₹0). Buffer-aware logic is DORMANT — verdict logic falls back to Spec 1 (RED with no "but you have savings" softening).`);
     lines.push(`- **Use verdict_color = "RED"**. Do not invoke buffer language; the user has no cushion to draw on.`);
     lines.push('');
@@ -549,11 +617,12 @@ export const buildSystemPrompt = (
   merchantStats: any[],
   carryForward: number = 0,
   userMessage: string = '',
+  earlierUserMessages: string[] = [],
 ): string => {
   const rules = getUserRulesFromProfile(profile);
   const layer1 = buildIdentityLayer();
   const layer2 = buildVoiceLayer(profile.avatar || 'strategist');
-  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward, userMessage);
+  const layer3 = buildGroundingContext(profile, goals, commitments, transactions, ritual, merchantStats, carryForward, userMessage, earlierUserMessages);
   const layer4 = buildVerdictLayer(rules);
   const layer5 = buildProseStructureLayer();
 

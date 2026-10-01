@@ -40,10 +40,14 @@ const PATTERNS = {
   timing: [
     /\bbest\s+time\s+to\s+(?:invest|buy|sell)\b/i,
     /\bmarket\s+(?:timing|crash|rally|correction|dip)\b/i,
-    /\bshould\s+I\s+(?:buy|sell|exit)\b(?:.{0,40}?\b(?:now|today|tomorrow|this\s+week|stocks?|shares?|NIFTY|SENSEX)\b)?/i,
-    /\bwhen\s+(?:to|should\s+I)\s+(?:invest|buy|sell)\b/i,
+    /^(?!.*(?:₹|\brs\.?\s?\d|\d\s*(?:k|lakhs?|rupees?)\b)).*\bshould\s+I\s+(?:buy|sell|exit)\b.{0,40}?\b(?:now|today|tomorrow|this\s+week|stocks?|shares?|NIFTY|SENSEX)\b/i,
+    // Eval finding: "When should I buy a ₹6,000 phone case?" and "Should I wait
+    // until payday to buy a ₹4,000 jacket?" were deflected as market timing
+    // in 5 of 5 runs. Buy/sell timing now needs a market product nearby.
+    /\bwhen\s+(?:to|should\s+I)\s+invest\b/i,
+    /\bwhen\s+(?:to|should\s+I)\s+(?:buy|sell)\b.{0,40}?\b(?:stocks?|shares?|gold|funds?|units|crypto|bitcoin|NIFTY|SENSEX|ETFs?|bonds?)\b/i,
     /\bnow\s+is\s+a\s+good\s+time\b/i,
-    /\bwait\s+until\b/i,
+    /\bwait\s+until\b.{0,40}?\b(?:market|NIFTY|SENSEX|crash|correction|dip|prices?\s+(?:fall|drop))\b/i,
   ],
   tax: [
     /\bold\s+regime\b/i,

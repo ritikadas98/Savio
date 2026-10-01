@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "apply-migrations": "node scripts/apply-migrations.js",
-    "divergence-tests": "node --env-file=.env.local scripts/run-divergence-tests.mjs"
+    "divergence-tests": "node --env-file=.env.local scripts/run-divergence-tests.mjs",
+    "eval": "python tests/eval/run_eval.py"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,5 +1,9 @@
 # Figure-traceability test
 
+> **Superseded as the release check by [`tests/eval/`](../eval/REPORT.md)**, which runs
+> against the live app and also checks verdict colours, consistency, scope and context.
+> This folder stays as the evidence for the design rule (model maths vs code maths).
+
 **There are two divergence tests in this repo. They answer different questions.**
 
 | | [`docs/divergence-tests.md`](../../docs/divergence-tests.md) | this folder |

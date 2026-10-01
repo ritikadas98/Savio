@@ -243,7 +243,7 @@ function normalizeSavioResponse(data) {
 // verification (claim correctness, not just arithmetic derivability) —
 // a different problem than field coverage.
 // ---------------------------------------------------------------------------
-function signalsLine(savio, vanillaText) {
+function signalsLine(q, savio, vanillaText) {
   const s = [`Savio response kind: \`${savio.kind}\``];
   const color = savio.structured?.verdict_color;
 
@@ -262,7 +262,15 @@ function signalsLine(savio, vanillaText) {
     s.push("prose numbers guard-verified against Priya's grounding context");
   }
 
-  if (/₹\s?[\d,]+/.test(vanillaText)) s.push("vanilla stated a ₹ figure it has no source for");
+  // A ₹ figure that only repeats the question's price is not made up. Flag only
+  // figures absent from the question.
+  // Amounts are normalized so "₹8k" in the question matches "₹8,000" in the answer.
+  const amounts = (t) => [...t.matchAll(/₹\s?(\d[\d,]*)\s?(k|L)?\b/gi)]
+    .map(([, n, unit]) => Number(n.replace(/,/g, "")) * ({ k: 1e3, l: 1e5 }[unit?.toLowerCase()] ?? 1));
+  const asked = new Set(amounts(q));
+  if (amounts(vanillaText).some((n) => !asked.has(n))) {
+    s.push("vanilla stated a ₹ figure that is not in the question");
+  }
   if (/mutual fund|invest in|stock|SIP|portfolio|allocat/i.test(vanillaText)) s.push("vanilla gave investment/instrument guidance");
   return s.join("; ");
 }
@@ -286,7 +294,7 @@ function block({ category, q, savio, vanillaText }) {
     (vanillaText?.trim() || "⟨empty⟩"),
     "```",
     "",
-    `**Signals:** ${signalsLine(savio, vanillaText)}`,
+    `**Signals:** ${signalsLine(q, savio, vanillaText)}`,
     "",
     "---",
     "",

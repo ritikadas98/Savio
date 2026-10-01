@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildSystemPrompt } from './prompt_builder.ts';
+import { buildSystemPrompt, verdictForMessage } from './prompt_builder.ts';
 import { hallucinationGuard, hallucinationGuardStructured } from './hallucination_guard.ts';
 import { checkScopeFilter, buildScopeDeflection } from './scope_filter.ts';
 import { generateContent } from '../_shared/gemini.ts';
@@ -126,6 +126,13 @@ serve(async (req) => {
     // model to use the lever (buffer-after, months-to-rebuild) verbatim
     // rather than improvising cushion/floor language. Per the D.40 /
     // D.63 pattern: cut the LLM surface, don't guard it.
+    // The user's earlier messages, newest first, for the running total of a
+    // spend across turns. Read before `history` below reverses historyData in place.
+    const earlierUserMessages = (historyData || [])
+      .filter((m: { role: string }) => m.role === 'user')
+      .map((m: { content: string }) => m.content);
+    if (earlierUserMessages[0] === message) earlierUserMessages.shift();
+
     const systemPrompt = buildSystemPrompt(
       profile,
       goals || [],
@@ -135,6 +142,7 @@ serve(async (req) => {
       merchantStats || [],
       carryForward,
       message,
+      earlierUserMessages,
     );
 
     // Call Gemini via Vertex AI
@@ -210,6 +218,25 @@ serve(async (req) => {
       }
     }
 
+    // Code decides the verdict colour; the prompt already told the model which
+    // one. If the card still disagrees, code wins: set the colour and swap the
+    // verdict_line opener to match. verdict_overridden lets the eval count how
+    // often this happens. No code verdict (no price, or a total that depends on
+    // earlier turns) leaves the model's colour as is.
+    const { verdict: decided, written } = verdictForMessage(profile, goals || [], commitments || [], carryForward, message, earlierUserMessages);
+    let verdictOverridden = false;
+    if (structured && written) {
+      structured.body = written.body;
+      structured.tradeoffs = written.tradeoffs;
+    }
+    if (structured && decided && structured.verdict_color !== decided.color) {
+      const opener = { GREEN: 'Go ahead — ', YELLOW: 'Think twice — ', RED: 'Step back — ' }[decided.color];
+      structured.verdict_color = decided.color;
+      structured.verdict_line = opener + structured.verdict_line.replace(/^\s*(go ahead|think twice|step back)\s*[—–-]\s*/i, '');
+      assistantMessage = structured.verdict_line;
+      verdictOverridden = true;
+    }
+
     // Guard & Filter — D.18 dispatch:
     //   - structured response: run the guard across verdict_line, body,
     //     tradeoffs[i], best_next_step so every text-bearing field gets
@@ -258,6 +285,9 @@ serve(async (req) => {
       fallback_used: guardResult.fallback_used || false,
       scope_filter_triggered: scopeResult.family || null,
       is_verdict: isVerdict,
+      verdict_source: decided ? 'code' : 'model',
+      verdict_overridden: verdictOverridden,
+      figures_written_by_code: Boolean(structured && written),
       structured,    // Phase C3: full verdict tuple or null
     };
 
